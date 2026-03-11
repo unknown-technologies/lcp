@@ -169,7 +169,7 @@ public class ClipTreeEditor extends JPanel {
 		}
 	}
 
-	private static class ClipTreeCellEditor extends DefaultTreeCellEditor {
+	private class ClipTreeCellEditor extends DefaultTreeCellEditor {
 		private ClipTreeNode node;
 
 		public ClipTreeCellEditor(JTree tree, DefaultTreeCellRenderer renderer) {
@@ -196,9 +196,13 @@ public class ClipTreeEditor extends JPanel {
 			if(node.toString().equals(value)) {
 				return node;
 			} else if(value.length() == 0) {
-				return node.rename(null);
+				ClipTreeNode n = node.rename(null);
+				updated.callback();
+				return n;
 			} else {
-				return node.rename(value);
+				ClipTreeNode n = node.rename(value);
+				updated.callback();
+				return n;
 			}
 		}
 	}

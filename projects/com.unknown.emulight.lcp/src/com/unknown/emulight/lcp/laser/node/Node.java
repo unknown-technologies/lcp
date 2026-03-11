@@ -1,5 +1,6 @@
 package com.unknown.emulight.lcp.laser.node;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,17 +14,27 @@ import com.unknown.math.g3d.Vec3;
 import com.unknown.xml.dom.Element;
 
 public abstract class Node implements Cloneable {
-	private final Property<String> name = new Property<>(StandardPropertyNames.NAME, String.class);
-	private final Property<Vec3> translation = new Property<>(StandardPropertyNames.TRANSLATION, new Vec3(0, 0, 0));
-	private final Property<Vec3> scale = new Property<>(StandardPropertyNames.SCALE, new Vec3(1, 1, 1));
-	private final Property<Double> rotation = new Property<>(StandardPropertyNames.ROTATION, 0.0);
+	protected static final Vec3 ZERO = new Vec3(0.0, 0.0, 0.0);
+	protected static final Vec3 ONE = new Vec3(1.0, 1.0, 1.0);
+	protected static final Vec3 MIN3D = new Vec3(-1.0, -1.0, -1.0);
+	protected static final Vec3 MAX3D = new Vec3(1.0, 1.0, 1.0);
+	protected static final Color3 WHITE = new Color3(1.0, 1.0, 1.0);
 
-	private final Property<Vec3> colorScale = new Property<>(StandardPropertyNames.COLOR_SCALE, new Vec3(1, 1, 1));
+	private final Property<String> name = new Property<>(StandardPropertyNames.NAME, String.class, true);
+	private final Property<Boolean> enabled = new Property<>(StandardPropertyNames.ENABLED, true);
+	private final Property<Vec3> translation = new Property<>(StandardPropertyNames.TRANSLATION, ZERO, MIN3D,
+			MAX3D);
+	private final Property<Vec3> scale = new Property<>(StandardPropertyNames.SCALE, ONE, ZERO, ONE);
+	private final Property<Double> rotation = new Property<>(StandardPropertyNames.ROTATION, 0.0, 0.0, 360.0);
+
+	private final Property<Vec3> colorScale = new Property<>(StandardPropertyNames.COLOR_SCALE, ONE, ZERO, ONE);
 
 	private final Map<String, Property<?>> properties = new HashMap<>();
 	private final List<Property<?>> propertyList = new ArrayList<>();
 
 	private final boolean isLeaf;
+
+	private final String type;
 
 	private Node parent;
 	private Clip clip;
@@ -50,12 +61,15 @@ public abstract class Node implements Cloneable {
 		}
 	}
 
-	protected abstract List<Shape> render(List<Shape> result, Mtx44 positionTransform, Mtx44 colorTransform);
+	protected abstract List<Shape> render(List<Shape> result, int time, Mtx44 positionTransform,
+			Mtx44 colorTransform);
 
-	protected Node(boolean isLeaf) {
+	protected Node(String type, boolean isLeaf) {
+		this.type = type;
 		this.isLeaf = isLeaf;
 
 		addProperty(name);
+		addProperty(enabled);
 		addProperty(translation);
 		addProperty(scale);
 		addProperty(rotation);
@@ -95,11 +109,11 @@ public abstract class Node implements Cloneable {
 	}
 
 	public String getName() {
-		return name.getValue();
+		return name.getValue(0);
 	}
 
 	public void setName(String name) {
-		this.name.setValue(name);
+		this.name.setValue(0, name);
 	}
 
 	public List<Property<?>> getProperties() {
@@ -112,13 +126,13 @@ public abstract class Node implements Cloneable {
 		}
 	}
 
-	public <T> void setProperty(String key, T value) {
+	public <T> void setProperty(int time, String key, T value) {
 		@SuppressWarnings("unchecked")
 		Property<T> prop = (Property<T>) properties.get(key);
 		if(prop == null) {
 			throw new IllegalArgumentException("unknown property");
 		}
-		prop.setValue(value);
+		prop.setValue(time, value);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -126,86 +140,94 @@ public abstract class Node implements Cloneable {
 		return (Property<T>) properties.get(key);
 	}
 
-	public Vec3 getTranslation() {
-		return translation.getValue();
+	public boolean isEnabled(int time) {
+		return enabled.getValue(time);
 	}
 
-	public void setTranslation(Vec3 translation) {
-		this.translation.setValue(translation);
+	public void setEnabled(int time, boolean enabled) {
+		this.enabled.setValue(time, enabled);
 	}
 
-	public Vec3 getScale() {
-		return scale.getValue();
+	public Vec3 getTranslation(int time) {
+		return translation.getValue(time);
 	}
 
-	public void setScale(Vec3 scale) {
-		this.scale.setValue(scale);
+	public void setTranslation(int time, Vec3 translation) {
+		this.translation.setValue(time, translation);
 	}
 
-	public double getRotation() {
-		return rotation.getValue();
+	public Vec3 getScale(int time) {
+		return scale.getValue(time);
 	}
 
-	public void setRotation(double rotation) {
-		this.rotation.setValue(rotation);
+	public void setScale(int time, Vec3 scale) {
+		this.scale.setValue(time, scale);
 	}
 
-	public Mtx44 getTransformation() {
-		return Mtx44.rotDegZ(getRotation()).transApply(getTranslation()).applyScale(getScale());
+	public double getRotation(int time) {
+		return rotation.getValue(time);
 	}
 
-	public Mtx44 getInverseTransformation() {
-		Vec3 sc = getScale();
-		Vec3 tr = getTranslation();
-		return Mtx44.rotDegZ(-getRotation()).scaleApply(1.0 / sc.x, 1.0 / sc.y, 1.0 / sc.z).applyTrans(-tr.x,
-				-tr.y, -tr.z);
+	public void setRotation(int time, double rotation) {
+		this.rotation.setValue(time, rotation);
 	}
 
-	public Vec3 getColorScale() {
-		return colorScale.getValue();
+	public Mtx44 getTransformation(int time) {
+		return Mtx44.rotDegZ(getRotation(time)).transApply(getTranslation(time)).applyScale(getScale(time));
 	}
 
-	public void setColorScale(Vec3 colorScale) {
-		this.colorScale.setValue(colorScale);
+	public Mtx44 getInverseTransformation(int time) {
+		Vec3 sc = getScale(time);
+		Vec3 tr = getTranslation(time);
+		return Mtx44.rotDegZ(-getRotation(time)).scaleApply(1.0 / sc.x, 1.0 / sc.y, 1.0 / sc.z).applyTrans(
+				-tr.x, -tr.y, -tr.z);
 	}
 
-	public Mtx44 getColorTransformation() {
-		return Mtx44.scale(getColorScale());
+	public Vec3 getColorScale(int time) {
+		return colorScale.getValue(time);
 	}
 
-	public Mtx44 getFullTransform() {
+	public void setColorScale(int time, Vec3 colorScale) {
+		this.colorScale.setValue(time, colorScale);
+	}
+
+	public Mtx44 getColorTransformation(int time) {
+		return Mtx44.scale(getColorScale(time));
+	}
+
+	public Mtx44 getFullTransform(int time) {
 		Mtx44 result = new Mtx44();
 		for(Node node = this; node != null; node = node.getParent()) {
-			result = node.getTransformation().concat(result);
+			result = node.getTransformation(time).concat(result);
 		}
 
 		return result;
 	}
 
-	public Mtx44 getFullColorTransform() {
+	public Mtx44 getFullColorTransform(int time) {
 		Mtx44 result = new Mtx44();
 		for(Node node = this; node != null; node = node.getParent()) {
-			result = node.getTransformation().concat(result);
+			result = node.getTransformation(time).concat(result);
 		}
 
 		return result;
 	}
 
-	public final List<Shape> getShapes() {
+	public final List<Shape> getShapes(int time) {
 		List<Shape> shapes = new ArrayList<>();
-		render(shapes, new Mtx44(), new Mtx44());
+		render(shapes, time, new Mtx44(), new Mtx44());
 		return shapes;
 	}
 
-	public final List<Point3D> render() {
-		return render(new Mtx44(), new Mtx44());
+	public final List<Point3D> render(int time) {
+		return render(time, new Mtx44(), new Mtx44());
 	}
 
-	public final List<Point3D> render(Mtx44 positionTransform, Mtx44 colorTransform) {
+	public final List<Point3D> render(int time, Mtx44 positionTransform, Mtx44 colorTransform) {
 		List<Point3D> result = new ArrayList<>();
 
 		List<Shape> shapes = new ArrayList<>();
-		render(shapes, positionTransform, colorTransform);
+		render(shapes, time, positionTransform, colorTransform);
 
 		// concatenate points and insert empty points between shapes
 		for(Shape shape : shapes) {
@@ -223,10 +245,17 @@ public abstract class Node implements Cloneable {
 		return result;
 	}
 
+	private <T> void copyProperty(Property<T> other) {
+		@SuppressWarnings("unchecked")
+		Property<T> prop = (Property<T>) properties.get(other.getName());
+		prop.copyFrom(other);
+	}
+
 	protected void copyFrom(Node other) {
-		for(Property<?> p : other.propertyList) {
-			if(properties.containsKey(p.getName())) {
-				setProperty(p.getName(), p.getValue());
+		for(Property<? extends Object> p : other.propertyList) {
+			Property<? extends Object> prop = properties.get(p.getName());
+			if(prop != null) {
+				copyProperty(prop);
 			} else if(!other.getClass().equals(getClass())) {
 				throw new IllegalArgumentException("the other node has additional properties");
 			}
@@ -239,14 +268,78 @@ public abstract class Node implements Cloneable {
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + "[name=" + name.getValue() + "]";
+		return getClass().getSimpleName() + "[name=" + getName() + "]";
 	}
 
 	public Element write() {
 		Element xml = new Element("node");
+		xml.addAttribute("type", type);
 		for(Property<? extends Object> p : propertyList) {
-			xml.addAttribute(p.getName(), p.getValue().toString());
+			xml.addChild(p.write());
+		}
+		for(Node n : getChildren()) {
+			xml.addChild(n.write());
 		}
 		return xml;
+	}
+
+	public static Node read(Element xml) throws IOException {
+		return read(null, xml);
+	}
+
+	public static Node read(Clip clip, Element xml) throws IOException {
+		if(!xml.name.equals("node")) {
+			throw new IOException("not a node");
+		}
+
+		String type = xml.getAttribute("type");
+		if(type == null) {
+			throw new IOException("invalid type: NULL");
+		}
+
+		Node node;
+		switch(type) {
+		case CircleNode.TYPE:
+			node = new CircleNode();
+			break;
+		case GroupNode.TYPE:
+			node = new GroupNode();
+			break;
+		case LineNode.TYPE:
+			node = new LineNode();
+			break;
+		case PointNode.TYPE:
+			node = new PointNode();
+			break;
+		default:
+			throw new IOException("unknown node type: " + type);
+		}
+
+		for(Element e : xml.getChildren()) {
+			switch(e.name) {
+			case "property":
+				String name = e.getAttribute("name");
+				if(name == null) {
+					throw new IOException("missing property name");
+				}
+
+				Property<?> prop = node.properties.get(name);
+				if(prop == null) {
+					throw new IOException("unknown property");
+				}
+
+				prop.read(e);
+				break;
+			case "node":
+				Node n = read(e);
+				node.addChild(n);
+				break;
+			default:
+				throw new IOException("unknown element: " + e.name);
+			}
+		}
+
+		node.clip = clip;
+		return node;
 	}
 }

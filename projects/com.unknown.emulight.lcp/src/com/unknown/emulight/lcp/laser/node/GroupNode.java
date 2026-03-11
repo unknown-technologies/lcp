@@ -8,14 +8,16 @@ import com.unknown.emulight.lcp.laser.Clip;
 import com.unknown.math.g3d.Mtx44;
 
 public class GroupNode extends Node {
+	public static final String TYPE = "group";
+
 	private final List<Node> children = new ArrayList<>();
 
 	public GroupNode() {
-		super(false);
+		super(TYPE, false);
 	}
 
 	public GroupNode(Clip clip) {
-		super(false);
+		super(TYPE, false);
 		setClip(clip);
 	}
 
@@ -43,12 +45,14 @@ public class GroupNode extends Node {
 	}
 
 	@Override
-	protected List<Shape> render(List<Shape> result, Mtx44 positionTransform, Mtx44 colorTransform) {
-		Mtx44 positionMtx = positionTransform.concat(getTransformation());
-		Mtx44 colorMtx = colorTransform.concat(getColorTransformation());
+	protected List<Shape> render(List<Shape> result, int time, Mtx44 positionTransform, Mtx44 colorTransform) {
+		Mtx44 positionMtx = positionTransform.concat(getTransformation(time));
+		Mtx44 colorMtx = colorTransform.concat(getColorTransformation(time));
 
 		for(Node node : children) {
-			node.render(result, positionMtx, colorMtx);
+			if(node.isEnabled(time)) {
+				node.render(result, time, positionMtx, colorMtx);
+			}
 		}
 
 		return result;

@@ -32,6 +32,8 @@ public class ClipNodeEditor extends JComponent {
 
 	private Node node;
 
+	private int time;
+
 	public ClipNodeEditor(Callback updated, ClipTreeEditor treeEditor) {
 		this.updated = updated;
 		this.treeEditor = treeEditor;
@@ -52,6 +54,11 @@ public class ClipNodeEditor extends JComponent {
 
 	public Node getNode() {
 		return node;
+	}
+
+	public void setTime(int time) {
+		this.time = time;
+		repaint();
 	}
 
 	@Override
@@ -83,8 +90,12 @@ public class ClipNodeEditor extends JComponent {
 	}
 
 	private void render(Graphics g, Node n, Mtx44 posMtx, Mtx44 colMtx, boolean selected) {
-		Mtx44 pos = posMtx.concat(n.getTransformation());
-		Mtx44 col = colMtx.concat(n.getColorTransformation());
+		if(!n.isEnabled(time)) {
+			return;
+		}
+
+		Mtx44 pos = posMtx.concat(n.getTransformation(time));
+		Mtx44 col = colMtx.concat(n.getColorTransformation(time));
 		boolean sel = selected || n == node;
 		if(sel) {
 			Vec3 zero = pos.mult(new Vec3(0, 0, 0));
@@ -101,9 +112,11 @@ public class ClipNodeEditor extends JComponent {
 			drawLine(g, (LineNode) n, pos, col, sel);
 		} else if(n instanceof CircleNode) {
 			drawCircle(g, (CircleNode) n, pos, col, sel);
-		} else {
+		} else if(n instanceof GroupNode) {
 			for(Node no : n.getChildren()) {
-				render(g, no, pos, col, sel);
+				if(no.isEnabled(time)) {
+					render(g, no, pos, col, sel);
+				}
 			}
 		}
 	}
@@ -135,29 +148,29 @@ public class ClipNodeEditor extends JComponent {
 
 		Mtx44 mtx = Mtx44.scale(1.0 / scale, 1.0 / scale, 1.0).applyTrans(-translateX, -translateY, 0);
 		for(Node n = no; n != null; n = n.getParent()) {
-			mtx = n.getInverseTransformation().concat(mtx);
+			mtx = n.getInverseTransformation(time).concat(mtx);
 		}
 		return mtx;
 	}
 
-	private static void drawPoint(Graphics g, PointNode point, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
-		Vec3 pos = mtx.mult(point.getPosition());
+	private void drawPoint(Graphics g, PointNode point, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+		Vec3 pos = mtx.mult(point.getPosition(time));
 		int x = (int) Math.round(pos.x);
 		int y = (int) Math.round(pos.y);
 
 		if(selected) {
 			g.setColor(SELECTION_COLOR);
 		} else {
-			Color3 color = point.getColor();
+			Color3 color = point.getColor(time);
 			Vec3 result = colorMtx.mult(color);
 			g.setColor(new Color((float) result.x, (float) result.y, (float) result.z));
 		}
 		g.fillOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
 	}
 
-	private static void drawLine(Graphics g, LineNode line, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
-		Vec3 pos1 = mtx.mult(line.getStart());
-		Vec3 pos2 = mtx.mult(line.getEnd());
+	private void drawLine(Graphics g, LineNode line, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+		Vec3 pos1 = mtx.mult(line.getStart(time));
+		Vec3 pos2 = mtx.mult(line.getEnd(time));
 		int x1 = (int) Math.round(pos1.x);
 		int y1 = (int) Math.round(pos1.y);
 		int x2 = (int) Math.round(pos2.x);
@@ -166,14 +179,14 @@ public class ClipNodeEditor extends JComponent {
 		if(selected) {
 			g.setColor(SELECTION_COLOR);
 		} else {
-			Color3 color = line.getColor();
+			Color3 color = line.getColor(time);
 			Vec3 result = colorMtx.mult(color);
 			g.setColor(new Color((float) result.x, (float) result.y, (float) result.z));
 		}
 
 		g.drawLine(x1, y1, x2, y2);
 
-		int count = line.getPointCount();
+		int count = line.getPointCount(time);
 
 		if(count <= 2) {
 			g.fillOval(x1 - POINT_RADIUS, y1 - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
@@ -192,15 +205,15 @@ public class ClipNodeEditor extends JComponent {
 		}
 	}
 
-	private static void drawCircle(Graphics g, CircleNode circle, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
-		int cnt = circle.getPointCount() + 1;
+	private void drawCircle(Graphics g, CircleNode circle, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+		int cnt = circle.getPointCount(time) + 1;
 		int max = cnt - 1;
 		if(cnt < 2) {
 			return;
 		}
 
-		Vec3 pos = circle.getPosition();
-		double r = circle.getRadius();
+		Vec3 pos = circle.getPosition(time);
+		double r = circle.getRadius(time);
 		int[] px = new int[cnt];
 		int[] py = new int[cnt];
 		for(int i = 0; i < cnt; i++) {
@@ -216,7 +229,7 @@ public class ClipNodeEditor extends JComponent {
 		if(selected) {
 			g.setColor(SELECTION_COLOR);
 		} else {
-			Color3 color = circle.getColor();
+			Color3 color = circle.getColor(time);
 			Vec3 result = colorMtx.mult(color);
 			g.setColor(new Color((float) result.x, (float) result.y, (float) result.z));
 		}
@@ -226,7 +239,7 @@ public class ClipNodeEditor extends JComponent {
 
 	private Node getNode(Vec3 point) {
 		Node root = node.getRootNode();
-		List<Shape> shapes = root.getShapes();
+		List<Shape> shapes = root.getShapes(time);
 
 		Shape closest = null;
 		double closestDistance = Double.MAX_VALUE;
@@ -241,7 +254,7 @@ public class ClipNodeEditor extends JComponent {
 			}
 		}
 
-		Mtx44 mtx = node.getFullTransform();
+		Mtx44 mtx = node.getFullTransform(time);
 		Vec3 pos = mtx.mult(new Vec3(0, 0, 0));
 		double dst = point.sub(pos).length();
 		if(dst < closestDistance) {
@@ -250,25 +263,6 @@ public class ClipNodeEditor extends JComponent {
 			return closest.getSource();
 		} else {
 			return null;
-		}
-	}
-
-	private static Property<Vec3> getLinePointProperty(LineNode line, Vec3 point) {
-		Mtx44 mtx = line.getFullTransform();
-		Vec3 start = mtx.mult(line.getStart());
-		Vec3 end = mtx.mult(line.getEnd());
-		Vec3 zero = mtx.mult(new Vec3(0, 0, 0));
-
-		double startDist = start.sub(point).length();
-		double endDist = end.sub(point).length();
-		double zeroDist = zero.sub(point).length();
-
-		if(startDist < endDist && startDist < zeroDist) {
-			return line.getProperty(StandardPropertyNames.START);
-		} else if(endDist < startDist && endDist < zeroDist) {
-			return line.getProperty(StandardPropertyNames.END);
-		} else {
-			return line.getProperty(StandardPropertyNames.TRANSLATION);
 		}
 	}
 
@@ -293,6 +287,28 @@ public class ClipNodeEditor extends JComponent {
 		private Vec3 startPos;
 		private Property<Vec3> posProp;
 
+		private boolean useTranslation;
+
+		private Property<Vec3> getLinePointProperty(LineNode ln, Vec3 point) {
+			Mtx44 mtx = ln.getFullTransform(time);
+			Vec3 start = mtx.mult(ln.getStart(time));
+			Vec3 end = mtx.mult(ln.getEnd(time));
+			Vec3 zero = mtx.mult(new Vec3(0, 0, 0));
+
+			double startDist = start.sub(point).length();
+			double endDist = end.sub(point).length();
+			double zeroDist = zero.sub(point).length();
+
+			if(startDist < endDist && startDist < zeroDist) {
+				return ln.getProperty(StandardPropertyNames.START);
+			} else if(endDist < startDist && endDist < zeroDist) {
+				return ln.getProperty(StandardPropertyNames.END);
+			} else {
+				useTranslation = true;
+				return ln.getProperty(StandardPropertyNames.TRANSLATION);
+			}
+		}
+
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			int x = e.getX();
@@ -306,8 +322,8 @@ public class ClipNodeEditor extends JComponent {
 				if(node instanceof GroupNode) {
 					GroupNode group = (GroupNode) node;
 					PointNode p = new PointNode();
-					p.setPosition(point);
-					p.setColor(color);
+					p.setPosition(time, point);
+					p.setColor(time, color);
 					group.addChild(p);
 					treeEditor.nodeInserted(p);
 					repaint();
@@ -327,6 +343,7 @@ public class ClipNodeEditor extends JComponent {
 			Vec3 point = mtx.mult(new Vec3(startX, startY, 0));
 
 			startNode = getNode(point);
+			useTranslation = false;
 			if(startNode != null) {
 				if(e.getModifiersEx() == (MouseEvent.BUTTON1_DOWN_MASK | MouseEvent.SHIFT_DOWN_MASK)) {
 					if(startNode instanceof CircleNode) {
@@ -338,13 +355,14 @@ public class ClipNodeEditor extends JComponent {
 					} else {
 						posProp = startNode.getProperty(StandardPropertyNames.POSITION);
 						if(posProp == null) {
+							useTranslation = true;
 							posProp = startNode
 									.getProperty(StandardPropertyNames.TRANSLATION);
 						}
 					}
 
 					if(posProp != null) {
-						startPos = posProp.getValue();
+						startPos = posProp.getValue(time);
 					} else {
 						startPos = null;
 					}
@@ -362,25 +380,29 @@ public class ClipNodeEditor extends JComponent {
 				return;
 			}
 
-			Mtx44 mtx = getInverseTransform();
-			Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
-			Vec3 end = mtx.mult(new Vec3(x, y, 0));
-
 			if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) != 0) {
 				// create something
 				if((e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0) {
 					if(circle != null) {
 						// in this case a circle
-						circle.setPosition(start);
-						circle.setRadius(end.sub(start).length());
+						Mtx44 mtx = getInverseTransform(circle);
+						Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
+						Vec3 end = mtx.mult(new Vec3(x, y, 0));
+
+						circle.setPosition(time, start);
+						circle.setRadius(time, end.sub(start).length());
 						updated.callback();
 						repaint();
 					}
 				} else {
 					if(line != null) {
 						// in this case a line
-						line.setStart(start);
-						line.setEnd(end);
+						Mtx44 mtx = getInverseTransform(line);
+						Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
+						Vec3 end = mtx.mult(new Vec3(x, y, 0));
+
+						line.setStart(time, start);
+						line.setEnd(time, end);
 						updated.callback();
 						repaint();
 					}
@@ -410,11 +432,11 @@ public class ClipNodeEditor extends JComponent {
 						}
 					}
 					if(circle != null) {
-						Mtx44 mtx = getInverseTransform();
+						Mtx44 mtx = getInverseTransform(circle);
 						Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
 						Vec3 end = mtx.mult(new Vec3(x, y, 0));
-						circle.setPosition(start);
-						circle.setRadius(end.sub(start).length());
+						circle.setPosition(time, start);
+						circle.setRadius(time, end.sub(start).length());
 						updated.callback();
 						repaint();
 					}
@@ -428,11 +450,11 @@ public class ClipNodeEditor extends JComponent {
 						}
 					}
 					if(line != null) {
-						Mtx44 mtx = getInverseTransform();
+						Mtx44 mtx = getInverseTransform(line);
 						Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
 						Vec3 end = mtx.mult(new Vec3(x, y, 0));
-						line.setStart(start);
-						line.setEnd(end);
+						line.setStart(time, start);
+						line.setEnd(time, end);
 						updated.callback();
 						repaint();
 					}
@@ -445,23 +467,24 @@ public class ClipNodeEditor extends JComponent {
 
 				if(circle != null) {
 					// change circle radius
-					mtx = circle.getFullTransform();
-					Vec3 pos = mtx.mult(circle.getPosition());
-					circle.setRadius(end.sub(pos).length());
+					mtx = circle.getFullTransform(time);
+					Vec3 pos = mtx.mult(circle.getPosition(time));
+					circle.setRadius(time, end.sub(pos).length());
 					updated.callback();
 					repaint();
 				}
 			} else if(e.getModifiersEx() == MouseEvent.BUTTON1_DOWN_MASK) {
 				// no modifiers
 
-				Mtx44 mtx = getInverseTransform();
-				Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
-				Vec3 end = mtx.mult(new Vec3(x, y, 0));
-				Vec3 diff = end.sub(start);
-
 				if(startNode != null && startPos != null && posProp != null) {
+					Node transformNode = useTranslation ? startNode.getParent() : startNode;
+					Mtx44 mtx = getInverseTransform(transformNode);
+					Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
+					Vec3 end = mtx.mult(new Vec3(x, y, 0));
+					Vec3 diff = end.sub(start);
+
 					Vec3 pos = startPos.add(diff);
-					posProp.setValue(pos);
+					posProp.setValue(time, pos);
 					updated.callback();
 					repaint();
 				}

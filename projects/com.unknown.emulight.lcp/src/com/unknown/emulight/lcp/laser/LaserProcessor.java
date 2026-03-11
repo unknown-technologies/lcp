@@ -26,10 +26,9 @@ public class LaserProcessor {
 	private final Timer timer;
 	private final int rate;
 	private long startTime;
-	private long lastTime;
 
 	private final ConcurrentMap<InetAddress, Laser> lasers = new ConcurrentHashMap<>();
-	private final ConcurrentMap<InterfaceId, Clip> currentClip = new ConcurrentHashMap<>();
+	private final ConcurrentMap<InterfaceId, ClipRef> currentClip = new ConcurrentHashMap<>();
 
 	public LaserProcessor() throws IOException {
 		this(60);
@@ -41,7 +40,6 @@ public class LaserProcessor {
 		net = new ShowNET(true);
 
 		startTime = System.currentTimeMillis();
-		lastTime = startTime;
 
 		timer = new Timer();
 		TimerTask task = new TimerTask() {
@@ -126,21 +124,37 @@ public class LaserProcessor {
 	}
 
 	public void setCurrentClip(Laser laser, Clip clip) {
-		currentClip.put(laser.getInterfaceId(), clip);
+		long now = System.currentTimeMillis();
+		currentClip.put(laser.getInterfaceId(), new ClipRef(now, clip));
 	}
 
 	public void clearCurrentClip(Laser laser) {
 		currentClip.remove(laser.getInterfaceId());
 	}
 
+	public boolean hasCurrentClip(Laser laser) {
+		return currentClip.containsKey(laser.getInterfaceId());
+	}
+
 	private void process() {
 		long now = System.currentTimeMillis();
-		int dt = (int) (now - lastTime);
 		for(Laser laser : lasers.values()) {
 			try {
-				Clip clip = currentClip.get(laser.getInterfaceId());
-				if(clip != null) {
-					laser.sendFrame(clip.render(dt), clip.getSpeed());
+				ClipRef ref = currentClip.get(laser.getInterfaceId());
+				if(ref != null) {
+					Clip clip = ref.clip;
+					int t = (int) (now - ref.startTime);
+					if(t > clip.getDuration()) {
+						if(clip.isLoop()) {
+							t %= clip.getDuration();
+							laser.sendFrame(clip.render(t), clip.getSpeed());
+						} else {
+							currentClip.remove(laser.getInterfaceId());
+							laser.sendNop();
+						}
+					} else {
+						laser.sendFrame(clip.render(t), clip.getSpeed());
+					}
 				} else {
 					laser.sendNop();
 				}
@@ -155,6 +169,15 @@ public class LaserProcessor {
 				lasers.remove(laser.getAddress());
 			}
 		}
-		lastTime = now;
+	}
+
+	private static class ClipRef {
+		public final long startTime;
+		public final Clip clip;
+
+		public ClipRef(long startTime, Clip clip) {
+			this.startTime = startTime;
+			this.clip = clip;
+		}
 	}
 }

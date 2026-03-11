@@ -8,15 +8,18 @@ import com.unknown.math.g3d.Mtx44;
 import com.unknown.math.g3d.Vec3;
 
 public class CircleNode extends Node {
-	private final Property<Vec3> position = new Property<>(StandardPropertyNames.POSITION, new Vec3(0, 0, 0));
-	private final Property<Color3> color = new Property<>(StandardPropertyNames.COLOR, new Color3(1, 1, 1));
-	private final Property<Double> radius = new Property<>(StandardPropertyNames.RADIUS, 0.1);
-	private final Property<Integer> pointCount = new Property<>(StandardPropertyNames.POINTS, 10);
-	private final Property<Integer> repetition = new Property<>(StandardPropertyNames.REPETITION, 1);
-	private final Property<Boolean> connected = new Property<>(StandardPropertyNames.CONNECTED, true);
+	public static final String TYPE = "circle";
+
+	private final Property<Vec3> position = new Property<>(StandardPropertyNames.POSITION, ZERO, MIN3D, MAX3D);
+	private final Property<Color3> color = new Property<>(StandardPropertyNames.COLOR, WHITE);
+	private final Property<Double> radius = new Property<>(StandardPropertyNames.RADIUS, 0.1, 0.0, 1.0);
+	private final Property<Integer> pointCount = new Property<>(StandardPropertyNames.POINTS, 10, 3, 1000, false);
+	private final Property<Integer> repetition = new Property<>(StandardPropertyNames.REPETITION, 1, 1, 1000,
+			false);
+	private final Property<Boolean> connected = new Property<>(StandardPropertyNames.CONNECTED, true, false);
 
 	public CircleNode() {
-		super(true);
+		super(TYPE, true);
 
 		addProperty(position);
 		addProperty(color);
@@ -26,75 +29,75 @@ public class CircleNode extends Node {
 		addProperty(connected);
 	}
 
-	public int getPointCount() {
-		return pointCount.getValue();
+	public int getPointCount(int time) {
+		return pointCount.getValue(time);
 	}
 
-	public void setPointCount(int pointCount) {
-		this.pointCount.setValue(pointCount);
+	public void setPointCount(int time, int pointCount) {
+		this.pointCount.setValue(time, pointCount);
 	}
 
-	public Vec3 getPosition() {
-		return position.getValue();
+	public Vec3 getPosition(int time) {
+		return position.getValue(time);
 	}
 
-	public void setPosition(Vec3 position) {
-		this.position.setValue(position);
+	public void setPosition(int time, Vec3 position) {
+		this.position.setValue(time, position);
 	}
 
-	public double getRadius() {
-		return radius.getValue();
+	public double getRadius(int time) {
+		return radius.getValue(time);
 	}
 
-	public void setRadius(double radius) {
-		this.radius.setValue(radius);
+	public void setRadius(int time, double radius) {
+		this.radius.setValue(time, radius);
 	}
 
-	public Color3 getColor() {
-		return color.getValue();
+	public Color3 getColor(int time) {
+		return color.getValue(time);
 	}
 
-	public void setColor(Color3 color) {
-		this.color.setValue(color);
+	public void setColor(int time, Color3 color) {
+		this.color.setValue(time, color);
 	}
 
-	public int getRepetition() {
-		return repetition.getValue();
+	public int getRepetition(int time) {
+		return repetition.getValue(time);
 	}
 
-	public void setRepetition(int repetition) {
+	public void setRepetition(int time, int repetition) {
 		if(repetition < 1) {
 			throw new IllegalArgumentException("Invalid repetition count");
 		}
-		this.repetition.setValue(repetition);
+		this.repetition.setValue(time, repetition);
 	}
 
-	public boolean isConnected() {
-		return connected.getValue();
+	public boolean isConnected(int time) {
+		return connected.getValue(time);
 	}
 
-	public void setConnected(boolean connected) {
-		this.connected.setValue(connected);
+	public void setConnected(int time, boolean connected) {
+		this.connected.setValue(time, connected);
 	}
 
 	@Override
-	protected List<Shape> render(List<Shape> result, Mtx44 positionTransform, Mtx44 colorTransform) {
-		Mtx44 positionMtx = positionTransform.concat(getTransformation());
-		Mtx44 colorMtx = colorTransform.concat(getColorTransformation());
+	protected List<Shape> render(List<Shape> result, int time, Mtx44 positionTransform, Mtx44 colorTransform) {
+		Mtx44 positionMtx = positionTransform.concat(getTransformation(time));
+		Mtx44 colorMtx = colorTransform.concat(getColorTransformation(time));
 
-		int cnt = pointCount.getValue() + 1;
+		int cnt = getPointCount(time) + 1;
 		int max = cnt - 1;
 		if(cnt < 2) {
 			return result;
 		}
 
-		Vec3 col = colorMtx.mult(color.getValue());
+		Vec3 col = colorMtx.mult(getColor(time));
 
-		double r = radius.getValue();
-		Vec3 pos = position.getValue();
+		double r = getRadius(time);
+		Vec3 pos = getPosition(time);
 
-		int rep = getRepetition();
-		boolean con = isConnected();
+		int rep = getRepetition(time);
+		boolean con = isConnected(time);
 
 		List<Point3D> points = new ArrayList<>();
 		for(int i = 0; i < cnt; i++) {

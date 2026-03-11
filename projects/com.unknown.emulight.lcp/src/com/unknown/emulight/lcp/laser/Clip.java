@@ -1,5 +1,6 @@
 package com.unknown.emulight.lcp.laser;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -9,13 +10,15 @@ import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.math.g3d.Vec3;
 import com.unknown.net.shownet.Point;
+import com.unknown.xml.dom.Element;
 
 public class Clip {
 	private final Project project;
 
-	private int duration = 1;
+	private int duration = 1000;
 	private int speed = 1000;
 	private String name;
+	private boolean loop = true;
 
 	private Node root = new GroupNode(this);
 
@@ -52,6 +55,14 @@ public class Clip {
 		this.duration = duration;
 	}
 
+	public boolean isLoop() {
+		return loop;
+	}
+
+	public void setLoop(boolean loop) {
+		this.loop = loop;
+	}
+
 	public Node getRoot() {
 		return root;
 	}
@@ -78,7 +89,7 @@ public class Clip {
 		Mtx44 positionMtx = projection.scaleApply(0x8000, 0x8000, 1).transApply(0x8000, 0x8000, 0);
 		Mtx44 colorMtx = color.scaleApply(0xFFFF, 0xFFFF, 0xFFFF);
 
-		List<Point3D> points = root.render(positionMtx, colorMtx);
+		List<Point3D> points = root.render(time, positionMtx, colorMtx);
 
 		List<Point> result = new ArrayList<>();
 		for(Point3D point : points) {
@@ -109,5 +120,59 @@ public class Clip {
 		}
 
 		return result;
+	}
+
+	public Element write() {
+		Element xml = new Element("clip");
+		if(name != null) {
+			xml.addAttribute("name", name);
+		}
+		xml.addAttribute("duration", Integer.toString(duration));
+		xml.addAttribute("speed", Integer.toString(speed));
+		xml.addAttribute("loop", loop ? "true" : "false");
+		xml.addChild(root.write());
+		return xml;
+	}
+
+	public static Clip read(Project prj, Element xml) throws IOException {
+		if(!xml.name.equals("clip")) {
+			throw new IOException("not a clip");
+		}
+
+		Clip clip = new Clip(prj);
+
+		try {
+			clip.duration = Integer.parseInt(xml.getAttribute("duration"));
+		} catch(NumberFormatException e) {
+			throw new IOException("invalid duration: " + xml.getAttribute("duration"), e);
+		}
+
+		try {
+			clip.speed = Integer.parseInt(xml.getAttribute("speed"));
+		} catch(NumberFormatException e) {
+			throw new IOException("invalid duration: " + xml.getAttribute("duration"), e);
+		}
+
+		clip.loop = Boolean.parseBoolean(xml.getAttribute("loop"));
+		clip.name = xml.getAttribute("name");
+
+		GroupNode root = null;
+		for(Element e : xml.getChildren()) {
+			switch(e.name) {
+			case "node":
+				if(root != null) {
+					throw new IOException("more than one root node");
+				}
+				Node node = Node.read(clip, e);
+				if(!(node instanceof GroupNode)) {
+					throw new IOException("not a group node");
+				}
+				root = (GroupNode) node;
+			}
+		}
+
+		clip.root = root;
+
+		return clip;
 	}
 }

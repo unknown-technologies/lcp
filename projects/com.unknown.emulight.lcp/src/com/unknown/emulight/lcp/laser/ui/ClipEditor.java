@@ -1,11 +1,15 @@
 package com.unknown.emulight.lcp.laser.ui;
 
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.io.IOException;
 import java.util.List;
 import java.util.logging.Logger;
 
 import javax.swing.AbstractListModel;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -43,6 +47,8 @@ public class ClipEditor extends JPanel {
 	private ClipPropertyEditor propertyEditor;
 	private ClipNodeEditor nodeEditor;
 
+	private ClipPropertyAutomationEditor automationEditor;
+
 	private Laser previewLaser;
 
 	private Vec3 colorScale = new Vec3(0, 0, 0);
@@ -51,11 +57,17 @@ public class ClipEditor extends JPanel {
 
 	private JSpinner frameSpeed;
 	private JSpinner clipDuration;
+	private JCheckBox loop;
+	private JSlider timeSlider;
 
-	public ClipEditor(Project project) {
+	private int time;
+
+	public ClipEditor(JFrame parent, Project project) {
 		super(new BorderLayout());
 
 		this.project = project;
+
+		automationEditor = new ClipPropertyAutomationEditor(parent, this::update);
 
 		// TODO: make this selectable
 		clip = new Clip(project);
@@ -63,7 +75,7 @@ public class ClipEditor extends JPanel {
 		lasers = new LaserListModel();
 		JList<String> laserList = new JList<>(lasers);
 
-		propertyEditor = new ClipPropertyEditor(this::updateProperty);
+		propertyEditor = new ClipPropertyEditor(this::updateProperty, automationEditor);
 
 		treeEditor = new ClipTreeEditor(this::update);
 		treeEditor.setSelectionListener(n -> {
@@ -88,6 +100,8 @@ public class ClipEditor extends JPanel {
 		JSlider sliderScaleY = new JSlider(0, 65536, 65536);
 		frameSpeed = new JSpinner(new SpinnerNumberModel(clip.getSpeed(), 440, 2000000, 1));
 		clipDuration = new JSpinner(new SpinnerNumberModel(clip.getDuration(), 1, 3600000, 1));
+		loop = new JCheckBox();
+		loop.setSelected(clip.isLoop());
 
 		JPanel settings = new JPanel(new LabeledPairLayout());
 		settings.add(LabeledPairLayout.LABEL, new JLabel("Red:"));
@@ -106,6 +120,8 @@ public class ClipEditor extends JPanel {
 		settings.add(LabeledPairLayout.COMPONENT, frameSpeed);
 		settings.add(LabeledPairLayout.LABEL, new JLabel("Clip duration:"));
 		settings.add(LabeledPairLayout.COMPONENT, clipDuration);
+		settings.add(LabeledPairLayout.LABEL, new JLabel("Loop:"));
+		settings.add(LabeledPairLayout.COMPONENT, loop);
 
 		ChangeListener colorSliderListener = e -> {
 			int red = sliderRed.getValue();
@@ -133,6 +149,8 @@ public class ClipEditor extends JPanel {
 		sliderScaleX.addChangeListener(scaleSliderListener);
 		sliderScaleY.addChangeListener(scaleSliderListener);
 
+		timeSlider = new JSlider(0, clip.getDuration(), 0);
+
 		frameSpeed.addChangeListener(e -> {
 			int speed = (int) frameSpeed.getValue();
 			clip.setSpeed(speed);
@@ -142,15 +160,44 @@ public class ClipEditor extends JPanel {
 		clipDuration.addChangeListener(e -> {
 			int duration = (int) clipDuration.getValue();
 			clip.setDuration(duration);
+			int value = timeSlider.getValue();
+			if(value > duration) {
+				timeSlider.setValue(0);
+			}
+			timeSlider.setMaximum(duration);
+			if(value > duration) {
+				timeSlider.setValue(duration);
+			}
 			send();
 		});
 
+		loop.addChangeListener(e -> {
+			clip.setLoop(loop.isSelected());
+		});
+
+		timeSlider.addChangeListener(e -> {
+			setTime(timeSlider.getValue());
+		});
+
+		JButton play = new JButton("Play");
+		play.addActionListener(e -> playClip());
+		JButton stop = new JButton("Stop");
+		stop.addActionListener(e -> stopClip());
+		JPanel buttons = new JPanel(new FlowLayout());
+		buttons.add(play);
+		buttons.add(stop);
+
+		JPanel laserControl = new JPanel(new BorderLayout());
+		laserControl.add(BorderLayout.CENTER, new JScrollPane(laserList));
+		laserControl.add(BorderLayout.SOUTH, buttons);
+
 		JTabbedPane tabs = new JTabbedPane();
 		tabs.addTab("Properties", propertyEditor);
-		tabs.addTab("Lasers", new JScrollPane(laserList));
+		tabs.addTab("Lasers", laserControl);
 		tabs.addTab("Settings", settings);
 		add(BorderLayout.CENTER, split);
 		add(BorderLayout.EAST, tabs);
+		add(BorderLayout.SOUTH, timeSlider);
 
 		project.getProcessor().addLaserDiscoveryListener(new LaserDiscoveryListener() {
 			@Override
@@ -219,8 +266,35 @@ public class ClipEditor extends JPanel {
 		}
 	}
 
+	public Clip getClip() {
+		return clip;
+	}
+
+	public void setClip(Clip clip) {
+		this.clip = clip;
+		nodeEditor.setNode(clip.getRoot());
+		propertyEditor.setNode(clip.getRoot());
+		treeEditor.setClip(clip);
+		frameSpeed.setValue(clip.getSpeed());
+		clipDuration.setValue(clip.getDuration());
+		loop.setSelected(clip.isLoop());
+		timeSlider.setValue(0);
+		timeSlider.setMaximum(clip.getDuration());
+		nodeEditor.setTime(0);
+		propertyEditor.setTime(0);
+		send();
+	}
+
 	private void update() {
 		nodeEditor.repaint();
+		propertyEditor.update();
+		send();
+	}
+
+	public void setTime(int time) {
+		this.time = time;
+		nodeEditor.setTime(time);
+		propertyEditor.setTime(time);
 		send();
 	}
 
@@ -230,9 +304,12 @@ public class ClipEditor extends JPanel {
 
 	private void send() {
 		if(previewLaser != null) {
+			if(project.getProcessor().hasCurrentClip(previewLaser)) {
+				return;
+			}
 			Mtx44 proj = Mtx44.rotDegZ(rotation * 360.0).concat(Mtx44.scale(scale.x, scale.y, scale.z));
 			Mtx44 color = Mtx44.scale(colorScale.x, colorScale.y, colorScale.z);
-			List<Point> points = clip.render(0, proj, color);
+			List<Point> points = clip.render(time, proj, color);
 			try {
 				previewLaser.sendFrame(points, clip.getSpeed());
 			} catch(IOException e) {
@@ -243,12 +320,28 @@ public class ClipEditor extends JPanel {
 
 	private void stop() {
 		if(previewLaser != null) {
+			if(project.getProcessor().hasCurrentClip(previewLaser)) {
+				return;
+			}
 			List<Point> points = List.of(new Point());
 			try {
 				previewLaser.sendFrame(points, 1000);
 			} catch(IOException e) {
 				log.log(Levels.WARNING, "Failed to send frame to laser: " + e.getMessage(), e);
 			}
+		}
+	}
+
+	private void playClip() {
+		if(previewLaser != null) {
+			project.getProcessor().setCurrentClip(previewLaser, clip);
+		}
+	}
+
+	private void stopClip() {
+		if(previewLaser != null) {
+			project.getProcessor().clearCurrentClip(previewLaser);
+			send();
 		}
 	}
 }

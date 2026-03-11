@@ -6,8 +6,11 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JColorChooser;
 import javax.swing.JComponent;
@@ -32,22 +35,33 @@ public class ClipPropertyEditor extends JPanel {
 	private final Callback updated;
 	private Node node;
 
-	public ClipPropertyEditor(Callback updated) {
+	private int time;
+
+	private List<Updater> updater = new ArrayList<>();
+	private boolean bypassEvents = false;
+	private boolean inCallback = false;
+
+	private ClipPropertyAutomationEditor automationEditor;
+
+	public ClipPropertyEditor(Callback updated, ClipPropertyAutomationEditor automationEditor) {
 		super(new LabeledPairLayout());
 		this.updated = updated;
+
+		this.automationEditor = automationEditor;
 	}
 
 	public void setNode(Node node) {
 		this.node = node;
 
 		removeAll();
+		updater.clear();
 
 		for(Property<?> prop : node.getProperties()) {
 			JComponent component;
 			if(prop.getType().equals(String.class)) {
 				@SuppressWarnings("unchecked")
 				Property<String> p = (Property<String>) prop;
-				String value = p.getValue();
+				String value = p.getValue(time);
 				if(value == null) {
 					value = "(unnamed)";
 				}
@@ -55,8 +69,18 @@ public class ClipPropertyEditor extends JPanel {
 				text.getDocument().addDocumentListener(new SimpleDocumentListener() {
 					@Override
 					public void update(DocumentEvent e) {
-						p.setValue(text.getText());
-						updated.callback();
+						if(!bypassEvents) {
+							p.setValue(time, text.getText());
+							callback();
+						}
+					}
+				});
+				updater.add(() -> {
+					try {
+						bypassEvents = true;
+						text.setText(p.getValue(time));
+					} finally {
+						bypassEvents = false;
 					}
 				});
 				component = text;
@@ -64,49 +88,98 @@ public class ClipPropertyEditor extends JPanel {
 				@SuppressWarnings("unchecked")
 				Property<Boolean> p = (Property<Boolean>) prop;
 				JCheckBox checkbox = new JCheckBox();
-				checkbox.setSelected(p.getValue());
+				checkbox.setSelected(p.getValue(time));
 				checkbox.addChangeListener(e -> {
-					p.setValue(checkbox.isSelected());
-					updated.callback();
+					if(!bypassEvents) {
+						p.setValue(time, checkbox.isSelected());
+						callback();
+					}
+				});
+				updater.add(() -> {
+					try {
+						bypassEvents = true;
+						checkbox.setSelected(p.getValue(time));
+					} finally {
+						bypassEvents = false;
+					}
 				});
 				component = checkbox;
 			} else if(prop.getType().equals(Integer.class)) {
 				@SuppressWarnings("unchecked")
 				Property<Integer> p = (Property<Integer>) prop;
-				JSpinner number = new JSpinner(new SpinnerNumberModel((int) p.getValue(), 0, 1000, 1));
+				JSpinner number = new JSpinner(
+						new SpinnerNumberModel((int) p.getValue(time), (int) p.getMinimum(),
+								(int) p.getMaximum(), 1));
 				number.addChangeListener(e -> {
-					p.setValue((Integer) number.getValue());
-					updated.callback();
+					if(!bypassEvents) {
+						p.setValue(time, (int) number.getValue());
+						callback();
+					}
+				});
+				updater.add(() -> {
+					try {
+						bypassEvents = true;
+						number.setValue(p.getValue(time));
+					} finally {
+						bypassEvents = false;
+					}
 				});
 				component = number;
 			} else if(prop.getType().equals(Double.class)) {
 				@SuppressWarnings("unchecked")
 				Property<Double> p = (Property<Double>) prop;
 				JSpinner number = new JSpinner(
-						new SpinnerNumberModel((double) p.getValue(), -1000.0, 1000.0, 0.1));
+						new SpinnerNumberModel((double) p.getValue(time),
+								(double) p.getMinimum(), (double) p.getMaximum(), 0.1));
 				number.addChangeListener(e -> {
-					p.setValue((Double) number.getValue());
-					updated.callback();
+					if(!bypassEvents) {
+						p.setValue(time, (double) number.getValue());
+						callback();
+					}
+				});
+				updater.add(() -> {
+					try {
+						bypassEvents = true;
+						number.setValue(p.getValue(time));
+					} finally {
+						bypassEvents = false;
+					}
 				});
 				component = number;
 			} else if(prop.getType().equals(Vec3.class)) {
 				@SuppressWarnings("unchecked")
 				Property<Vec3> p = (Property<Vec3>) prop;
-				Vec3 vec = p.getValue();
-				JSpinner spinnerX = new JSpinner(new SpinnerNumberModel(vec.x, -1.0, 1.0, 0.1));
-				JSpinner spinnerY = new JSpinner(new SpinnerNumberModel(vec.y, -1.0, 1.0, 0.1));
-				JSpinner spinnerZ = new JSpinner(new SpinnerNumberModel(vec.z, -1.0, 1.0, 0.1));
+				Vec3 vec = p.getValue(time);
+				Vec3 min = p.getMinimum();
+				Vec3 max = p.getMaximum();
+				JSpinner spinnerX = new JSpinner(new SpinnerNumberModel(vec.x, min.x, max.x, 0.1));
+				JSpinner spinnerY = new JSpinner(new SpinnerNumberModel(vec.y, min.y, max.y, 0.1));
+				JSpinner spinnerZ = new JSpinner(new SpinnerNumberModel(vec.z, min.z, max.z, 0.1));
 
 				ChangeListener listener = e -> {
-					double x = (double) spinnerX.getValue();
-					double y = (double) spinnerY.getValue();
-					double z = (double) spinnerZ.getValue();
-					p.setValue(new Vec3(x, y, z));
-					updated.callback();
+					if(!bypassEvents) {
+						double x = (double) spinnerX.getValue();
+						double y = (double) spinnerY.getValue();
+						double z = (double) spinnerZ.getValue();
+						p.setValue(time, new Vec3(x, y, z));
+						callback();
+					}
 				};
 				spinnerX.addChangeListener(listener);
 				spinnerY.addChangeListener(listener);
 				spinnerZ.addChangeListener(listener);
+
+				updater.add(() -> {
+					try {
+						bypassEvents = true;
+						Vec3 v = p.getValue(time);
+						spinnerX.setValue(v.x);
+						spinnerY.setValue(v.y);
+						spinnerZ.setValue(v.z);
+					} finally {
+						bypassEvents = false;
+					}
+				});
 
 				JPanel panel = new JPanel(new GridLayout(1, 3));
 				panel.add(spinnerX);
@@ -117,7 +190,7 @@ public class ClipPropertyEditor extends JPanel {
 			} else if(prop.getType().equals(Color3.class)) {
 				@SuppressWarnings("unchecked")
 				Property<Color3> p = (Property<Color3>) prop;
-				Color3 vec = p.getValue();
+				Color3 vec = p.getValue(time);
 				JSpinner spinnerR = new JSpinner(new SpinnerNumberModel(vec.getRed(), 0.0, 1.0, 0.1));
 				JSpinner spinnerG = new JSpinner(new SpinnerNumberModel(vec.getGreen(), 0.0, 1.0, 0.1));
 				JSpinner spinnerB = new JSpinner(new SpinnerNumberModel(vec.getBlue(), 0.0, 1.0, 0.1));
@@ -143,17 +216,32 @@ public class ClipPropertyEditor extends JPanel {
 				});
 
 				ChangeListener listener = e -> {
-					double r = (double) spinnerR.getValue();
-					double g = (double) spinnerG.getValue();
-					double b = (double) spinnerB.getValue();
-					Color3 color = new Color3(r, g, b);
-					p.setValue(color);
-					colorBox.setBackground(color.getColor());
-					updated.callback();
+					if(!bypassEvents) {
+						double r = (double) spinnerR.getValue();
+						double g = (double) spinnerG.getValue();
+						double b = (double) spinnerB.getValue();
+						Color3 color = new Color3(r, g, b);
+						p.setValue(time, color);
+						colorBox.setBackground(color.getColor());
+						callback();
+					}
 				};
 				spinnerR.addChangeListener(listener);
 				spinnerG.addChangeListener(listener);
 				spinnerB.addChangeListener(listener);
+
+				updater.add(() -> {
+					try {
+						bypassEvents = true;
+						Color3 color = p.getValue(time);
+						spinnerR.setValue(color.getRed());
+						spinnerG.setValue(color.getGreen());
+						spinnerB.setValue(color.getBlue());
+						colorBox.setBackground(color.getColor());
+					} finally {
+						bypassEvents = false;
+					}
+				});
 
 				JPanel controls = new JPanel(new GridLayout(1, 3));
 				controls.add(spinnerR);
@@ -168,15 +256,83 @@ public class ClipPropertyEditor extends JPanel {
 			} else {
 				component = new JLabel();
 			}
+
+			JCheckBox enableAutomation = new JCheckBox();
+			enableAutomation.setEnabled(!prop.isStatic());
+			enableAutomation.setSelected(prop.isAutomation() && !prop.isStatic());
+			enableAutomation.addChangeListener(e -> {
+				if(!bypassEvents) {
+					prop.setAutomation(enableAutomation.isSelected());
+					callback();
+				}
+			});
+
+			updater.add(() -> {
+				try {
+					bypassEvents = true;
+					enableAutomation.setSelected(prop.isAutomation() && !prop.isStatic());
+				} finally {
+					bypassEvents = false;
+				}
+			});
+
+			JButton showAutomation = new JButton("...");
+			showAutomation.setEnabled(!prop.isStatic());
+			showAutomation.setMinimumSize(new Dimension(22, 22));
+			showAutomation.setPreferredSize(new Dimension(22, 22));
+			showAutomation.addActionListener(e -> {
+				automationEditor.setProperty(prop);
+				automationEditor.setVisible(true);
+				automationEditor.toFront();
+			});
+
+			JPanel automation = new JPanel(new GridLayout(1, 2));
+			automation.add(enableAutomation);
+			automation.add(showAutomation);
+
+			JPanel panel = new JPanel(new BorderLayout());
+			panel.add(BorderLayout.CENTER, component);
+			panel.add(BorderLayout.EAST, automation);
+
 			add(LabeledPairLayout.LABEL, new JLabel(prop.getName() + ":"));
-			add(LabeledPairLayout.COMPONENT, component);
+			add(LabeledPairLayout.COMPONENT, panel);
 		}
 
 		revalidate();
 		repaint();
 	}
 
+	private void callback() {
+		try {
+			inCallback = true;
+			updated.callback();
+			automationEditor.update();
+		} finally {
+			inCallback = false;
+		}
+	}
+
 	public Node getNode() {
 		return node;
+	}
+
+	public void update() {
+		if(inCallback) {
+			return;
+		}
+
+		for(Updater u : updater) {
+			u.update();
+		}
+	}
+
+	public void setTime(int time) {
+		this.time = time;
+		update();
+	}
+
+	@FunctionalInterface
+	private interface Updater {
+		void update();
 	}
 }
