@@ -879,52 +879,6 @@ public class ClipPropertyAutomationEditor extends JDialog {
 				}
 			}
 
-			// TODO: is this still needed for anything?
-			private <T> void setPoint(Vec3 point) {
-				Axis axis = getAxis(getWidth(), getHeight());
-				if(axis == null) {
-					return;
-				}
-
-				int time = (int) Math.round(point.x);
-				double value = point.y;
-				if(time < 0) {
-					time = 0;
-				}
-
-				NavigableMap<Integer, ?> values = getValues();
-				Integer floor = values.floorKey(time);
-				Integer ceil = values.ceilingKey(time);
-				if(floor == null && ceil != null) {
-					time = ceil;
-				} else if(floor != null && ceil == null) {
-					time = floor;
-				} else if(floor != null && ceil != null) {
-					// which one is closer?
-					int dstFloor = Math.abs(time - floor);
-					int dstCeil = Math.abs(time - ceil);
-					if(dstFloor < dstCeil) {
-						time = floor;
-					} else {
-						time = ceil;
-					}
-				} else {
-					assert floor == null && ceil == null;
-					return;
-				}
-
-				T old = getInterpolatedValue(time);
-				T next = getValue(value, old);
-				if(next != null) {
-					setValue(time, next);
-					selectedTime = time;
-
-					updateFields();
-				}
-
-				updateFields();
-			}
-
 			private <T> void selectPoint(Vec3 point) {
 				Axis axis = getAxis(getWidth(), getHeight());
 				if(axis == null) {
