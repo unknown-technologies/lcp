@@ -114,7 +114,7 @@ public class Clip {
 			result.add(p);
 		}
 
-		if(result.size() == 0) {
+		if(result.isEmpty()) {
 			// empty frame
 			result.add(new Point());
 		}

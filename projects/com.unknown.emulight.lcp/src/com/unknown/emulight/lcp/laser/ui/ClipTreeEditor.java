@@ -2,11 +2,13 @@ package com.unknown.emulight.lcp.laser.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.function.Consumer;
 
+import javax.swing.AbstractAction;
 import javax.swing.DropMode;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
@@ -49,6 +51,19 @@ public class ClipTreeEditor extends JPanel {
 		tree.setCellRenderer(renderer);
 		tree.setCellEditor(new ClipTreeCellEditor(tree, renderer));
 		tree.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "startEditing");
+		tree.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "deleteNode");
+		tree.getActionMap().put("deleteNode", new AbstractAction() {
+			public void actionPerformed(ActionEvent e) {
+				TreePath[] selection = tree.getSelectionPaths();
+				if(selection != null) {
+					for(TreePath path : selection) {
+						if(path.getPathCount() > 1) {
+							model.remove(path);
+						}
+					}
+				}
+			}
+		});
 
 		add(BorderLayout.CENTER, new JScrollPane(tree));
 
