@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.unknown.emulight.lcp.laser.Clip;
+import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.Point3D;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.math.g3d.Vec3;
@@ -28,6 +28,7 @@ public abstract class Node implements Cloneable {
 	private final Property<Double> rotation = new Property<>(StandardPropertyNames.ROTATION, 0.0, 0.0, 360.0);
 
 	private final Property<Vec3> colorScale = new Property<>(StandardPropertyNames.COLOR_SCALE, ONE, ZERO, ONE);
+	private final Property<Double> brightness = new Property<>(StandardPropertyNames.BRIGHTNESS, 1.0, 0.0, 1.0);
 
 	private final Map<String, Property<?>> properties = new HashMap<>();
 	private final List<Property<?>> propertyList = new ArrayList<>();
@@ -37,7 +38,7 @@ public abstract class Node implements Cloneable {
 	private final String type;
 
 	private Node parent;
-	private Clip clip;
+	private LaserPart clip;
 
 	public List<Node> getChildren() {
 		return Collections.emptyList();
@@ -74,6 +75,7 @@ public abstract class Node implements Cloneable {
 		addProperty(scale);
 		addProperty(rotation);
 		addProperty(colorScale);
+		addProperty(brightness);
 	}
 
 	protected void setParent(Node parent) {
@@ -94,12 +96,12 @@ public abstract class Node implements Cloneable {
 	}
 
 	// the clip is only ever set on the root node
-	public Clip getClip() {
+	public LaserPart getClip() {
 		Node root = getRootNode();
 		return root.clip;
 	}
 
-	protected void setClip(Clip clip) {
+	protected void setClip(LaserPart clip) {
 		Node root = getRootNode();
 		root.clip = clip;
 	}
@@ -191,8 +193,17 @@ public abstract class Node implements Cloneable {
 		this.colorScale.setValue(time, colorScale);
 	}
 
+	public double getBrightness(int time) {
+		return brightness.getValue(time);
+	}
+
+	public void setBrightness(int time, double brightness) {
+		this.brightness.setValue(time, brightness);
+	}
+
 	public Mtx44 getColorTransformation(int time) {
-		return Mtx44.scale(getColorScale(time));
+		double intensity = getBrightness(time);
+		return Mtx44.scale(getColorScale(time)).applyScale(intensity, intensity, intensity);
 	}
 
 	public Mtx44 getFullTransform(int time) {
@@ -287,7 +298,7 @@ public abstract class Node implements Cloneable {
 		return read(null, xml);
 	}
 
-	public static Node read(Clip clip, Element xml) throws IOException {
+	public static Node read(LaserPart clip, Element xml) throws IOException {
 		if(!xml.name.equals("node")) {
 			throw new IOException("not a node");
 		}

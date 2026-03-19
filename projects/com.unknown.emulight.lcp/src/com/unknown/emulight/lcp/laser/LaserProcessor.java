@@ -3,6 +3,7 @@ package com.unknown.emulight.lcp.laser;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -10,10 +11,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 
+import com.unknown.emulight.lcp.project.EmulightSystem;
+import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.net.shownet.InterfaceId;
 import com.unknown.net.shownet.Laser;
+import com.unknown.net.shownet.LaserConnectionListener;
 import com.unknown.net.shownet.LaserDiscoveryListener;
 import com.unknown.net.shownet.LaserInfo;
+import com.unknown.net.shownet.Point;
 import com.unknown.net.shownet.ShowNET;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
@@ -27,26 +32,33 @@ public class LaserProcessor {
 	private final int rate;
 	private long startTime;
 
-	private final ConcurrentMap<InetAddress, Laser> lasers = new ConcurrentHashMap<>();
 	private final ConcurrentMap<InterfaceId, ClipRef> currentClip = new ConcurrentHashMap<>();
 
-	public LaserProcessor() throws IOException {
-		this(60);
-	}
+	private final EmulightSystem sys;
 
-	public LaserProcessor(int rate) throws IOException {
+	private final Timer connectTimer;
+
+	private LaserRenderer renderer;
+
+	public LaserProcessor(EmulightSystem sys, int rate) throws IOException {
 		this.rate = rate;
+		this.sys = sys;
 
 		net = new ShowNET(true);
 
 		startTime = System.currentTimeMillis();
 
-		timer = new Timer();
+		timer = new Timer(true);
 		TimerTask task = new TimerTask() {
 			@Override
 			public void run() {
 				try {
-					process();
+					LaserRenderer r = renderer;
+					if(r != null) {
+						r.render();
+					} else {
+						process();
+					}
 				} catch(Throwable t) {
 					log.log(Levels.ERROR, "Exception while processing laser data: " +
 							t.getMessage(), t);
@@ -55,12 +67,86 @@ public class LaserProcessor {
 		};
 
 		long delay = 1000 / rate;
-		log.info("Processing started with interval of " + rate + " Hz (" + delay + " ms)");
+		log.info("Laser processing started with interval of " + rate + " Hz (" + delay + " ms)");
 		timer.scheduleAtFixedRate(task, delay, delay);
+
+		connectTimer = new Timer(true);
+		TimerTask connectTask = new TimerTask() {
+			@Override
+			public void run() {
+				for(LaserInfo info : getAvailableLasers()) {
+					Laser laser = getLaser(info.getAddress());
+					LaserConfig cfg = sys.getConfig().getLaser(info.getInterfaceId());
+					if(cfg != null) {
+						if(laser == null && cfg.isActive()) {
+							// try to connect
+							try {
+								connect(info.getAddress());
+							} catch(Throwable t) {
+								log.info("Failed to connect to laser: " +
+										t.getMessage());
+							}
+						} else if(laser != null && !cfg.isActive()) {
+							disconnect(laser);
+						}
+					}
+				}
+			}
+		};
+		connectTimer.schedule(connectTask, 2000, 2000);
+
+		net.addLaserDiscoveryListener(new LaserDiscoveryListener() {
+			@Override
+			public void laserLost(LaserInfo info) {
+				InetAddress addr = info.getAddress();
+				if(addr != null) {
+					Laser laser = getLaser(addr);
+					disconnect(laser);
+				}
+			}
+
+			@Override
+			public void laserDiscovered(LaserInfo info) {
+				tryConnect(info);
+			}
+		});
+	}
+
+	private void tryConnect(LaserInfo info) {
+		InterfaceId id = info.getInterfaceId();
+		if(id != null) {
+			LaserConfig cfg = sys.getConfig().getLaser(id);
+			if(cfg != null && cfg.isActive()) {
+				Laser laser = net.getLaser(info.getAddress());
+				if(laser != null && laser.isConnected()) {
+					// laser is already connected
+					return;
+				}
+				try {
+					connect(info.getAddress());
+				} catch(IOException e) {
+					log.info("Failed to connect to laser: " + e.getMessage());
+				}
+			}
+		}
 	}
 
 	public int getRate() {
 		return rate;
+	}
+
+	public void setRenderer(LaserRenderer renderer) {
+		this.renderer = renderer;
+	}
+
+	public void resetAll() {
+		for(Laser laser : getLasers()) {
+			try {
+				laser.sendFrame(List.of(new Point()), 1000);
+			} catch(IOException e) {
+				log.log(Levels.WARNING, "Failed to send empty frame: " + e.getMessage(), e);
+			}
+		}
 	}
 
 	public void addDiscoveryAddress(InetAddress address) {
@@ -76,19 +162,16 @@ public class LaserProcessor {
 	}
 
 	public Laser connect(InetAddress address) throws IOException {
-		Laser laser = lasers.get(address);
+		Laser laser = net.getLaser(address);
 		if(laser != null) {
 			return laser;
 		} else {
-			laser = net.connect(address);
-			lasers.put(address, laser);
-			return laser;
+			return net.connect(address);
 		}
 	}
 
 	public void disconnect(Laser laser) {
 		net.disconnect(laser);
-		lasers.remove(laser.getAddress());
 	}
 
 	public Laser getLaser(InetAddress address) {
@@ -100,7 +183,7 @@ public class LaserProcessor {
 	}
 
 	public Set<Laser> getLasers() {
-		return new HashSet<>(lasers.values());
+		return new HashSet<>(net.getConnectedLasers());
 	}
 
 	public Set<LaserInfo> getAvailableLasers() {
@@ -115,6 +198,14 @@ public class LaserProcessor {
 		net.removeLaserDiscoveryListener(listener);
 	}
 
+	public void addLaserConnectionListener(LaserConnectionListener listener) {
+		net.addLaserConnectionListener(listener);
+	}
+
+	public void removeLaserConnectionListener(LaserConnectionListener listener) {
+		net.removeLaserConnectionListener(listener);
+	}
+
 	public long getStartTime() {
 		return startTime;
 	}
@@ -123,7 +214,7 @@ public class LaserProcessor {
 		startTime = System.currentTimeMillis();
 	}
 
-	public void setCurrentClip(Laser laser, Clip clip) {
+	public void setCurrentClip(Laser laser, LaserPart clip) {
 		long now = System.currentTimeMillis();
 		currentClip.put(laser.getInterfaceId(), new ClipRef(now, clip));
 	}
@@ -138,15 +229,18 @@ public class LaserProcessor {
 
 	private void process() {
 		long now = System.currentTimeMillis();
-		for(Laser laser : lasers.values()) {
+		for(Laser laser : getLasers()) {
+			if(!laser.isConnected()) {
+				continue;
+			}
 			try {
 				ClipRef ref = currentClip.get(laser.getInterfaceId());
 				if(ref != null) {
-					Clip clip = ref.clip;
+					LaserPart clip = ref.clip;
 					int t = (int) (now - ref.startTime);
-					if(t > clip.getDuration()) {
+					if(t > clip.getLength()) {
 						if(clip.isLoop()) {
-							t %= clip.getDuration();
+							t %= clip.getLength();
 							laser.sendFrame(clip.render(t), clip.getSpeed());
 						} else {
 							currentClip.remove(laser.getInterfaceId());
@@ -162,20 +256,34 @@ public class LaserProcessor {
 				log.log(Levels.ERROR, "Failed to communicate with laser " + laser.getAddress() + ": " +
 						e.getMessage());
 				net.disconnect(laser);
-				lasers.remove(laser.getAddress());
 			} catch(Throwable t) {
 				log.log(Levels.ERROR, "Unknown error: " + t.getMessage(), t);
 				net.disconnect(laser);
-				lasers.remove(laser.getAddress());
 			}
 		}
 	}
 
+	public void shutdown() {
+		timer.cancel();
+		for(Laser laser : getLasers()) {
+			try {
+				laser.sendFrame(List.of(new Point()), 1000);
+			} catch(IOException e) {
+				log.log(Levels.ERROR, "Failed to communicate with laser " + laser.getAddress() + ": " +
+						e.getMessage());
+			}
+
+			net.disconnect(laser);
+		}
+
+		net.close();
+	}
+
 	private static class ClipRef {
 		public final long startTime;
-		public final Clip clip;
+		public final LaserPart clip;
 
-		public ClipRef(long startTime, Clip clip) {
+		public ClipRef(long startTime, LaserPart clip) {
 			this.startTime = startTime;
 			this.clip = clip;
 		}

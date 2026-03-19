@@ -32,7 +32,11 @@ suite = {
       "sourceDirs" : ["src"],
       "dependencies" : [
         "common:CORE",
-        "common:NET"
+        "common:AUDIO",
+        "common:NET",
+        "common:PLATFORM",
+        "common:MOTIF",
+        "common:WINDOWS"
       ],
       "javaCompliance" : "21+",
       "workingSets" : "lcp",
@@ -51,7 +55,11 @@ suite = {
       ],
       "overlaps" : [
         "common:CORE",
-        "common:NET"
+        "common:AUDIO",
+        "common:NET",
+        "common:PLATFORM",
+        "common:MOTIF",
+        "common:WINDOWS"
       ]
     }
   }

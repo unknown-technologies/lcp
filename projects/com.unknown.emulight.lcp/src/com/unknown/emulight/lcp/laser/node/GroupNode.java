@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.unknown.emulight.lcp.laser.Clip;
+import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.math.g3d.Mtx44;
 
 public class GroupNode extends Node {
@@ -16,7 +16,7 @@ public class GroupNode extends Node {
 		super(TYPE, false);
 	}
 
-	public GroupNode(Clip clip) {
+	public GroupNode(LaserPart clip) {
 		super(TYPE, false);
 		setClip(clip);
 	}

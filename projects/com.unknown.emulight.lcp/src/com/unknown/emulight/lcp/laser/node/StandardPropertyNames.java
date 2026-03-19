@@ -7,6 +7,7 @@ public class StandardPropertyNames {
 	public static final String SCALE = "scale";
 	public static final String ROTATION = "rotation";
 	public static final String COLOR_SCALE = "colorScale";
+	public static final String BRIGHTNESS = "brightness";
 	public static final String POSITION = "position";
 	public static final String COLOR = "color";
 	public static final String RADIUS = "radius";
