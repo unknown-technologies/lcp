@@ -20,6 +20,7 @@ import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeListener;
 
 import com.unknown.emulight.lcp.laser.LaserPart;
@@ -205,12 +206,12 @@ public class ClipEditor extends JPanel {
 		project.getProcessor().addLaserDiscoveryListener(new LaserDiscoveryListener() {
 			@Override
 			public void laserDiscovered(LaserInfo info) {
-				lasers.update();
+				SwingUtilities.invokeLater(() -> lasers.update());
 			}
 
 			@Override
 			public void laserLost(LaserInfo info) {
-				lasers.update();
+				SwingUtilities.invokeLater(() -> lasers.update());
 			}
 		});
 

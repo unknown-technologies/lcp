@@ -335,22 +335,22 @@ public class SettingsDialog extends JDialog {
 		laserDiscoveryListener = new LaserDiscoveryListener() {
 			@Override
 			public void laserDiscovered(LaserInfo info) {
-				laserModel.update();
+				SwingUtilities.invokeLater(() -> laserModel.update());
 			}
 
 			@Override
 			public void laserLost(LaserInfo info) {
-				laserModel.update();
+				SwingUtilities.invokeLater(() -> laserModel.update());
 			}
 		};
 		laserConnectionListener = new LaserConnectionListener() {
 			@Override
 			public void laserConnected(Laser l) {
-				laserModel.updateStatus();
+				SwingUtilities.invokeLater(() -> laserModel.updateStatus());
 			}
 
 			public void laserDisconnected(Laser l) {
-				laserModel.updateStatus();
+				SwingUtilities.invokeLater(() -> laserModel.updateStatus());
 			}
 		};
 		sys.getLaserProcessor().addLaserDiscoveryListener(laserDiscoveryListener);
