@@ -14,8 +14,10 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import javax.swing.Box;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -33,6 +35,8 @@ import com.unknown.audio.midi.smf.MTrk;
 import com.unknown.audio.midi.smf.SMF;
 import com.unknown.audio.midi.smf.TempoEvent;
 import com.unknown.emulight.lcp.event.ProjectListener;
+import com.unknown.emulight.lcp.io.esl.ESLListener;
+import com.unknown.emulight.lcp.io.esl.protocol.ESLDescriptor;
 import com.unknown.emulight.lcp.io.midi.MidiReceiver;
 import com.unknown.emulight.lcp.laser.LaserProcessor;
 import com.unknown.emulight.lcp.project.EmulightSystem;
@@ -44,13 +48,16 @@ import com.unknown.emulight.lcp.project.Track;
 import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.sequencer.Sequencer;
+import com.unknown.emulight.lcp.ui.help.HelpBrowser;
 import com.unknown.emulight.lcp.ui.laser.LaserDiscovery;
 import com.unknown.emulight.lcp.ui.project.ProjectEditor;
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
 import com.unknown.net.shownet.LaserDiscoveryListener;
 import com.unknown.net.shownet.LaserInfo;
+import com.unknown.util.io.FourCC;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
+import com.unknown.util.ui.MessageBox;
 import com.unknown.xml.dom.Element;
 import com.unknown.xml.dom.XMLReader;
 
@@ -85,6 +92,40 @@ public class MainWindow extends JFrame {
 		this.sys = sys;
 		project = new Project(sys);
 		processor = sys.getLaserProcessor();
+
+		// log ESL stuff directly into system log
+		sys.getESL().addESLListener(new ESLListener() {
+			@Override
+			public void deviceListChanged(ESLDescriptor[] descriptors) {
+				// devlist.update(descriptors);
+			}
+
+			@Override
+			public void log(int address, String message) {
+				ESLDescriptor desc = sys.getESL().getDescriptor(address);
+				LogRecord record = new LogRecord(Levels.INFO, message.trim());
+				record.setSourceClassName("ESL");
+				String addr = Integer.toString(address);
+				if(addr.length() == 1) {
+					addr = "0" + addr;
+				}
+				if(desc != null) {
+					record.setSourceMethodName("DEV" + addr + "(" +
+							FourCC.ascii(desc.getDeviceId()).trim() + ")");
+				} else {
+					record.setSourceMethodName("DEV" + addr);
+				}
+				log.log(record);
+				// logview.log(address, message);
+			}
+		});
+
+		// try to open ESL connection if possible; ignore it if this fails
+		try {
+			sys.open();
+		} catch(IOException e) {
+			log.log(Levels.ERROR, "Failed to open serial connection: " + e.getMessage());
+		}
 
 		ProjectEditor editor = new ProjectEditor(project);
 
@@ -241,8 +282,62 @@ public class MainWindow extends JFrame {
 		transportMenu.add(transportMenuStop);
 		transportMenu.add(transportMenuStart);
 
+		JMenu eslMenu = new JMenu("ESL");
+		eslMenu.setMnemonic('E');
+
+		JMenuItem eslMenuSynchronizeTime = new JMenuItem("Synchronize time");
+		eslMenuSynchronizeTime.setMnemonic('t');
+		eslMenuSynchronizeTime.addActionListener(e -> {
+			try {
+				sys.getESL().synchronizeTime();
+			} catch(IOException ex) {
+				error("Failed to send time: " + ex.getMessage(), ex);
+			}
+		});
+
+		JMenuItem eslMenuReqDevices = new JMenuItem("Request devices");
+		eslMenuReqDevices.setMnemonic('d');
+		eslMenuReqDevices.addActionListener(e -> {
+			try {
+				sys.getESL().enumerateDevices();
+			} catch(IOException ex) {
+				error("Failed to request devices: " + ex.getMessage(), ex);
+			}
+		});
+
+		JMenuItem eslMenuReset = new JMenuItem("Reset");
+		eslMenuReset.setMnemonic('R');
+		eslMenuReset.addActionListener(e -> {
+			try {
+				sys.getESL().reset();
+			} catch(IOException ex) {
+				error("Failed to reset system: " + ex.getMessage(), ex);
+			}
+		});
+
+		eslMenu.add(eslMenuReqDevices);
+		eslMenu.add(eslMenuSynchronizeTime);
+		eslMenu.add(eslMenuReset);
+
+		JMenuItem help = new JMenuItem("Help");
+		help.setMnemonic('H');
+		help.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
+		help.addActionListener(e -> {
+			HelpBrowser dlg = new HelpBrowser(this);
+			dlg.setLocationRelativeTo(this);
+			dlg.setVisible(true);
+		});
+
+		JMenu helpMenu = new JMenu("Help");
+		helpMenu.setMnemonic('H');
+		helpMenu.add(help);
+
 		menu.add(fileMenu);
 		menu.add(transportMenu);
+		menu.add(eslMenu);
+		// hack, since JMenuBar::setHelpMenu is still not implemented after 25 years
+		menu.add(Box.createGlue());
+		menu.add(helpMenu);
 
 		setJMenuBar(menu);
 
@@ -297,6 +392,11 @@ public class MainWindow extends JFrame {
 				Icons.get(Icons.EMULIGHT, 32).getImage(),
 				Icons.get(Icons.EMULIGHT, 48).getImage(),
 				Icons.get(Icons.EMULIGHT, 64).getImage()));
+	}
+
+	private void error(String msg, Exception e) {
+		log.log(Levels.WARNING, msg, e);
+		MessageBox.showError(this, msg);
 	}
 
 	private void updateTitle() {
