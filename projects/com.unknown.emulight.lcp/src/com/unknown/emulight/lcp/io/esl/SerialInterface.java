@@ -70,8 +70,8 @@ public class SerialInterface extends ESLPHY implements Closeable {
 				rs232 = new RS232(line, 115200, RS232.FORMAT_8N1_HWFLOW);
 				rs232out = null;
 			} catch(UnsatisfiedLinkError e) {
-				log.log(Levels.WARNING,
-						"Cannot use native serial line implementation: " + e.getMessage());
+				log.log(Levels.WARNING, "Cannot use native serial line implementation: " +
+						e.getMessage());
 				rs232 = null;
 				rs232out = new FileOutputStream(line);
 			}
@@ -83,17 +83,15 @@ public class SerialInterface extends ESLPHY implements Closeable {
 						try {
 							process();
 						} catch(Throwable t) {
-							log.log(Levels.ERROR,
-									"Failed to receive data via RS232: " +
-											t.getMessage(),
-									t);
+							log.log(Levels.ERROR, "Failed to receive data via RS232: " +
+									t.getMessage(), t);
 						}
 					}
 				}
 			};
 			reader.start();
 
-			// set MCP into SC mode
+			// set PCIF into SC mode
 			write((byte) 0x90);
 
 			// request local address
@@ -120,12 +118,12 @@ public class SerialInterface extends ESLPHY implements Closeable {
 
 		IOException exception = null;
 
-		// reset MCP to text mode
+		// reset PCIF to text mode
 		try {
 			write((byte) 0x9C);
 		} catch(IOException e) {
 			exception = e;
-			log.log(Levels.ERROR, "Failed to reset MCP", e);
+			log.log(Levels.ERROR, "Failed to reset PCIF", e);
 		}
 
 		try {
@@ -315,6 +313,10 @@ public class SerialInterface extends ESLPHY implements Closeable {
 	}
 
 	private void write(byte[] buf, int off, int len) throws IOException {
+		if(!isOpen()) {
+			throw new IOException("line is not open");
+		}
+
 		log.log(Levels.DEBUG, () -> "Transmitting data: " + IntStream.range(0, len)
 				.map(i -> Byte.toUnsignedInt(buf[i]))
 				.mapToObj(x -> HexFormatter.tohex(x, 2))
