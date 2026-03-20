@@ -109,6 +109,14 @@ public class Property<T> implements Cloneable {
 		}
 	}
 
+	public T getRawValue(int time) {
+		if(isStatic || !automation) {
+			return values.get(0);
+		} else {
+			return values.get(time);
+		}
+	}
+
 	public T getInterpolatedValue(int time) {
 		Entry<Integer, T> floor = values.floorEntry(time);
 		Entry<Integer, T> ceil = values.ceilingEntry(time);

@@ -19,6 +19,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 
 import javax.swing.AbstractAction;
+import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
@@ -28,6 +29,7 @@ import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JSpinner;
 import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
@@ -39,6 +41,7 @@ import com.unknown.emulight.lcp.laser.node.Color3;
 import com.unknown.emulight.lcp.laser.node.Property;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.math.g3d.Mtx44;
+import com.unknown.math.g3d.Vec2;
 import com.unknown.math.g3d.Vec3;
 import com.unknown.util.ui.ADM3AFont;
 
@@ -53,11 +56,28 @@ public class ClipPropertyAutomationEditor extends JDialog {
 	private static final int START_X = 2 * PADDING + 5 * ADM3AFont.WIDTH + 1;
 	private static final int START_Y = PADDING + ADM3AFont.HEIGHT;
 
+	private static final Color BACKGROUND = Color.BLACK;
 	private static final Color GRID_BAR = new Color(0x77797A);
 	private static final Color GRID_BEAT = new Color(0x595B5D);
 	private static final Color GRID_SUBFRAME = new Color(0x36393B);
 	// private static final Color INFO_TEXT = new Color(0x595B5D);
 	private static final Color INFO_TEXT = new Color(0x00FFFF);
+
+	private static final Color TRANSPARENT = new Color(0, true);
+	private static final Color OVERLAY_BACKGROUND = new Color(BACKGROUND.getRed(), BACKGROUND.getGreen(),
+			BACKGROUND.getBlue(), 192);
+	private static final Color TEXT_COLOR = Color.CYAN;
+
+	private static final Color GRID_COLOR = new Color(0x36393B);
+	private static final Color GRID_BORDER = Color.CYAN;
+
+	private static final Color LINE_COLOR = Color.LIGHT_GRAY;
+
+	private static final Color LINE_COLOR_X = Color.RED;
+	private static final Color LINE_COLOR_Y = Color.GREEN;
+	private static final Color LINE_COLOR_Z = Color.BLUE;
+
+	private static final int POINT_SIZE = 4;
 
 	private Property<?> property;
 	private Editor editor;
@@ -75,7 +95,7 @@ public class ClipPropertyAutomationEditor extends JDialog {
 	private int cachedWidth = 0;
 	private int cachedHeight = 0;
 
-	private int selectedTime = -1;
+	private int selectedTime = 0;
 	private int currentChannel = 0;
 
 	private final List<Updater> updater = new ArrayList<>();
@@ -186,6 +206,9 @@ public class ClipPropertyAutomationEditor extends JDialog {
 	public void setDivision(int division) {
 		this.division = division;
 		grid = ppq / division;
+		if(propertyPanel.time != null) {
+			((SpinnerNumberModel) propertyPanel.time.getModel()).setStepSize(grid);
+		}
 		editor.repaint();
 	}
 
@@ -296,6 +319,7 @@ public class ClipPropertyAutomationEditor extends JDialog {
 		private final static int SPINNER_WIDTH = 75;
 
 		private JComboBox<String> channel;
+		private JSpinner time;
 
 		public PropertyPanel() {
 			super(new FlowLayout(FlowLayout.LEFT));
@@ -310,6 +334,31 @@ public class ClipPropertyAutomationEditor extends JDialog {
 				repaint();
 				return;
 			}
+
+			add(new JLabel("Time:"));
+			time = new JSpinner(new SpinnerNumberModel(selectedTime, 0, Integer.MAX_VALUE, grid));
+			time.addChangeListener(e -> {
+				if(!bypassEvents) {
+					int t = (int) time.getValue();
+					Object value = property.getRawValue(selectedTime);
+					if(value == null) {
+						throw new AssertionError("wtf?");
+					}
+					property.unsetValue(selectedTime);
+					selectedTime = t;
+					setValue(t, value);
+					updateView();
+				}
+			});
+			updater.add(() -> {
+				try {
+					bypassEvents = true;
+					time.setValue(selectedTime);
+				} finally {
+					bypassEvents = false;
+				}
+			});
+			add(time);
 
 			if(property.getType().equals(String.class)) {
 				add(new JLabel("(not implemented)"));
@@ -516,23 +565,8 @@ public class ClipPropertyAutomationEditor extends JDialog {
 	}
 
 	private class Editor extends JComponent {
-		private static final Color TRANSPARENT = new Color(0, true);
-		private static final Color OVERLAY_BACKGROUND = new Color(0, 0, 0, 192);
-		private static final Color TEXT_COLOR = Color.CYAN;
-
-		private static final Color GRID_COLOR = Color.DARK_GRAY;
-		private static final Color GRID_BORDER = Color.CYAN;
-
-		private static final Color LINE_COLOR = Color.LIGHT_GRAY;
-
-		private static final Color LINE_COLOR_X = Color.RED;
-		private static final Color LINE_COLOR_Y = Color.GREEN;
-		private static final Color LINE_COLOR_Z = Color.BLUE;
-
-		private static final int POINT_SIZE = 4;
-
 		public Editor() {
-			setBackground(Color.BLACK);
+			setBackground(BACKGROUND);
 			setOpaque(true);
 			setDoubleBuffered(true);
 			MouseController mouse = new MouseController();
@@ -571,6 +605,71 @@ public class ClipPropertyAutomationEditor extends JDialog {
 
 			startX++;
 			startY++;
+
+			int h = height - startY;
+			Graphics gx = g.create(startX, 0, width - startX, h + 1);
+
+			Axis axis = getAxis(width, height);
+
+			if(axis != null) {
+				Mtx44 mtx = axis.mtx;
+
+				gx.setColor(GRID_COLOR);
+
+				// render Y axis and labels
+				int lenMin = (int) Math.ceil(Math.log10(Math.abs(axis.min)));
+				int lenMax = (int) Math.ceil(Math.log10(Math.abs(axis.max)));
+				boolean neg = false;
+				if(axis.min < 0) {
+					lenMin++;
+					neg = true;
+				}
+				if(axis.max < 0) {
+					lenMax++;
+					neg = true;
+				}
+				int len = lenMin > lenMax ? lenMin : lenMax;
+				String format;
+				if(neg) {
+					if(len > 3) {
+						format = "% 4.0f";
+					} else if(len == 2) {
+						format = "% 4.1f";
+					} else {
+						format = "% 4.2f";
+					}
+				} else {
+					if(len > 3) {
+						format = "%5.0f";
+					} else if(len == 3) {
+						format = "%5.1f";
+					} else if(len == 2) {
+						format = "%5.2f";
+					} else {
+						format = "%5.3f";
+					}
+				}
+
+				Vec2 range = getRange(width, height);
+				double stepSize = (axis.max - axis.min) / axis.divisions;
+				int min = (int) Math.round((range.x - axis.min) / stepSize);
+				int max = (int) Math.round((range.y - axis.min) / stepSize);
+				if(min < 0) {
+					min = 0;
+				}
+				if(max > axis.divisions) {
+					max = axis.divisions;
+				}
+				for(int i = min; i <= max; i++) {
+					double value = axis.min + stepSize * i;
+					Vec3 p = mtx.mult(new Vec3(0, value, 0));
+					int py = (int) Math.round(p.y);
+					gx.drawLine(0, py, width, py);
+					String s = String.format(format, value);
+					ADM3AFont.render(g, PADDING, py + ADM3AFont.HEIGHT / 2, TEXT_COLOR, TRANSPARENT,
+							s);
+				}
+			}
 
 			// draw vertical grid
 			int offsetX = (int) Math.round(-translation.x);
@@ -654,67 +753,6 @@ public class ClipPropertyAutomationEditor extends JDialog {
 				if(text != null) {
 					ADM3AFont.render(g, posX, height - startY + ADM3AFont.HEIGHT + 2, INFO_TEXT,
 							TRANSPARENT, text);
-				}
-			}
-
-			int h = height - startY;
-			Graphics gx = g.create(startX, 0, width - startX, h + 1);
-
-			Axis axis = getAxis(width, height);
-
-			if(axis != null) {
-				Mtx44 mtx = axis.mtx;
-
-				gx.setColor(GRID_COLOR);
-
-				// render Y axis
-				for(int i = 0; i <= axis.divisions; i++) {
-					double value = axis.min + (axis.max - axis.min) / axis.divisions * i;
-					Vec3 p = mtx.mult(new Vec3(0, value, 0));
-					int py = (int) Math.round(p.y);
-					gx.drawLine(0, py, width, py);
-				}
-
-				// render Y axis labels
-				int lenMin = (int) Math.ceil(Math.log10(Math.abs(axis.min)));
-				int lenMax = (int) Math.ceil(Math.log10(Math.abs(axis.max)));
-				boolean neg = false;
-				if(axis.min < 0) {
-					lenMin++;
-					neg = true;
-				}
-				if(axis.max < 0) {
-					lenMax++;
-					neg = true;
-				}
-				int len = lenMin > lenMax ? lenMin : lenMax;
-				String format;
-				if(neg) {
-					if(len > 3) {
-						format = "% 4.0f";
-					} else if(len == 2) {
-						format = "% 4.1f";
-					} else {
-						format = "% 4.2f";
-					}
-				} else {
-					if(len > 3) {
-						format = "%5.0f";
-					} else if(len == 3) {
-						format = "%5.1f";
-					} else if(len == 2) {
-						format = "%5.2f";
-					} else {
-						format = "%5.3f";
-					}
-				}
-				for(int i = 0; i <= axis.divisions; i++) {
-					double value = axis.min + (axis.max - axis.min) / axis.divisions * i;
-					Vec3 p = mtx.mult(new Vec3(0, value, 0));
-					int py = (int) Math.round(p.y);
-					String s = String.format(format, value);
-					ADM3AFont.render(g, PADDING, py + ADM3AFont.HEIGHT / 2, TEXT_COLOR, TRANSPARENT,
-							s);
 				}
 			}
 
@@ -814,6 +852,15 @@ public class ClipPropertyAutomationEditor extends JDialog {
 			double py = posY * scale;
 			posY = axis.min + py;
 			return new Vec3(posX, posY, 0);
+		}
+
+		private Vec2 getRange(int width, int height) {
+			Axis axis = getAxis(width, height);
+			double h = height - START_Y - PADDING;
+			double range = axis.max - axis.min;
+			double pyMax = axis.min + range / scaleY + translation.y / scaleY * range / h;
+			double pyMin = axis.min + translation.y / scaleY * range / h;
+			return new Vec2(pyMin, pyMax);
 		}
 
 		private Axis getAxis(int width, int height) {
@@ -1192,6 +1239,7 @@ public class ClipPropertyAutomationEditor extends JDialog {
 						propertyPanel.setChannel(2);
 					}
 				}
+				updateFields();
 			}
 
 			private int getTime(Vec3 mouse) {
@@ -1230,7 +1278,9 @@ public class ClipPropertyAutomationEditor extends JDialog {
 						selectPoint(mouse);
 					}
 				} else if(e.getButton() == MouseEvent.BUTTON3) {
-					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) != 0) {
+					if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) != 0) {
+						removePoint(mouse);
+					} else {
 						JMenuItem reset = new JMenuItem("Reset");
 						reset.setMnemonic('R');
 						reset.addActionListener(ev -> {
@@ -1243,25 +1293,37 @@ public class ClipPropertyAutomationEditor extends JDialog {
 							repaint();
 						});
 
-						JMenuItem div1 = new JMenuItem("Division: 1");
+						ButtonGroup divisionGroup = new ButtonGroup();
+
+						JRadioButtonMenuItem div1 = new JRadioButtonMenuItem("Division: 1",
+								division == 1);
 						div1.setMnemonic('1');
 						div1.addActionListener(ev -> setDivision(1));
+						divisionGroup.add(div1);
 
-						JMenuItem div2 = new JMenuItem("Division: 2");
+						JRadioButtonMenuItem div2 = new JRadioButtonMenuItem("Division: 2",
+								division == 2);
 						div2.setMnemonic('2');
 						div2.addActionListener(ev -> setDivision(2));
+						divisionGroup.add(div2);
 
-						JMenuItem div4 = new JMenuItem("Division: 4");
+						JRadioButtonMenuItem div4 = new JRadioButtonMenuItem("Division: 4",
+								division == 4);
 						div4.setMnemonic('4');
 						div4.addActionListener(ev -> setDivision(4));
+						divisionGroup.add(div4);
 
-						JMenuItem div8 = new JMenuItem("Division: 8");
+						JRadioButtonMenuItem div8 = new JRadioButtonMenuItem("Division: 8",
+								division == 8);
 						div8.setMnemonic('8');
 						div8.addActionListener(ev -> setDivision(8));
+						divisionGroup.add(div8);
 
-						JMenuItem div16 = new JMenuItem("Division: 16");
+						JRadioButtonMenuItem div16 = new JRadioButtonMenuItem("Division: 16",
+								division == 16);
 						div16.setMnemonic('6');
 						div16.addActionListener(ev -> setDivision(16));
+						divisionGroup.add(div16);
 
 						JPopupMenu menu = new JPopupMenu();
 						menu.add(reset);
@@ -1273,8 +1335,6 @@ public class ClipPropertyAutomationEditor extends JDialog {
 						menu.add(div16);
 
 						menu.show(e.getComponent(), e.getX(), e.getY());
-					} else {
-						removePoint(mouse);
 					}
 				}
 			}
