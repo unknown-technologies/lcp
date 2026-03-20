@@ -74,7 +74,7 @@ public class Project {
 		colors.add(new Color(0xAF6929));
 		colors.add(new Color(0x885732));
 
-		setPPQ(480);
+		setPPQ(1920);
 
 		setName("Untitled Project");
 
