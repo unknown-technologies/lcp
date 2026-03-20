@@ -25,10 +25,12 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 
@@ -112,7 +114,7 @@ public class ProjectView extends JComponent {
 	private int signatureDenominator = 4;
 	private int ppq = 96;
 
-	private int grid = ppq;
+	private double grid = ppq / 4.0;
 	private int division = 1;
 
 	private final TrackListener trackListener = e -> repaint();
@@ -150,9 +152,9 @@ public class ProjectView extends JComponent {
 		setDoubleBuffered(true);
 
 		ppq = project.getPPQ();
-		grid = ppq;
 
-		setTimeScale(timeScale * (96.0 / ppq));
+		setTimeScale(timeScale * (384.0 / ppq));
+		setDivision(1);
 
 		project.addProjectListener(projectListener);
 		for(Track<?> track : project.getTracks()) {
@@ -224,7 +226,7 @@ public class ProjectView extends JComponent {
 
 	public void setDivision(int division) {
 		this.division = division;
-		grid = ppq / division;
+		grid = ppq / 4.0 / division;
 		repaint();
 	}
 
@@ -423,27 +425,46 @@ public class ProjectView extends JComponent {
 		List<Track<?>> tracks = project.getTracks();
 
 		// draw vertical grid
-		int cellCount = (int) Math.round(contentWidth / (grid * timeScale)) + 2;
+		double autogrid = grid;
+		int autodivision = division;
+
 		boolean drawGrid = true;
 		boolean drawBeat = true;
 		boolean drawBeatText = true;
 
-		int gridCellSize = contentWidth / cellCount;
-		int beatCellSize = contentWidth * signatureDenominator / cellCount;
+		for(int i = 0; i < 6; i++) {
+			int cellCount = (int) Math.round(contentWidth / (autogrid * timeScale)) + 2;
 
-		if(gridCellSize < 5) {
-			drawGrid = false;
+			drawGrid = true;
+			drawBeat = true;
+			drawBeatText = true;
+
+			int gridCellSize = contentWidth / cellCount;
+			int beatCellSize = contentWidth * signatureDenominator / cellCount;
+
+			if(gridCellSize < 5) {
+				drawGrid = false;
+			}
+
+			if(beatCellSize < 15) {
+				drawBeat = false;
+			} else if(beatCellSize < 30) {
+				drawBeatText = false;
+			}
+
+			if((!drawBeat || !drawBeatText || !drawGrid) && autodivision >= 2) {
+				autogrid *= 2;
+				autodivision /= 2;
+			} else {
+				break;
+			}
 		}
 
-		if(beatCellSize < 15) {
-			drawBeat = false;
-		} else if(beatCellSize < 30) {
-			drawBeatText = false;
-		}
+		int cellCount = (int) Math.round(contentWidth / (autogrid * timeScale)) + 2;
 
 		for(int i = 0; i < cellCount; i++) {
-			int posX = (int) Math.round(i * grid * timeScale - offsetX % (grid * timeScale));
-			int off = (int) (offsetX / (grid * timeScale));
+			int posX = (int) Math.round(i * autogrid * timeScale - offsetX % (autogrid * timeScale));
+			int off = (int) (offsetX / (autogrid * timeScale));
 			int n = i + off;
 
 			if(posX < 0) {
@@ -452,9 +473,9 @@ public class ProjectView extends JComponent {
 
 			posX += CONTENT_X;
 
-			if(n % (signatureNumerator * signatureDenominator * division) == 0) {
+			if(n % (signatureNumerator * signatureDenominator * autodivision) == 0) {
 				g.setColor(GRID_BAR);
-			} else if(n % (signatureDenominator * division) == 0) {
+			} else if(n % (signatureDenominator * autodivision) == 0) {
 				if(!drawBeat) {
 					continue;
 				}
@@ -471,8 +492,8 @@ public class ProjectView extends JComponent {
 
 		// draw beat/bar IDs
 		for(int i = 0; i < cellCount; i++) {
-			int posX = (int) Math.round(i * grid * timeScale - offsetX % (grid * timeScale));
-			int off = (int) (offsetX / (grid * timeScale));
+			int posX = (int) Math.round(i * autogrid * timeScale - offsetX % (autogrid * timeScale));
+			int off = (int) (offsetX / (autogrid * timeScale));
 			int n = i + off;
 
 			if(posX < 0) {
@@ -481,13 +502,13 @@ public class ProjectView extends JComponent {
 
 			posX += CONTENT_X;
 
-			int bar = n / (signatureNumerator * signatureDenominator * division) + 1;
-			int beat = (n / (signatureDenominator * division)) % signatureNumerator + 1;
+			int bar = n / (signatureNumerator * signatureDenominator * autodivision) + 1;
+			int beat = (n / (signatureDenominator * autodivision)) % signatureNumerator + 1;
 
 			String text;
-			if(n % (signatureNumerator * signatureDenominator * division) == 0) {
+			if(n % (signatureNumerator * signatureDenominator * autodivision) == 0) {
 				text = Integer.toString(bar);
-			} else if(n % (signatureDenominator * division) == 0) {
+			} else if(n % (signatureDenominator * autodivision) == 0) {
 				text = bar + "." + beat;
 				if(!drawBeat || !drawBeatText) {
 					continue;
@@ -681,7 +702,7 @@ public class ProjectView extends JComponent {
 	}
 
 	private long quantizeTime(long time) {
-		return Math.round(time / (grid * 1.0)) * grid;
+		return Math.round(Math.round(time / (grid * 1.0)) * grid);
 	}
 
 	private void drawTempoTrack(Graphics g, TempoTrack track, PartContainer<TempoPart> part, Color color, int x,
@@ -1021,7 +1042,7 @@ public class ProjectView extends JComponent {
 						createPart = true;
 						Track<?> track = project.getTrack(selected);
 						long start = quantizeTime(time);
-						setSelectedPart(track.createPart(start, grid));
+						setSelectedPart(track.createPart(start, Math.round(grid)));
 						repaint();
 					} else if(px > CONTENT_X && px <= getWidth() - BORDER) {
 						// clicked on some part?
@@ -1091,10 +1112,52 @@ public class ProjectView extends JComponent {
 				removeTrack.setEnabled(clickedOnTrack && !permanentTrack);
 				removeTrack.addActionListener(ev -> project.removeTrack(project.getTrack(selected)));
 
+				ButtonGroup divisionGroup = new ButtonGroup();
+
+				JRadioButtonMenuItem div1 = new JRadioButtonMenuItem("Division: 1", division == 1);
+				div1.setMnemonic('1');
+				div1.addActionListener(ev -> setDivision(1));
+				divisionGroup.add(div1);
+
+				JRadioButtonMenuItem div2 = new JRadioButtonMenuItem("Division: 2", division == 2);
+				div2.setMnemonic('2');
+				div2.addActionListener(ev -> setDivision(2));
+				divisionGroup.add(div2);
+
+				JRadioButtonMenuItem div4 = new JRadioButtonMenuItem("Division: 4", division == 4);
+				div4.setMnemonic('4');
+				div4.addActionListener(ev -> setDivision(4));
+				divisionGroup.add(div4);
+
+				JRadioButtonMenuItem div8 = new JRadioButtonMenuItem("Division: 8", division == 8);
+				div8.setMnemonic('8');
+				div8.addActionListener(ev -> setDivision(8));
+				divisionGroup.add(div8);
+
+				JRadioButtonMenuItem div16 = new JRadioButtonMenuItem("Division: 16", division == 16);
+				div16.setMnemonic('6');
+				div16.addActionListener(ev -> setDivision(16));
+				divisionGroup.add(div16);
+
+				JRadioButtonMenuItem div32 = new JRadioButtonMenuItem("Division: 32", division == 32);
+				div32.setMnemonic('3');
+				div32.addActionListener(ev -> setDivision(32));
+				divisionGroup.add(div32);
+
+				JMenu divisionMenu = new JMenu("Division");
+				divisionMenu.add(div1);
+				divisionMenu.add(div2);
+				divisionMenu.add(div4);
+				divisionMenu.add(div8);
+				divisionMenu.add(div16);
+				divisionMenu.add(div32);
+
 				JPopupMenu menu = new JPopupMenu();
 				menu.add(addTrack);
 				menu.add(duplicateTrack);
 				menu.add(removeTrack);
+				menu.addSeparator();
+				menu.add(divisionMenu);
 
 				menu.show(e.getComponent(), e.getX(), e.getY());
 			}
@@ -1149,7 +1212,7 @@ public class ProjectView extends JComponent {
 
 				double div = Math.pow(2.0, -notches);
 
-				double factor = 96.0 / ppq;
+				double factor = 384.0 / ppq;
 				if(timeScale * div < factor * (1.0 / 64)) {
 					return;
 				} else if(timeScale * div > factor * 16) {

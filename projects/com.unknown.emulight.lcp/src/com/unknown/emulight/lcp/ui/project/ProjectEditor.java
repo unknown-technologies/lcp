@@ -61,7 +61,7 @@ public class ProjectEditor extends JPanel {
 			}
 		});
 
-		JSpinner start = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, project.getPPQ()));
+		JSpinner start = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, project.getPPQ() / 4));
 		start.setEnabled(false);
 		start.addChangeListener(e -> {
 			int time = (int) start.getValue();
@@ -70,7 +70,7 @@ public class ProjectEditor extends JPanel {
 			}
 		});
 
-		JSpinner length = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, project.getPPQ()));
+		JSpinner length = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, project.getPPQ() / 4));
 		length.setEnabled(false);
 		length.addChangeListener(e -> {
 			int len = (int) length.getValue();

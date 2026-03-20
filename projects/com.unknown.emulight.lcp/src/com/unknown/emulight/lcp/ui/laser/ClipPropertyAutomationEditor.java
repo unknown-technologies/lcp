@@ -112,10 +112,10 @@ public class ClipPropertyAutomationEditor extends JDialog {
 	private int signatureDenominator = 4;
 	private int ppq = 96;
 
-	private int grid = ppq;
+	private double grid = ppq;
 	private int division = 1;
 
-	private int defaultDivision = 16;
+	private int defaultDivision = 8;
 
 	private long partStartTime;
 
@@ -139,7 +139,7 @@ public class ClipPropertyAutomationEditor extends JDialog {
 		setSize(640, 480);
 		setLocationRelativeTo(parent);
 
-		setDefaultTimeScale(timeScale * 96.0 / ppq);
+		setDefaultTimeScale(timeScale * 384.0 / ppq);
 
 		setDivision(defaultDivision);
 		setTimeScale(defaultTimeScale);
@@ -205,9 +205,9 @@ public class ClipPropertyAutomationEditor extends JDialog {
 
 	public void setDivision(int division) {
 		this.division = division;
-		grid = ppq / division;
+		grid = ppq / 4.0 / division;
 		if(propertyPanel.time != null) {
-			((SpinnerNumberModel) propertyPanel.time.getModel()).setStepSize(grid);
+			((SpinnerNumberModel) propertyPanel.time.getModel()).setStepSize((int) Math.round(grid));
 		}
 		editor.repaint();
 	}
@@ -235,7 +235,7 @@ public class ClipPropertyAutomationEditor extends JDialog {
 		setTitle(TITLE + ": " + property.getName());
 
 		ppq = project.getPPQ();
-		grid = ppq / division;
+		grid = ppq / 4.0 / division;
 
 		editor.repaint();
 	}
@@ -336,7 +336,9 @@ public class ClipPropertyAutomationEditor extends JDialog {
 			}
 
 			add(new JLabel("Time:"));
-			time = new JSpinner(new SpinnerNumberModel(selectedTime, 0, Integer.MAX_VALUE, grid));
+			time = new JSpinner(
+					new SpinnerNumberModel(selectedTime, 0, Integer.MAX_VALUE,
+							(int) Math.round(grid)));
 			time.addChangeListener(e -> {
 				if(!bypassEvents) {
 					int t = (int) time.getValue();
@@ -675,7 +677,7 @@ public class ClipPropertyAutomationEditor extends JDialog {
 			int offsetX = (int) Math.round(-translation.x);
 
 			int contentWidth = width - startX;
-			int autogrid = grid;
+			double autogrid = grid;
 			int autodivision = division;
 
 			boolean drawGrid = true;
@@ -1484,7 +1486,7 @@ public class ClipPropertyAutomationEditor extends JDialog {
 
 					double div = Math.pow(2.0, -notches);
 
-					double factor = 96.0 / ppq;
+					double factor = 384.0 / ppq;
 					if(timeScale * div < factor * (1.0 / 64)) {
 						return;
 					} else if(timeScale * div > factor * 64) {

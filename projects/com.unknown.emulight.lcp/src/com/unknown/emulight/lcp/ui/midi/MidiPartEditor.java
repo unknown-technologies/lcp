@@ -77,7 +77,7 @@ public class MidiPartEditor extends JComponent {
 	private int signatureDenominator = 4;
 	private int ppq = 96;
 
-	private int grid = ppq;
+	private double grid = ppq;
 	private int division = 1;
 
 	private int defaultDivision = 1;
@@ -102,7 +102,7 @@ public class MidiPartEditor extends JComponent {
 		ppq = part.getPPQ();
 		partStartTime = 0;
 
-		setDefaultTimeScale(timeScale * 96.0 / ppq);
+		setDefaultTimeScale(timeScale * 384.0 / ppq);
 
 		selection = new HashSet<>();
 
@@ -247,7 +247,7 @@ public class MidiPartEditor extends JComponent {
 
 	public void reload() {
 		ppq = part.getPPQ();
-		grid = ppq / division;
+		grid = ppq / 4.0 / division;
 
 		selection.clear();
 		mouse.reset();
@@ -304,7 +304,7 @@ public class MidiPartEditor extends JComponent {
 
 	public void setDivision(int division) {
 		this.division = division;
-		grid = ppq / division;
+		grid = ppq / 4.0 / division;
 		repaint();
 	}
 
@@ -507,7 +507,7 @@ public class MidiPartEditor extends JComponent {
 	}
 
 	private long quantizeTime(long time) {
-		return Math.round(time / (grid * 1.0)) * grid;
+		return Math.round(Math.round(time / (grid * 1.0)) * grid);
 	}
 
 	private class MouseController implements MouseListener, MouseMotionListener, MouseWheelListener {
@@ -861,7 +861,7 @@ public class MidiPartEditor extends JComponent {
 				}
 
 				// quantize to grid
-				time = (time / grid) * grid;
+				time = Math.round(Math.floor(time / grid) * grid);
 
 				if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) != 0) {
 					// otherwise add new note
@@ -937,6 +937,12 @@ public class MidiPartEditor extends JComponent {
 					div16.addActionListener(ev -> setDivision(16));
 					divisionGroup.add(div16);
 
+					JRadioButtonMenuItem div32 = new JRadioButtonMenuItem("Division: 32",
+							division == 32);
+					div32.setMnemonic('3');
+					div32.addActionListener(ev -> setDivision(32));
+					divisionGroup.add(div32);
+
 					JPopupMenu menu = new JPopupMenu();
 					menu.add(reset);
 					menu.addSeparator();
@@ -945,6 +951,7 @@ public class MidiPartEditor extends JComponent {
 					menu.add(div4);
 					menu.add(div8);
 					menu.add(div16);
+					menu.add(div32);
 
 					menu.show(e.getComponent(), e.getX(), e.getY());
 				}
@@ -1027,7 +1034,7 @@ public class MidiPartEditor extends JComponent {
 
 				double div = Math.pow(2.0, -notches);
 
-				double factor = 96.0 / ppq;
+				double factor = 384.0 / ppq;
 				if(timeScale * div < factor * (1.0 / 16)) {
 					return;
 				} else if(timeScale * div > factor * 16) {

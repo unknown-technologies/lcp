@@ -105,7 +105,7 @@ public class TempoPartEditorDialog extends JFrame {
 	private int signatureDenominator = 4;
 	private int ppq = 96;
 
-	private int grid = ppq;
+	private double grid = ppq / 4.0;
 	private int division = 1;
 
 	private int defaultDivision = 16;
@@ -132,7 +132,7 @@ public class TempoPartEditorDialog extends JFrame {
 		setSize(640, 480);
 		setLocationRelativeTo(container.getTrack().getProject().getSystem().getMainWindow());
 
-		setDefaultTimeScale(timeScale * 96.0 / ppq);
+		setDefaultTimeScale(timeScale * 384.0 / ppq);
 
 		Timer timer = new Timer(50, e -> editor.repaint());
 		timer.setRepeats(true);
@@ -200,8 +200,8 @@ public class TempoPartEditorDialog extends JFrame {
 
 	public void setDivision(int division) {
 		this.division = division;
-		grid = ppq / division;
-		((SpinnerNumberModel) propertyPanel.time.getModel()).setStepSize(grid);
+		grid = ppq / 4.0 / division;
+		((SpinnerNumberModel) propertyPanel.time.getModel()).setStepSize(Math.round(grid));
 		editor.repaint();
 	}
 
@@ -228,7 +228,7 @@ public class TempoPartEditorDialog extends JFrame {
 		setTitle(TITLE + ": " + part.getName());
 
 		ppq = project.getPPQ();
-		grid = ppq / division;
+		grid = ppq / 4.0 / division;
 
 		editor.repaint();
 	}
@@ -299,7 +299,7 @@ public class TempoPartEditorDialog extends JFrame {
 
 			add(new JLabel("Time:"));
 			time = new JSpinner(new SpinnerNumberModel(selectedTime, 0L, (long) Integer.MAX_VALUE,
-					(Number) grid));
+					(Number) Math.round(grid)));
 			time.addChangeListener(e -> {
 				if(!bypassEvents) {
 					long t = (long) time.getValue();
@@ -459,14 +459,14 @@ public class TempoPartEditorDialog extends JFrame {
 			int offsetX = (int) Math.round(-translation.x);
 
 			int contentWidth = width - startX;
-			int autogrid = grid;
+			double autogrid = grid;
 			int autodivision = division;
 
 			boolean drawGrid = true;
 			boolean drawBeat = true;
 			boolean drawBeatText = true;
 
-			for(int i = 0; i < 5; i++) {
+			for(int i = 0; i < 6; i++) {
 				int cellCount = (int) Math.round(contentWidth / (autogrid * timeScale)) + 2;
 
 				drawGrid = true;
@@ -893,6 +893,12 @@ public class TempoPartEditorDialog extends JFrame {
 						div16.addActionListener(ev -> setDivision(16));
 						divisionGroup.add(div16);
 
+						JRadioButtonMenuItem div32 = new JRadioButtonMenuItem("Division: 32",
+								division == 32);
+						div32.setMnemonic('3');
+						div32.addActionListener(ev -> setDivision(32));
+						divisionGroup.add(div32);
+
 						JPopupMenu menu = new JPopupMenu();
 						menu.add(reset);
 						menu.addSeparator();
@@ -901,6 +907,7 @@ public class TempoPartEditorDialog extends JFrame {
 						menu.add(div4);
 						menu.add(div8);
 						menu.add(div16);
+						menu.add(div32);
 
 						menu.show(e.getComponent(), e.getX(), e.getY());
 					}
@@ -1051,7 +1058,7 @@ public class TempoPartEditorDialog extends JFrame {
 
 					double div = Math.pow(2.0, -notches);
 
-					double factor = 96.0 / ppq;
+					double factor = 384.0 / ppq;
 					if(timeScale * div < factor * (1.0 / 64)) {
 						return;
 					} else if(timeScale * div > factor * 64) {
