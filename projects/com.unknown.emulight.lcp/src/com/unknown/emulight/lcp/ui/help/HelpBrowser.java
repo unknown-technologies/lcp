@@ -1,31 +1,44 @@
 package com.unknown.emulight.lcp.ui.help;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Desktop;
 import java.awt.Font;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.logging.Logger;
 
+import javax.swing.AbstractAction;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextPane;
 import javax.swing.JTree;
+import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
+import javax.swing.text.html.StyleSheet;
 import javax.swing.tree.TreePath;
 
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
+import com.unknown.util.HexFormatter;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
+import com.unknown.util.ui.ExtendedHTMLEditorKit;
 
 @SuppressWarnings("serial")
 public class HelpBrowser extends JDialog {
 	private static final Logger log = Trace.create(HelpBrowser.class);
+
+	private static final int MENU_MODIFIER = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
 
 	private Help help;
 	private JTree tree;
@@ -42,9 +55,24 @@ public class HelpBrowser extends JDialog {
 		help = new Help();
 		tree = new JTree(help);
 
+		Color background = UIManager.getColor("TextField.background");
+		String bgcolor = "#" + HexFormatter.tohex(background.getRGB() & 0xFFFFFF, 6);
+
+		ExtendedHTMLEditorKit kit = new ExtendedHTMLEditorKit();
+		StyleSheet defaultStyle = kit.getStyleSheet();
+		StyleSheet style = new StyleSheet();
+		style.addStyleSheet(defaultStyle);
+		style.addRule("table { border: 1px black solid; background-color: black; }");
+		style.addRule("td, th { background-color: " + bgcolor + "; }");
+		style.addRule("th { font-weight: bold; }");
+		style.addRule("code { background-color: #cccccc; }");
+		style.addRule("td, th, h1, h2, h3, h4, p { font-family: \"SansSerif\"; }");
+		kit.setStyleSheet(style);
+
 		htmlview = new JTextPane();
+		htmlview.setEditorKit(kit);
 		htmlview.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
-		htmlview.setBackground(UIManager.getColor("TextField.background"));
+		htmlview.setBackground(background);
 		htmlview.setEditable(false);
 		htmlview.setContentType("text/html");
 
@@ -112,5 +140,18 @@ public class HelpBrowser extends JDialog {
 
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		setSize(640, 480);
+
+		JRootPane root = getRootPane();
+		KeyStroke quitKey = KeyStroke.getKeyStroke(KeyEvent.VK_Q, MENU_MODIFIER);
+		KeyStroke escKey = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		Object action = new Object();
+		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(quitKey, action);
+		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escKey, action);
+		root.getActionMap().put(action, new AbstractAction() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				dispose();
+			}
+		});
 	}
 }
