@@ -32,6 +32,7 @@ import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.sequencer.Note;
 import com.unknown.emulight.lcp.ui.event.PreviewListener;
+import com.unknown.emulight.lcp.ui.laser.Callback;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
 
@@ -47,7 +48,7 @@ public class MidiPartEditorDialog extends JFrame {
 
 	private JLabel status;
 
-	public MidiPartEditorDialog(PartContainer<MidiPart> container) {
+	public MidiPartEditorDialog(PartContainer<MidiPart> container, Callback updater) {
 		super(getTitle(container));
 
 		this.container = container;
@@ -59,7 +60,7 @@ public class MidiPartEditorDialog extends JFrame {
 
 		MidiTrack track = (MidiTrack) container.getTrack();
 
-		editor = new MidiPartEditor(container.getPart());
+		editor = new MidiPartEditor(container.getPart(), updater);
 		editor.setStartTime(container.getTime());
 		editor.addPreviewListener(new PreviewListener() {
 			@Override

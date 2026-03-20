@@ -24,14 +24,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 
 import com.unknown.audio.analysis.MIDINames;
 import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.Note;
 import com.unknown.emulight.lcp.ui.event.PreviewListener;
+import com.unknown.emulight.lcp.ui.laser.Callback;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
 import com.unknown.util.ui.ADM3AFont;
@@ -90,8 +93,12 @@ public class MidiPartEditor extends JComponent {
 
 	private long partStartTime;
 
-	public MidiPartEditor(MidiPart part) {
+	private final Callback updater;
+
+	public MidiPartEditor(MidiPart part, Callback callback) {
 		this.part = part;
+		this.updater = callback;
+
 		ppq = part.getPPQ();
 		partStartTime = 0;
 
@@ -142,6 +149,7 @@ public class MidiPartEditor extends JComponent {
 						}
 						note.setKey(key);
 					}
+					updater.callback();
 					repaint();
 				} else if(e.getKeyCode() == KeyEvent.VK_DOWN) {
 					boolean octave = (e.getModifiersEx() & KeyEvent.CTRL_DOWN_MASK) != 0;
@@ -157,6 +165,7 @@ public class MidiPartEditor extends JComponent {
 						}
 						note.setKey(key);
 					}
+					updater.callback();
 					repaint();
 				}
 			}
@@ -346,6 +355,9 @@ public class MidiPartEditor extends JComponent {
 	private void deleteSelectedNotes() {
 		for(Note note : selection) {
 			part.removeNote(note);
+		}
+		if(!selection.isEmpty()) {
+			updater.callback();
 		}
 		selection.clear();
 		repaint();
@@ -605,6 +617,7 @@ public class MidiPartEditor extends JComponent {
 
 					if(length > 0) {
 						currentNote.setLength(length);
+						updater.callback();
 						repaint();
 					}
 				} else if(resize) {
@@ -635,6 +648,7 @@ public class MidiPartEditor extends JComponent {
 						}
 					}
 
+					updater.callback();
 					repaint();
 				} else if(selectionRectangle != null ||
 						(e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0) {
@@ -721,6 +735,7 @@ public class MidiPartEditor extends JComponent {
 						setPreview(selection.iterator().next());
 					}
 
+					updater.callback();
 					repaint();
 				}
 			} else if((e.getModifiersEx() & MouseEvent.BUTTON2_DOWN_MASK) != 0) {
@@ -756,6 +771,7 @@ public class MidiPartEditor extends JComponent {
 				}
 
 				if(!remove.isEmpty()) {
+					updater.callback();
 					repaint();
 				}
 			}
@@ -853,6 +869,7 @@ public class MidiPartEditor extends JComponent {
 					part.addNote(currentNote);
 					setPreview(currentNote);
 					newNote = true;
+					updater.callback();
 				} else {
 					selectionRectangle = new Rectangle(x, y, 1, 1);
 				}
@@ -874,6 +891,7 @@ public class MidiPartEditor extends JComponent {
 					}
 
 					if(!remove.isEmpty()) {
+						updater.callback();
 						repaint();
 					}
 				} else {
@@ -887,25 +905,37 @@ public class MidiPartEditor extends JComponent {
 						repaint();
 					});
 
-					JMenuItem div1 = new JMenuItem("Division: 1");
+					ButtonGroup divisionGroup = new ButtonGroup();
+
+					JRadioButtonMenuItem div1 = new JRadioButtonMenuItem("Division: 1",
+							division == 1);
 					div1.setMnemonic('1');
 					div1.addActionListener(ev -> setDivision(1));
+					divisionGroup.add(div1);
 
-					JMenuItem div2 = new JMenuItem("Division: 2");
+					JRadioButtonMenuItem div2 = new JRadioButtonMenuItem("Division: 2",
+							division == 2);
 					div2.setMnemonic('2');
 					div2.addActionListener(ev -> setDivision(2));
+					divisionGroup.add(div2);
 
-					JMenuItem div4 = new JMenuItem("Division: 4");
+					JRadioButtonMenuItem div4 = new JRadioButtonMenuItem("Division: 4",
+							division == 4);
 					div4.setMnemonic('4');
 					div4.addActionListener(ev -> setDivision(4));
+					divisionGroup.add(div4);
 
-					JMenuItem div8 = new JMenuItem("Division: 8");
+					JRadioButtonMenuItem div8 = new JRadioButtonMenuItem("Division: 8",
+							division == 8);
 					div8.setMnemonic('8');
 					div8.addActionListener(ev -> setDivision(8));
+					divisionGroup.add(div8);
 
-					JMenuItem div16 = new JMenuItem("Division: 16");
+					JRadioButtonMenuItem div16 = new JRadioButtonMenuItem("Division: 16",
+							division == 16);
 					div16.setMnemonic('6');
 					div16.addActionListener(ev -> setDivision(16));
+					divisionGroup.add(div16);
 
 					JPopupMenu menu = new JPopupMenu();
 					menu.add(reset);

@@ -2,6 +2,7 @@ package com.unknown.emulight.lcp.sequencer;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
@@ -20,7 +21,7 @@ public class TempoPart extends AbstractPart {
 	public double getTempo(long time) {
 		Entry<Long, Double> entry = tempo.floorEntry(time);
 		if(entry == null) {
-			return 0;
+			return 120;
 		} else {
 			return entry.getValue();
 		}
@@ -34,6 +35,10 @@ public class TempoPart extends AbstractPart {
 		}
 
 		return result;
+	}
+
+	public NavigableMap<Long, Double> getTempoMap() {
+		return Collections.unmodifiableNavigableMap(tempo);
 	}
 
 	public double getFirstTempo() {

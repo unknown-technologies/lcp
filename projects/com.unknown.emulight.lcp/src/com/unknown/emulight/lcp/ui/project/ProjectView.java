@@ -52,6 +52,7 @@ import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.emulight.lcp.ui.event.PartSelectionListener;
 import com.unknown.emulight.lcp.ui.laser.LaserPartEditorDialog;
 import com.unknown.emulight.lcp.ui.midi.MidiPartEditorDialog;
+import com.unknown.emulight.lcp.ui.midi.TempoPartEditorDialog;
 import com.unknown.emulight.lcp.ui.resources.icons.project.tracktype.TrackIcons;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
@@ -967,7 +968,7 @@ public class ProjectView extends JComponent {
 					// open a MIDI part editor
 					@SuppressWarnings("unchecked")
 					PartContainer<MidiPart> container = (PartContainer<MidiPart>) selectedPart;
-					MidiPartEditorDialog dlg = new MidiPartEditorDialog(container);
+					MidiPartEditorDialog dlg = new MidiPartEditorDialog(container, () -> repaint());
 					dlg.setLocationRelativeTo(ProjectView.this);
 					dlg.setVisible(true);
 				} else if(selectedPart.getPart() instanceof LaserPart) {
@@ -975,6 +976,14 @@ public class ProjectView extends JComponent {
 					@SuppressWarnings("unchecked")
 					PartContainer<LaserPart> container = (PartContainer<LaserPart>) selectedPart;
 					LaserPartEditorDialog dlg = new LaserPartEditorDialog(container);
+					dlg.setLocationRelativeTo(ProjectView.this);
+					dlg.setVisible(true);
+				} else if(selectedPart.getPart() instanceof TempoPart) {
+					// open a tempo part editor
+					@SuppressWarnings("unchecked")
+					PartContainer<TempoPart> container = (PartContainer<TempoPart>) selectedPart;
+					TempoPartEditorDialog dlg = new TempoPartEditorDialog(container,
+							() -> repaint());
 					dlg.setLocationRelativeTo(ProjectView.this);
 					dlg.setVisible(true);
 				}
@@ -1107,7 +1116,7 @@ public class ProjectView extends JComponent {
 							setSelectedPart(selectedPart.clone(partTime + dt));
 						}
 					} else if(selectedPart != null) {
-						selectedPart = selectedPart.move(partTime + dt);
+						setSelectedPart(selectedPart.move(partTime + dt));
 					}
 				}
 			}
