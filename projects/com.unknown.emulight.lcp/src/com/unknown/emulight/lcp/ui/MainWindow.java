@@ -319,6 +319,18 @@ public class MainWindow extends JFrame {
 		eslMenu.add(eslMenuSynchronizeTime);
 		eslMenu.add(eslMenuReset);
 
+		JMenu toolsMenu = new JMenu("Tools");
+
+		JMenuItem toolsMenuBPM = new JMenuItem("BPM...");
+		toolsMenuBPM.setMnemonic('B');
+		toolsMenuBPM.addActionListener(e -> {
+			BeatTapperDialog dlg = new BeatTapperDialog(this);
+			dlg.setLocationRelativeTo(this);
+			dlg.setVisible(true);
+		});
+
+		toolsMenu.add(toolsMenuBPM);
+
 		JMenuItem help = new JMenuItem("Help");
 		help.setMnemonic('H');
 		help.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
@@ -335,6 +347,7 @@ public class MainWindow extends JFrame {
 		menu.add(fileMenu);
 		menu.add(transportMenu);
 		menu.add(eslMenu);
+		menu.add(toolsMenu);
 		// hack, since JMenuBar::setHelpMenu is still not implemented after 25 years
 		menu.add(Box.createGlue());
 		menu.add(helpMenu);
