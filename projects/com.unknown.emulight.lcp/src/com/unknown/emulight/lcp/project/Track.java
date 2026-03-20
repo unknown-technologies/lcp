@@ -330,6 +330,8 @@ public abstract class Track<T extends AbstractPart> {
 			return null;
 		}
 
+		part.setName(getName());
+
 		PartContainer<T> container = addPart(time, part);
 		container.setLength(length);
 		return container;
