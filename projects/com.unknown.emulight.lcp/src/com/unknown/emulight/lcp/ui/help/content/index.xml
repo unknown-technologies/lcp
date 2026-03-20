@@ -1,3 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <help page="index.html">
+	<page name="Project Window" file="project.html"/>
 </help>
