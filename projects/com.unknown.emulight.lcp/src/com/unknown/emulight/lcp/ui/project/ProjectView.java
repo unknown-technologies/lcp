@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 
@@ -34,16 +36,20 @@ import javax.swing.JRadioButtonMenuItem;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 
+import com.unknown.emulight.lcp.audio.AudioData;
+import com.unknown.emulight.lcp.audio.AudioPart;
+import com.unknown.emulight.lcp.audio.AudioPeakMap;
+import com.unknown.emulight.lcp.audio.AudioTrack;
 import com.unknown.emulight.lcp.event.ProjectListener;
 import com.unknown.emulight.lcp.event.SequencerListener;
 import com.unknown.emulight.lcp.event.TrackListener;
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.LaserTrack;
 import com.unknown.emulight.lcp.project.AbstractPart;
-import com.unknown.emulight.lcp.project.AudioTrack;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.TempoTrack;
+import com.unknown.emulight.lcp.project.TempoTrack.TempoCheckpoint;
 import com.unknown.emulight.lcp.project.Track;
 import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
@@ -51,6 +57,8 @@ import com.unknown.emulight.lcp.sequencer.Note;
 import com.unknown.emulight.lcp.sequencer.TempoChange;
 import com.unknown.emulight.lcp.sequencer.TempoPart;
 import com.unknown.emulight.lcp.ui.UIUtils;
+import com.unknown.emulight.lcp.ui.audio.AudioPartEditorDialog;
+import com.unknown.emulight.lcp.ui.event.GridChangeListener;
 import com.unknown.emulight.lcp.ui.event.PartSelectionListener;
 import com.unknown.emulight.lcp.ui.laser.LaserPartEditorDialog;
 import com.unknown.emulight.lcp.ui.midi.MidiPartEditorDialog;
@@ -145,6 +153,7 @@ public class ProjectView extends JComponent {
 	};
 
 	private final List<PartSelectionListener> selectionListeners = new ArrayList<>();
+	private final List<GridChangeListener> gridListeners = new ArrayList<>();
 
 	public ProjectView(Project project) {
 		this.project = project;
@@ -219,6 +228,14 @@ public class ProjectView extends JComponent {
 		selectionListeners.remove(listener);
 	}
 
+	public void addGridChangeListener(GridChangeListener listener) {
+		gridListeners.add(listener);
+	}
+
+	public void removeGridChangeListener(GridChangeListener listener) {
+		gridListeners.remove(listener);
+	}
+
 	public void setTimeScale(double scale) {
 		timeScale = scale;
 		repaint();
@@ -227,7 +244,18 @@ public class ProjectView extends JComponent {
 	public void setDivision(int division) {
 		this.division = division;
 		grid = ppq / 4.0 / division;
+		for(GridChangeListener listener : gridListeners) {
+			try {
+				listener.gridChanged(grid);
+			} catch(Throwable t) {
+				log.log(Levels.ERROR, "Failed to run grid change listener: " + t.getMessage(), t);
+			}
+		}
 		repaint();
+	}
+
+	public double getGrid() {
+		return grid;
 	}
 
 	public void setOffsetX(int off) {
@@ -633,6 +661,10 @@ public class ProjectView extends JComponent {
 						drawMidiTrack(g, (PartContainer<MidiPart>) part, outline, startX + 1,
 								y + 2, length - 1, LINE_HEIGHT - 5);
 						break;
+					case Track.AUDIO:
+						drawAudioTrack(g, (PartContainer<AudioPart>) part, outline, startX + 1,
+								y + 2, length - 1, LINE_HEIGHT - 5);
+						break;
 					}
 
 					String name = part.getPart().getName();
@@ -844,6 +876,122 @@ public class ProjectView extends JComponent {
 		}
 	}
 
+	private void drawAudioTrack(Graphics g, PartContainer<AudioPart> part, Color color, int x, int y, int length,
+			int height) {
+		// TODO: do something with the Trim Start
+		long t = getTime(x);
+		long tend = getTime(x + length - 1);
+
+		AudioPart audio = part.getPart();
+		AudioData data = audio.getData();
+
+		if(data == null) {
+			return;
+		}
+
+		AudioPeakMap peakMap = data.getPeakMap();
+
+		TempoTrack tempo = project.getTempoTrack();
+		NavigableMap<Long, TempoCheckpoint> checkpoints = tempo.getTempoCheckpoints();
+
+		Entry<Long, TempoCheckpoint> entry = checkpoints.floorEntry(t);
+		if(entry == null) {
+			// something went wrong
+			return;
+		}
+
+		long nsecPart = tempo.getTime(part.getTime());
+		long nsecStart = tempo.getTime(t);
+		long nsecEnd = tempo.getTime(tend);
+
+		g.setColor(color);
+		int cy = y + height / 2;
+		float scale = height / 2.0f;
+
+		float[] min = new float[length];
+		float[] max = new float[length];
+
+		long nsecT = nsecStart;
+		for(int i = 0; i < length; i++) {
+			TempoCheckpoint checkpoint = entry.getValue();
+			Entry<Long, TempoCheckpoint> nextEntry = checkpoints.higherEntry(entry.getKey());
+			if(nextEntry == null) {
+				// this is the last checkpoint, finish everything here
+				long sampleStart = (nsecT - nsecPart) * data.getSampleRate() / 1_000_000_000;
+				long sampleEnd = (nsecEnd - nsecPart) * data.getSampleRate() / 1_000_000_000;
+				int block = length - i;
+				if(block == 0) {
+					block = 1;
+				} else if(block < 0) {
+					throw new AssertionError("block=" + block);
+				}
+				if(sampleStart < 0) {
+					throw new AssertionError("sampleStart=" + sampleStart);
+				}
+				if(sampleEnd < 0) {
+					throw new AssertionError("sampleEnd=" + sampleEnd);
+				}
+				if(sampleEnd > data.getSampleCount()) {
+					sampleEnd = data.getSampleCount();
+
+					// adjust block
+					long endTime = (sampleEnd * 1_000_000_000) / data.getSampleRate() + nsecPart;
+					long endTick = checkpoint.getTick(endTime);
+					int endPixel = getPixel(endTick);
+					block = endPixel - x;
+					if(block > length - i) {
+						block = length - i;
+					} else if(block <= 0) {
+						block = 1;
+					}
+				}
+				peakMap.getWaveform(min, max, (int) sampleStart, (int) sampleEnd, i, block);
+				break;
+			} else {
+				TempoCheckpoint nextCheckpoint = nextEntry.getValue();
+				int nextPixel = getPixel(nextCheckpoint.getTick());
+				int block = nextPixel - x - i;
+				if(block > length) {
+					block = length;
+				} else if(block <= 0) {
+					nsecT = checkpoint.getTime(nextCheckpoint.getTick());
+					entry = nextEntry;
+					i = nextPixel - x;
+					continue;
+				}
+
+				long nsecE = checkpoint.getTime(nextCheckpoint.getTick());
+				long sampleStart = (nsecT - nsecPart) * data.getSampleRate() / 1000_000_000;
+				long sampleEnd = (nsecE - nsecPart) * data.getSampleRate() / 1000_000_000;
+				if(sampleEnd > data.getSampleCount()) {
+					sampleEnd = data.getSampleCount();
+
+					// adjust block
+					long endTime = (sampleEnd * 1_000_000_000) / data.getSampleRate() + nsecPart;
+					long endTick = checkpoint.getTick(endTime);
+					int endPixel = getPixel(endTick);
+					block = endPixel - x;
+					if(block > length - i) {
+						block = length - i;
+					} else if(block <= 0) {
+						block = 0;
+					}
+				}
+				peakMap.getWaveform(min, max, (int) sampleStart, (int) sampleEnd, i, block);
+
+				nsecT = nsecE;
+				entry = nextEntry;
+				i = nextPixel - x;
+			}
+		}
+
+		for(int i = 0; i < length; i++) {
+			float minY = min[i] * scale;
+			float maxY = max[i] * scale;
+			g.drawLine(x + i, Math.round(cy + minY), x + i, Math.round(cy + maxY));
+		}
+	}
+
 	private List<TrackControl> getTrackControls(Track<?> track) {
 		switch(track.getType()) {
 		case Track.MIDI:
@@ -856,8 +1004,7 @@ public class ProjectView extends JComponent {
 					new TrackControlEditInstrument(this, track));
 		case Track.AUDIO:
 			return List.of(new TrackControlMuteSolo(this, track),
-					new TrackControlRecordMonitor(this, track),
-					new TrackControlEditInstrument(this, track));
+					new TrackControlRecordMonitor(this, track), new TrackControlEdit(this, track));
 		case Track.TEMPO:
 			return List.of(new TrackControlActiveLock(this, track),
 					new TrackControlTempo(this, (TempoTrack) track));
@@ -1004,6 +1151,14 @@ public class ProjectView extends JComponent {
 					@SuppressWarnings("unchecked")
 					PartContainer<TempoPart> container = (PartContainer<TempoPart>) selectedPart;
 					TempoPartEditorDialog dlg = new TempoPartEditorDialog(container,
+							() -> repaint());
+					dlg.setLocationRelativeTo(ProjectView.this);
+					dlg.setVisible(true);
+				} else if(selectedPart.getPart() instanceof AudioPart) {
+					// open a tempo part editor
+					@SuppressWarnings("unchecked")
+					PartContainer<AudioPart> container = (PartContainer<AudioPart>) selectedPart;
+					AudioPartEditorDialog dlg = new AudioPartEditorDialog(container,
 							() -> repaint());
 					dlg.setLocationRelativeTo(ProjectView.this);
 					dlg.setVisible(true);

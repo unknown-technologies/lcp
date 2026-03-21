@@ -9,10 +9,12 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.KeyStroke;
 
+import com.unknown.emulight.lcp.audio.AudioTrack;
 import com.unknown.emulight.lcp.laser.LaserTrack;
 import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.Track;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
+import com.unknown.emulight.lcp.ui.audio.AudioTrackEditor;
 import com.unknown.emulight.lcp.ui.laser.LaserTrackEditor;
 import com.unknown.emulight.lcp.ui.midi.MidiTrackEditor;
 
@@ -38,6 +40,8 @@ public abstract class TrackEditor extends JDialog {
 
 	public static TrackEditor show(EmulightSystem sys, Track<?> track) {
 		switch(track.getType()) {
+		case Track.AUDIO:
+			return new AudioTrackEditor(sys, (AudioTrack) track);
 		case Track.MIDI:
 			return new MidiTrackEditor(sys, (MidiTrack) track);
 		case Track.LASER:

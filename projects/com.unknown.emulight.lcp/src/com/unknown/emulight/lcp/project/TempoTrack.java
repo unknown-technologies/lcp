@@ -2,11 +2,18 @@ package com.unknown.emulight.lcp.project;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
+import com.unknown.audio.midi.smf.TempoEvent;
+import com.unknown.emulight.lcp.sequencer.TempoChange;
 import com.unknown.emulight.lcp.sequencer.TempoPart;
 import com.unknown.xml.dom.Element;
 
 public class TempoTrack extends Track<TempoPart> {
+	private NavigableMap<Long, TempoCheckpoint> tempoCheckpoints = new TreeMap<>();
+
 	public TempoTrack(Project project, String name) {
 		super(TEMPO, project, name);
 
@@ -76,6 +83,84 @@ public class TempoTrack extends Track<TempoPart> {
 		}
 	}
 
+	public void recompute() {
+		long ppq = getProject().getPPQ();
+		double initialBpm = getTempo(0);
+		int initialMicroTempo = (int) Math.round(60_000_000 / initialBpm);
+		TempoCheckpoint last = new TempoCheckpoint(0, 0, initialMicroTempo, ppq);
+		tempoCheckpoints.clear();
+		tempoCheckpoints.put(0L, last);
+		for(PartContainer<TempoPart> part : getParts()) {
+			long t = part.getTime();
+			for(TempoChange change : part.getPart().getTempoChanges()) {
+				if(!part.containsEvent(change.getTime())) {
+					continue;
+				}
+
+				double bpm = change.getTempo();
+				int micro = TempoEvent.getMicroTempo(bpm);
+				long time = t + change.getTime();
+
+				long dtick = time - last.getTick();
+				long nanotime = last.getTime() + dtick * last.getMicroTempo() * 1000 / ppq;
+				last = new TempoCheckpoint(time, nanotime, micro, ppq);
+				tempoCheckpoints.put(time, last);
+			}
+		}
+	}
+
+	public NavigableMap<Long, TempoCheckpoint> getTempoCheckpoints() {
+		return tempoCheckpoints;
+	}
+
+	public long getTime(long tick) {
+		Entry<Long, TempoCheckpoint> entry = tempoCheckpoints.floorEntry(tick);
+		if(entry == null) {
+			long ppq = getProject().getPPQ();
+			double initialBpm = getTempo(0);
+			int initialMicroTempo = (int) Math.round(60_000_000 / initialBpm);
+			TempoCheckpoint checkpoint = new TempoCheckpoint(0, 0, initialMicroTempo, ppq);
+			return checkpoint.getTime(tick);
+		} else {
+			TempoCheckpoint checkpoint = entry.getValue();
+			return checkpoint.getTime(tick);
+		}
+	}
+
+	@Override
+	public PartContainer<TempoPart> addPart(long time, TempoPart part) {
+		PartContainer<TempoPart> container = super.addPart(time, part);
+		recompute();
+		return container;
+	}
+
+	@Override
+	public void removePart(PartContainer<TempoPart> part) {
+		super.removePart(part);
+		recompute();
+	}
+
+	@Override
+	public PartContainer<TempoPart> movePart(long time, PartContainer<TempoPart> container) {
+		PartContainer<TempoPart> result = super.movePart(time, container);
+		recompute();
+		return result;
+	}
+
+	@Override
+	public PartContainer<TempoPart> clonePart(long time, PartContainer<TempoPart> container) {
+		PartContainer<TempoPart> result = super.clonePart(time, container);
+		recompute();
+		return result;
+	}
+
+	@Override
+	public PartContainer<TempoPart> linkPart(long time, PartContainer<TempoPart> container) {
+		PartContainer<TempoPart> result = super.linkPart(time, container);
+		recompute();
+		return result;
+	}
+
 	@Override
 	protected TempoPart createPart() {
 		return new TempoPart();
@@ -96,5 +181,43 @@ public class TempoTrack extends Track<TempoPart> {
 		TempoTrack track = new TempoTrack(getProject(), getName());
 		copy(track);
 		return track;
+	}
+
+	public static class TempoCheckpoint {
+		private final long ppq;
+		private final long tick;
+		private final long nanotime;
+		private final int microTempo;
+
+		public TempoCheckpoint(long tick, long nanotime, int microTempo, long ppq) {
+			this.tick = tick;
+			this.nanotime = nanotime;
+			this.microTempo = microTempo;
+			this.ppq = ppq;
+		}
+
+		public long getTick() {
+			return tick;
+		}
+
+		public long getTick(long time) {
+			long dtime = time - nanotime;
+			long dtick = dtime * ppq / microTempo / 1000;
+			return tick + dtick;
+		}
+
+		public long getTime() {
+			return nanotime;
+		}
+
+		public long getTime(long t) {
+			long dtick = t - tick;
+			long dtime = dtick * microTempo * 1000 / ppq;
+			return nanotime + dtime;
+		}
+
+		public int getMicroTempo() {
+			return microTempo;
+		}
 	}
 }

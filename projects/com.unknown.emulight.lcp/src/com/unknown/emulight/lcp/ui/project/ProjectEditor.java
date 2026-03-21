@@ -61,7 +61,8 @@ public class ProjectEditor extends JPanel {
 			}
 		});
 
-		JSpinner start = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, project.getPPQ() / 4));
+		int initialStep = (int) Math.round(view.getGrid());
+		JSpinner start = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, initialStep));
 		start.setEnabled(false);
 		start.addChangeListener(e -> {
 			int time = (int) start.getValue();
@@ -70,7 +71,7 @@ public class ProjectEditor extends JPanel {
 			}
 		});
 
-		JSpinner length = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, project.getPPQ() / 4));
+		JSpinner length = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, initialStep));
 		length.setEnabled(false);
 		length.addChangeListener(e -> {
 			int len = (int) length.getValue();
@@ -106,6 +107,12 @@ public class ProjectEditor extends JPanel {
 				start.setEnabled(false);
 				length.setEnabled(false);
 			}
+		});
+
+		view.addGridChangeListener(grid -> {
+			int step = (int) Math.round(grid);
+			((SpinnerNumberModel) start.getModel()).setStepSize(step);
+			((SpinnerNumberModel) length.getModel()).setStepSize(step);
 		});
 
 		add(BorderLayout.NORTH, partProperties);

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import com.unknown.emulight.lcp.audio.AudioTrack;
 import com.unknown.emulight.lcp.event.ProjectListener;
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.LaserProcessor;
@@ -323,6 +324,9 @@ public class Project {
 				case "signature":
 					track = signatureTrack;
 					break;
+				case "audio":
+					track = new AudioTrack(this, child.getAttribute("name"));
+					break;
 				case "midi":
 					track = new MidiTrack(this, child.getAttribute("name"));
 					break;
@@ -338,6 +342,8 @@ public class Project {
 				track.read(child);
 			}
 		}
+
+		getTempoTrack().recompute();
 	}
 
 	public Element write() {

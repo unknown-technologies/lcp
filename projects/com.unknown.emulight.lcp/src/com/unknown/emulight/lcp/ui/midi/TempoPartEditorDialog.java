@@ -35,6 +35,7 @@ import javax.swing.Timer;
 import com.unknown.emulight.lcp.event.SequencerListener;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
+import com.unknown.emulight.lcp.project.TempoTrack;
 import com.unknown.emulight.lcp.sequencer.TempoPart;
 import com.unknown.emulight.lcp.ui.laser.Callback;
 import com.unknown.math.g3d.Mtx44;
@@ -113,10 +114,12 @@ public class TempoPartEditorDialog extends JFrame {
 	private long partStartTime;
 
 	private final Project project;
+	private final TempoTrack track;
 
 	public TempoPartEditorDialog(PartContainer<TempoPart> container, Callback update) {
 		super(TITLE);
 		this.project = container.getTrack().getProject();
+		this.track = (TempoTrack) container.getTrack();
 		this.partStartTime = container.getTime();
 		this.update = update;
 
@@ -256,6 +259,7 @@ public class TempoPartEditorDialog extends JFrame {
 
 	protected void setValue(long time, double value) {
 		part.setTempo(time, value);
+		track.recompute();
 		updateFields();
 		repaint();
 	}
@@ -306,6 +310,7 @@ public class TempoPartEditorDialog extends JFrame {
 					double bpm = part.getTempo(selectedTime);
 					part.deleteTempo(selectedTime);
 					part.setTempo(t, bpm);
+					track.recompute();
 					selectedTime = t;
 					updateView();
 				}
@@ -745,6 +750,7 @@ public class TempoPartEditorDialog extends JFrame {
 					if(values.size() > 1) {
 						part.deleteTempo(ceil);
 						selectedTime = values.ceilingKey(t);
+						track.recompute();
 						updateFields();
 						repaint();
 					}
@@ -752,6 +758,7 @@ public class TempoPartEditorDialog extends JFrame {
 					if(values.size() > 1) {
 						part.deleteTempo(floor);
 						selectedTime = values.floorKey(t);
+						track.recompute();
 						updateFields();
 						repaint();
 					}
@@ -762,11 +769,13 @@ public class TempoPartEditorDialog extends JFrame {
 					if(dstFloor < dstCeil) {
 						part.deleteTempo(floor);
 						selectedTime = ceil;
+						track.recompute();
 						updateFields();
 						repaint();
 					} else {
 						part.deleteTempo(ceil);
 						selectedTime = floor;
+						track.recompute();
 						updateFields();
 						repaint();
 					}
@@ -1034,6 +1043,7 @@ public class TempoPartEditorDialog extends JFrame {
 					if(time != selectedTime) {
 						part.deleteTempo(selectedTime);
 						selectedTime = time;
+						track.recompute();
 					}
 					updateFields();
 					repaint();
