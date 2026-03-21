@@ -18,6 +18,7 @@ Bonus Feature: Laser Pong
 
 Although this is currently *not* integrated into the UI, you can play around with a standalone implementation of Pong. The source code for this demo is available [here](https://github.com/unknown-technologies/lcp/blob/master/projects/com.unknown.emulight.lcp/src/com/unknown/emulight/lcp/laser/Pong.java).
 Keep in mind this only plays a Pong *animation*, it does *not* allow you to play the game at the moment. But feel free to take this code and extend it in any way you like. It has no dependencies on anything from the LCP, it only requires the [common](https://github.com/unknown-technologies/common) library for direct interaction with the laser.
+A demonstration of this Laser Pong program can be seen in this video: https://youtu.be/1NQfgwTZxfs
 
 
 Building
