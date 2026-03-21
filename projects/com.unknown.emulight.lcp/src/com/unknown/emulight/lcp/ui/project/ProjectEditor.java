@@ -62,7 +62,8 @@ public class ProjectEditor extends JPanel {
 		});
 
 		int initialStep = (int) Math.round(view.getGrid());
-		JSpinner start = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, initialStep));
+		JSpinner start = new JSpinner(
+				new SpinnerNumberModel(0, Integer.MIN_VALUE, Integer.MAX_VALUE, initialStep));
 		start.setEnabled(false);
 		start.addChangeListener(e -> {
 			int time = (int) start.getValue();
