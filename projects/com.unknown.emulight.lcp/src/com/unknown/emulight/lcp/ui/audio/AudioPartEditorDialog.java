@@ -3,24 +3,30 @@ package com.unknown.emulight.lcp.ui.audio;
 import java.awt.BorderLayout;
 import java.awt.FileDialog;
 import java.awt.Toolkit;
+import java.awt.event.AdjustmentListener;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
 
+import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.KeyStroke;
 
+import com.unknown.audio.xm.Sample;
 import com.unknown.emulight.lcp.audio.AudioData;
 import com.unknown.emulight.lcp.audio.AudioPart;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.ui.laser.Callback;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
+import com.unknown.util.ui.WaveformEditor;
 
 @SuppressWarnings("serial")
 public class AudioPartEditorDialog extends JFrame {
@@ -30,7 +36,7 @@ public class AudioPartEditorDialog extends JFrame {
 
 	private PartContainer<AudioPart> container;
 
-	// private AudioPartEditor editor;
+	private WaveformEditor editor;
 
 	private JLabel status;
 
@@ -46,12 +52,38 @@ public class AudioPartEditorDialog extends JFrame {
 
 		// AudioTrack track = (AudioTrack) container.getTrack();
 
-		// editor = new MidiPartEditor(container.getPart(), updater);
-		// editor.setStartTime(container.getTime());
+		AudioData data = container.getPart().getData();
+
+		editor = new WaveformEditor();
+		editor.setTimeDivision(0.1);
+		editor.setVoltageDivision(0.1);
+		editor.setDefaultDivision(0.1, 0.1);
+
+		if(data != null) {
+			editor.setSampleRate(data.getSampleRate());
+			editor.setSignal(data.getMono());
+		} else {
+			editor.setSampleRate(48000); // TODO
+			editor.setSignal(new float[0]);
+		}
+
+		JScrollBar intensityScroller = new JScrollBar(JScrollBar.VERTICAL, 0, 10, 0, 400);
+		AdjustmentListener l = e -> {
+			int raw = intensityScroller.getValue();
+			float value = 1.0f - raw / 390.0f;
+			float intensity = 1.0f + value * 40.0f;
+			editor.setBeamIntensity(intensity);
+		};
+		intensityScroller.addAdjustmentListener(l);
+		l.adjustmentValueChanged(null);
+
+		JPanel waveformView = new JPanel(new BorderLayout());
+		waveformView.add(BorderLayout.CENTER, editor);
+		waveformView.add(BorderLayout.EAST, intensityScroller);
 
 		status = new JLabel("READY");
 
-		// add(BorderLayout.CENTER, editor);
+		add(BorderLayout.CENTER, waveformView);
 		add(BorderLayout.SOUTH, status);
 
 		JMenuBar menu = new JMenuBar();
@@ -138,7 +170,11 @@ public class AudioPartEditorDialog extends JFrame {
 	}
 
 	private void loadWaveData(File file) throws IOException {
-		container.getPart().setData(new AudioData(file));
+		AudioData data = new AudioData(file);
+		container.getPart().setData(data);
+
+		editor.setSampleRate(data.getSampleRate());
+		editor.setSignal(data.getMono());
 	}
 
 	private void saveWaveData(File file) throws IOException {

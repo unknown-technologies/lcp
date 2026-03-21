@@ -20,6 +20,7 @@ public class AudioData {
 	private int channels;
 	private int length;
 	private float[][] samples;
+	private float[] mono;
 	private AudioPeakMap map;
 
 	public AudioData() {
@@ -27,6 +28,7 @@ public class AudioData {
 		channels = 1;
 		sampleRate = 48000;
 		samples = new float[channels][0];
+		mono = new float[0];
 		map = null;
 	}
 
@@ -42,7 +44,27 @@ public class AudioData {
 			sampleRate = wav.getSampleRate();
 			samples = wav.getFloatSamples();
 			length = wav.getSampleCount();
+			computeMono();
 			map = new AudioPeakMap(this);
+		}
+	}
+
+	private void computeMono() {
+		mono = new float[length];
+		float min = 1;
+		float max = -1;
+		for(int i = 0; i < length; i++) {
+			float sum = 0;
+			for(int ch = 0; ch < channels; ch++) {
+				sum += samples[ch][i];
+			}
+			mono[i] = sum / channels;
+			if(mono[i] < min) {
+				min = mono[i];
+			}
+			if(mono[i] > max) {
+				max = mono[i];
+			}
 		}
 	}
 
@@ -78,6 +100,10 @@ public class AudioData {
 
 	public float[][] getSamples() {
 		return samples;
+	}
+
+	public float[] getMono() {
+		return mono;
 	}
 
 	public AudioPeakMap getPeakMap() {

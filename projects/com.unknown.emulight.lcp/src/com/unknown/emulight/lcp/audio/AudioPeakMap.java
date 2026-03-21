@@ -8,24 +8,7 @@ public class AudioPeakMap {
 		sampleCount = part.getSampleCount();
 		int count = (int) Math.ceil(Math.log(sampleCount) / Math.log(2));
 
-		int channels = part.getChannelCount();
-		float[][] samples = part.getSamples();
-		float[] mono = new float[sampleCount];
-		float min = 1;
-		float max = -1;
-		for(int i = 0; i < sampleCount; i++) {
-			float sum = 0;
-			for(int ch = 0; ch < channels; ch++) {
-				sum += samples[ch][i];
-			}
-			mono[i] = sum / channels;
-			if(mono[i] < min) {
-				min = mono[i];
-			}
-			if(mono[i] > max) {
-				max = mono[i];
-			}
-		}
+		float[] mono = part.getMono();
 
 		map = new Layer[count];
 		map[0] = new Layer(mono);
