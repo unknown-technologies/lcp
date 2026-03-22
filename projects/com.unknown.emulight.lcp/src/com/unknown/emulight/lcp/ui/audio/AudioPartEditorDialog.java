@@ -9,7 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -19,7 +18,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.KeyStroke;
 
-import com.unknown.audio.xm.Sample;
 import com.unknown.emulight.lcp.audio.AudioData;
 import com.unknown.emulight.lcp.audio.AudioPart;
 import com.unknown.emulight.lcp.project.PartContainer;
