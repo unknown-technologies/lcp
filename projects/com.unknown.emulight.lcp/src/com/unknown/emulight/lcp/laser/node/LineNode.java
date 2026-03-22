@@ -10,8 +10,8 @@ import com.unknown.math.g3d.Vec3;
 public class LineNode extends Node {
 	public static final String TYPE = "line";
 
-	private Property<Vec3> start = new Property<>(StandardPropertyNames.START, ZERO, MIN3D, MAX3D);
-	private Property<Vec3> end = new Property<>(StandardPropertyNames.END, ZERO, MIN3D, MAX3D);
+	private Property<Vec3> start = new Property<>(StandardPropertyNames.START, new Vec3(-0.1, 0, 0), MIN3D, MAX3D);
+	private Property<Vec3> end = new Property<>(StandardPropertyNames.END, new Vec3(0.1, 0, 0), MIN3D, MAX3D);
 	private Property<Color3> color = new Property<>(StandardPropertyNames.COLOR, WHITE);
 	private final Property<Integer> pointCount = new Property<>(StandardPropertyNames.POINTS, 2, 2, 1000, false);
 	private final Property<Integer> repetition = new Property<>(StandardPropertyNames.REPETITION, 1, 1, 1000,
