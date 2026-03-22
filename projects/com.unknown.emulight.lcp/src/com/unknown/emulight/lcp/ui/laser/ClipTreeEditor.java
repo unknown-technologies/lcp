@@ -58,9 +58,10 @@ public class ClipTreeEditor extends JPanel {
 				if(selection != null) {
 					for(TreePath path : selection) {
 						if(path.getPathCount() > 1) {
-							model.remove(path);
+							remove(path);
 						}
 					}
+					tree.setSelectionPath(new TreePath(model.getRoot()));
 				}
 			}
 		});
@@ -173,6 +174,7 @@ public class ClipTreeEditor extends JPanel {
 
 	public void insert(TreePath path, Node node) {
 		model.insert(path, node);
+		updated.callback();
 	}
 
 	public void remove(TreePath path) {
