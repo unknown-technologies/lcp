@@ -255,9 +255,11 @@ public class MainWindow extends JFrame {
 				long tick = seq.getTick();
 				project.stop();
 				seq.setTick(tick);
+				setStatus("Playback stopped");
 			} else {
 				lastStartPosition = seq.getTick();
 				project.play();
+				setStatus("Playback started");
 			}
 		});
 
@@ -270,6 +272,7 @@ public class MainWindow extends JFrame {
 				long tick = seq.getTick();
 				project.stop();
 				seq.setTick(tick);
+				setStatus("Playback stopped");
 			} else {
 				seq.setTick(lastStartPosition);
 			}
@@ -423,6 +426,7 @@ public class MainWindow extends JFrame {
 
 	private void error(String msg, Exception e) {
 		log.log(Levels.WARNING, msg, e);
+		setStatus(msg);
 		MessageBox.showError(this, msg);
 	}
 
