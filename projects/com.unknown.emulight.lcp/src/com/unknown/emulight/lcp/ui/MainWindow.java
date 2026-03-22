@@ -52,6 +52,8 @@ import com.unknown.emulight.lcp.ui.help.HelpBrowser;
 import com.unknown.emulight.lcp.ui.laser.LaserDiscovery;
 import com.unknown.emulight.lcp.ui.project.ProjectEditor;
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
+import com.unknown.net.shownet.Laser;
+import com.unknown.net.shownet.LaserConnectionListener;
 import com.unknown.net.shownet.LaserDiscoveryListener;
 import com.unknown.net.shownet.LaserInfo;
 import com.unknown.util.io.FourCC;
@@ -366,6 +368,18 @@ public class MainWindow extends JFrame {
 
 			@Override
 			public void laserLost(LaserInfo laser) {
+				SwingUtilities.invokeLater(() -> updateDiscoveryStatus());
+			}
+		});
+
+		processor.addLaserConnectionListener(new LaserConnectionListener() {
+			@Override
+			public void laserConnected(Laser laser) {
+				SwingUtilities.invokeLater(() -> updateDiscoveryStatus());
+			}
+
+			@Override
+			public void laserDisconnected(Laser laser) {
 				SwingUtilities.invokeLater(() -> updateDiscoveryStatus());
 			}
 		});
