@@ -309,6 +309,17 @@ public class ClipNodeEditor extends JComponent {
 			}
 		}
 
+		private static double clamp(double x) {
+			return Math.max(Math.min(x, 1), -1);
+		}
+
+		private static Vec3 clamp(Vec3 vec) {
+			double px = clamp(vec.x);
+			double py = clamp(vec.y);
+			double pz = clamp(vec.z);
+			return new Vec3(px, py, pz);
+		}
+
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			int x = e.getX();
@@ -322,7 +333,7 @@ public class ClipNodeEditor extends JComponent {
 				if(node instanceof GroupNode) {
 					GroupNode group = (GroupNode) node;
 					PointNode p = new PointNode();
-					p.setPosition(time, point);
+					p.setPosition(time, clamp(point));
 					p.setColor(time, color);
 					group.addChild(p);
 					treeEditor.nodeInserted(p);
@@ -390,7 +401,7 @@ public class ClipNodeEditor extends JComponent {
 						Vec3 end = mtx.mult(new Vec3(x, y, 0));
 
 						circle.setPosition(time, start);
-						circle.setRadius(time, end.sub(start).length());
+						circle.setRadius(time, clamp(end.sub(start).length()));
 						updated.callback();
 						repaint();
 					}
@@ -401,8 +412,8 @@ public class ClipNodeEditor extends JComponent {
 						Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
 						Vec3 end = mtx.mult(new Vec3(x, y, 0));
 
-						line.setStart(time, start);
-						line.setEnd(time, end);
+						line.setStart(time, clamp(start));
+						line.setEnd(time, clamp(end));
 						updated.callback();
 						repaint();
 					}
@@ -436,7 +447,7 @@ public class ClipNodeEditor extends JComponent {
 						Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
 						Vec3 end = mtx.mult(new Vec3(x, y, 0));
 						circle.setPosition(time, start);
-						circle.setRadius(time, end.sub(start).length());
+						circle.setRadius(time, clamp(end.sub(start).length()));
 						updated.callback();
 						repaint();
 					}
@@ -453,8 +464,8 @@ public class ClipNodeEditor extends JComponent {
 						Mtx44 mtx = getInverseTransform(line);
 						Vec3 start = mtx.mult(new Vec3(startX, startY, 0));
 						Vec3 end = mtx.mult(new Vec3(x, y, 0));
-						line.setStart(time, start);
-						line.setEnd(time, end);
+						line.setStart(time, clamp(start));
+						line.setEnd(time, clamp(end));
 						updated.callback();
 						repaint();
 					}
@@ -469,7 +480,8 @@ public class ClipNodeEditor extends JComponent {
 					// change circle radius
 					mtx = circle.getFullTransform(time);
 					Vec3 pos = mtx.mult(circle.getPosition(time));
-					circle.setRadius(time, end.sub(pos).length());
+					double radius = end.sub(pos).length();
+					circle.setRadius(time, clamp(radius));
 					updated.callback();
 					repaint();
 				}
@@ -484,7 +496,7 @@ public class ClipNodeEditor extends JComponent {
 					Vec3 diff = end.sub(start);
 
 					Vec3 pos = startPos.add(diff);
-					posProp.setValue(time, pos);
+					posProp.setValue(time, clamp(pos));
 					updated.callback();
 					repaint();
 				}
