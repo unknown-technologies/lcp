@@ -3,11 +3,17 @@ package com.unknown.emulight.lcp.project;
 import java.awt.Window;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.logging.Logger;
 
+import javax.sound.sampled.LineUnavailableException;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 
+import com.unknown.emulight.lcp.audio.AudioProcessor;
+import com.unknown.emulight.lcp.event.ConfigChangeListener;
 import com.unknown.emulight.lcp.io.esl.ESL;
 import com.unknown.emulight.lcp.io.esl.ESLInterface;
 import com.unknown.emulight.lcp.io.esl.SerialInterface;
@@ -16,11 +22,18 @@ import com.unknown.emulight.lcp.laser.LaserProcessor;
 import com.unknown.emulight.lcp.laser.LaserReference;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserAddress;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
+import com.unknown.emulight.lcp.project.SystemConfiguration.LookAndFeel;
+import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
+import com.unknown.util.log.Levels;
+import com.unknown.util.log.Trace;
 
 public class EmulightSystem {
+	private static final Logger log = Trace.create(EmulightSystem.class);
+
 	private SystemConfiguration config = new SystemConfiguration();
 
 	private final LaserProcessor laser;
+	private final AudioProcessor audio;
 	private final MidiRouter midi;
 	private final ESL esl;
 	private final SerialInterface phy;
@@ -28,7 +41,8 @@ public class EmulightSystem {
 	private JFrame mainWindow;
 
 	public EmulightSystem() throws IOException {
-		laser = new LaserProcessor(this, 100);
+		laser = new LaserProcessor(config, 100);
+		audio = new AudioProcessor(config.getSampleRate());
 		String line = config.getSerialLine();
 		phy = new SerialInterface(line);
 		esl = new ESLInterface(phy);
@@ -40,6 +54,52 @@ public class EmulightSystem {
 				laser.addDiscoveryAddress(a);
 			}
 		}
+
+		config.addConfigChangeListener(new ConfigChangeListener() {
+			@Override
+			public void configChanged(String key, String value) {
+				switch(key) {
+				case SystemConfiguration.LOOKANDFEEL:
+					try {
+						LookAndFeel laf = config.getLookAndFeel();
+						UIManager.setLookAndFeel(laf.getUIClass());
+						updateUI();
+					} catch(ClassNotFoundException | InstantiationException | IllegalAccessException
+							| UnsupportedLookAndFeelException e) {
+						log.log(Levels.WARNING, "Failed to set L&F: " + e.getMessage());
+					}
+					break;
+				case SystemConfiguration.WINDOW_DECORATIONS:
+					JFrame.setDefaultLookAndFeelDecorated(config.getWindowDecorations());
+					JDialog.setDefaultLookAndFeelDecorated(config.getWindowDecorations());
+					break;
+				case SystemConfiguration.BLOCK_SIZE:
+					try {
+						audio.setBlockSize(config.getBlockSize());
+					} catch(LineUnavailableException e) {
+						log.log(Levels.ERROR, "Cannot restart audio output: " + e.getMessage());
+					}
+					break;
+				case SystemConfiguration.SAMPLE_RATE:
+					try {
+						audio.setSampleRate(config.getSampleRate());
+					} catch(LineUnavailableException e) {
+						log.log(Levels.ERROR, "Cannot restart audio output: " + e.getMessage());
+					}
+					break;
+				}
+			}
+
+			@Override
+			public void midiPortChanged(MidiPortConfig port) {
+				// empty
+			}
+
+			@Override
+			public void laserChanged(LaserConfig cfg) {
+				// empty
+			}
+		});
 	}
 
 	public SystemConfiguration getConfig() {
@@ -56,6 +116,10 @@ public class EmulightSystem {
 			return null;
 		}
 		return new LaserReference(this, cfg);
+	}
+
+	public AudioProcessor getAudioProcessor() {
+		return audio;
 	}
 
 	public MidiRouter getMidiRouter() {
@@ -91,6 +155,12 @@ public class EmulightSystem {
 	}
 
 	public void open() throws IOException {
+		try {
+			audio.open();
+		} catch(LineUnavailableException e) {
+			log.log(Levels.ERROR, "Cannot open audio output: " + e.getMessage());
+		}
+
 		if(phy.getLine() != null) {
 			phy.open();
 		}
@@ -100,6 +170,8 @@ public class EmulightSystem {
 		config.close();
 
 		midi.closeAll();
+
+		audio.close();
 
 		laser.shutdown();
 

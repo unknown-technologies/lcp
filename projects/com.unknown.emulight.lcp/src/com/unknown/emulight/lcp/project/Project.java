@@ -50,6 +50,8 @@ public class Project {
 	public Project(EmulightSystem system) {
 		this.system = system;
 
+		sequencer.addListener(system.getAudioProcessor());
+
 		// default colors
 		colors.add(new Color(0x8EA0B2));
 		colors.add(new Color(0xE53636));
@@ -182,9 +184,12 @@ public class Project {
 		sequencer.stop();
 
 		List<MidiTrack> midiTracks = new ArrayList<>();
+		List<AudioTrack> audioTracks = new ArrayList<>();
 		for(Track<?> track : tracks) {
 			if(track instanceof MidiTrack) {
 				midiTracks.add((MidiTrack) track);
+			} else if(track instanceof AudioTrack) {
+				audioTracks.add((AudioTrack) track);
 			}
 		}
 
@@ -192,6 +197,8 @@ public class Project {
 
 		sequencer.setTempoTrack(tempoTrack);
 		sequencer.setTracks(midiTracks);
+		sequencer.setAudioTracks(audioTracks);
+		sequencer.generateEvents();
 		sequencer.play();
 	}
 

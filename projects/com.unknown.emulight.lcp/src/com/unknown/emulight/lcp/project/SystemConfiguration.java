@@ -32,22 +32,20 @@ import com.unknown.util.log.Trace;
 import com.unknown.xml.dom.Element;
 import com.unknown.xml.dom.XMLReader;
 
-public class SystemConfiguration {
+public class SystemConfiguration implements AutoCloseable {
 	private static final Logger log = Trace.create(SystemConfiguration.class);
 
 	public static final String SERIAL_LINE = "serial-line";
-	public static final String WALLPAPER = "wallpaper";
-	public static final String OUTLINE_DRAG_MODE = "outline-drag-mode";
-	public static final String FULLSCREEN = "fullscreen";
+	public static final String SAMPLE_RATE = "sample-rate";
+	public static final String BLOCK_SIZE = "block-size";
 	public static final String LOOKANDFEEL = "look-and-feel";
 	public static final String WINDOW_DECORATIONS = "window-decorations";
 
 	private String serialLine;
-	private String wallpaper;
-	private boolean outlineDrag = false;
-	private boolean fullscreen = false;
 	private LookAndFeel laf = LookAndFeel.MOTIF;
 	private boolean windowDecorations = true;
+	private int sampleRate = 48000;
+	private int blockSize = 1024;
 
 	private Map<MidiPortId, MidiPortConfig> midiPortConfig = new HashMap<>();
 	private Map<String, ESLMidiPortConfig> eslMidiPortConfig = new HashMap<>();
@@ -59,8 +57,6 @@ public class SystemConfiguration {
 	private List<ConfigChangeListener> listeners = new ArrayList<>();
 
 	public SystemConfiguration() {
-		wallpaper = null;
-
 		try {
 			read();
 		} catch(FileNotFoundException | NoSuchFileException e) {
@@ -70,6 +66,7 @@ public class SystemConfiguration {
 		}
 	}
 
+	@Override
 	public void close() {
 		try {
 			write();
@@ -95,39 +92,30 @@ public class SystemConfiguration {
 		fireConfigChangedEvent(SERIAL_LINE, serialLine);
 	}
 
-	public String getWallpaper() {
-		return wallpaper;
+	public int getSampleRate() {
+		return sampleRate;
 	}
 
-	public void setWallpaper(String wallpaper) {
-		if(same(wallpaper, this.wallpaper)) {
+	public void setSampleRate(int sampleRate) {
+		if(sampleRate == this.sampleRate) {
 			return;
 		}
 
-		this.wallpaper = wallpaper;
-		fireConfigChangedEvent(WALLPAPER, wallpaper);
+		this.sampleRate = sampleRate;
+		fireConfigChangedEvent(SAMPLE_RATE, Integer.toString(sampleRate));
 	}
 
-	public boolean isOutlineDragMode() {
-		return outlineDrag;
+	public int getBlockSize() {
+		return blockSize;
 	}
 
-	public void setOutlineDragMode(boolean outlineDrag) {
-		if(this.outlineDrag != outlineDrag) {
-			this.outlineDrag = outlineDrag;
-			fireConfigChangedEvent(OUTLINE_DRAG_MODE, Boolean.toString(outlineDrag));
+	public void setBlockSize(int blockSize) {
+		if(blockSize == this.blockSize) {
+			return;
 		}
-	}
 
-	public boolean isFullscreen() {
-		return fullscreen;
-	}
-
-	public void setFullscreen(boolean fullscreen) {
-		if(this.fullscreen != fullscreen) {
-			this.fullscreen = fullscreen;
-			fireConfigChangedEvent(FULLSCREEN, Boolean.toString(fullscreen));
-		}
+		this.blockSize = blockSize;
+		fireConfigChangedEvent(BLOCK_SIZE, Integer.toString(blockSize));
 	}
 
 	public LookAndFeel getLookAndFeel() {
@@ -376,13 +364,15 @@ public class SystemConfiguration {
 		}
 		xml.addChild(pcif);
 
-		Element desktop = new Element("desktop");
-		desktop.addAttribute("outline-drag-mode", Boolean.toString(outlineDrag));
-		desktop.addAttribute("fullscreen", Boolean.toString(fullscreen));
+		Element desktop = new Element("user-interface");
 		desktop.addAttribute("look-and-feel", laf.toString());
 		desktop.addAttribute("window-decorations", Boolean.toString(windowDecorations));
-		desktop.addChild(new Element("wallpaper", wallpaper));
 		xml.addChild(desktop);
+
+		Element audio = new Element("audio");
+		audio.addAttribute("sample-rate", Integer.toString(sampleRate));
+		audio.addAttribute("block-size", Integer.toString(blockSize));
+		xml.addChild(audio);
 
 		Element midi = new Element("midi");
 		for(Entry<MidiPortId, MidiPortConfig> entry : midiPortConfig.entrySet()) {
@@ -480,21 +470,14 @@ public class SystemConfiguration {
 			case "pcif":
 				setSerialLine(node.getAttribute("port"));
 				break;
-			case "desktop":
-				setOutlineDragMode(
-						Boolean.parseBoolean(node.getAttribute("outline-drag-mode", "false")));
-				setFullscreen(Boolean.parseBoolean(node.getAttribute("fullscreen", "false")));
+			case "user-interface":
 				setLookAndFeel(LookAndFeel.valueOf(node.getAttribute("look-and-feel", "MOTIF")));
 				setWindowDecorations(
 						Boolean.parseBoolean(node.getAttribute("window-decorations", "true")));
-
-				for(Element item : node.getChildren()) {
-					switch(item.name) {
-					case "wallpaper":
-						setWallpaper(item.value);
-						break;
-					}
-				}
+				break;
+			case "audio":
+				setSampleRate(Integer.parseInt(node.getAttribute("sample-rate", "48000")));
+				setBlockSize(Integer.parseInt(node.getAttribute("block-size", "1024")));
 				break;
 			case "midi":
 				for(Element item : node.getChildren()) {

@@ -3,7 +3,7 @@ package com.unknown.emulight.lcp.sequencer.event;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.sequencer.PitchBend;
 
-public class TimedPitchBend extends TimedEvent {
+public class TimedPitchBend extends TimedEvent<MidiTrack> {
 	private final PitchBend bend;
 
 	public TimedPitchBend(MidiTrack track, long time, PitchBend bend) {

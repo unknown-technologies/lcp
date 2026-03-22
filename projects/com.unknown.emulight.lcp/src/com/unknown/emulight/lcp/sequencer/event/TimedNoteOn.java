@@ -3,7 +3,7 @@ package com.unknown.emulight.lcp.sequencer.event;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.sequencer.Note;
 
-public class TimedNoteOn extends TimedEvent {
+public class TimedNoteOn extends TimedEvent<MidiTrack> {
 	private final Note note;
 
 	public TimedNoteOn(MidiTrack track, long time, Note note) {

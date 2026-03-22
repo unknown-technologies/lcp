@@ -36,8 +36,6 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
@@ -226,6 +224,27 @@ public class SettingsDialog extends JDialog {
 
 		// AUDIO TAB
 		JPanel audio = new JPanel(new BorderLayout());
+		JComboBox<Integer> sampleRate = new JComboBox<>(new Integer[] { 32000, 44100, 48000 });
+		sampleRate.addItemListener(e -> {
+			int value = (int) sampleRate.getSelectedItem();
+			sys.getConfig().setSampleRate(value);
+		});
+		sampleRate.setSelectedItem(sys.getConfig().getSampleRate());
+
+		JComboBox<Integer> blockSize = new JComboBox<>(new Integer[] { 512, 1024, 2048 });
+		blockSize.addItemListener(e -> {
+			int value = (int) blockSize.getSelectedItem();
+			sys.getConfig().setBlockSize(value);
+		});
+		blockSize.setSelectedItem(sys.getConfig().getBlockSize());
+
+		JPanel audioConfig = new JPanel(new LabeledPairLayout());
+		audioConfig.setBorder(BorderFactory.createTitledBorder("Connection"));
+		audioConfig.add(LabeledPairLayout.LABEL, new JLabel("Sample Rate:"));
+		audioConfig.add(LabeledPairLayout.COMPONENT, sampleRate);
+		audioConfig.add(LabeledPairLayout.LABEL, new JLabel("Block Size:"));
+		audioConfig.add(LabeledPairLayout.COMPONENT, blockSize);
+		audio.add(BorderLayout.CENTER, audioConfig);
 
 		// LASER TAB
 		JPanel laser = new JPanel(new BorderLayout());
@@ -274,17 +293,7 @@ public class SettingsDialog extends JDialog {
 		laf.addItemListener(e -> {
 			int idx = laf.getSelectedIndex();
 			if(idx >= 0 && idx < lafs.length) {
-				LookAndFeel last = sys.getConfig().getLookAndFeel();
 				sys.getConfig().setLookAndFeel(lafs[idx]);
-				if(last != lafs[idx]) {
-					try {
-						UIManager.setLookAndFeel(lafs[idx].getUIClass());
-						sys.updateUI();
-					} catch(ClassNotFoundException | InstantiationException | IllegalAccessException
-							| UnsupportedLookAndFeelException ex) {
-						log.log(Levels.WARNING, "Failed to set L&F: " + ex.getMessage());
-					}
-				}
 			}
 		});
 

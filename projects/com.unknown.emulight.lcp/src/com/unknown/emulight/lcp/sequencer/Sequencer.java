@@ -6,9 +6,14 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import com.unknown.audio.midi.smf.TempoEvent;
+import com.unknown.emulight.lcp.audio.AudioData;
+import com.unknown.emulight.lcp.audio.AudioPart;
+import com.unknown.emulight.lcp.audio.AudioTrack;
 import com.unknown.emulight.lcp.event.SequencerListener;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.TempoTrack;
+import com.unknown.emulight.lcp.project.Track;
+import com.unknown.emulight.lcp.sequencer.event.TimedAudioPart;
 import com.unknown.emulight.lcp.sequencer.event.TimedEvent;
 import com.unknown.emulight.lcp.sequencer.event.TimedNoteOff;
 import com.unknown.emulight.lcp.sequencer.event.TimedNoteOn;
@@ -28,9 +33,10 @@ public class Sequencer {
 	private Thread player;
 
 	private List<MidiTrack> tracks;
+	private List<AudioTrack> audioTracks;
 	private TempoTrack tempoTrack;
 
-	private List<TimedEvent> events;
+	private List<TimedEvent<?>> events;
 
 	private volatile int tempoIndex;
 	private volatile TempoCheckpoint tempoCheckpoint;
@@ -49,7 +55,10 @@ public class Sequencer {
 
 	public void setTracks(List<MidiTrack> tracks) {
 		this.tracks = tracks;
-		generateEvents();
+	}
+
+	public void setAudioTracks(List<AudioTrack> tracks) {
+		this.audioTracks = tracks;
 	}
 
 	public void setTempoTrack(TempoTrack tempoTrack) {
@@ -61,7 +70,7 @@ public class Sequencer {
 		this.microTempo = (int) Math.round(60_000_000 / bpm);
 	}
 
-	private void generateEvents() {
+	public void generateEvents() {
 		events = new ArrayList<>();
 		tempoCheckpoints = new ArrayList<>();
 
@@ -101,8 +110,8 @@ public class Sequencer {
 					}
 
 					Note n = note.clone();
-					TimedEvent noteOn = new TimedNoteOn(track, t + note.getTime(), n);
-					TimedEvent noteOff = new TimedNoteOff(track, t + note.getEnd(), n);
+					TimedEvent<?> noteOn = new TimedNoteOn(track, t + note.getTime(), n);
+					TimedEvent<?> noteOff = new TimedNoteOff(track, t + note.getEnd(), n);
 					events.add(noteOn);
 					events.add(noteOff);
 				}
@@ -113,9 +122,54 @@ public class Sequencer {
 					}
 
 					PitchBend b = bend.clone();
-					TimedEvent event = new TimedPitchBend(track, t + bend.getTime(), b);
+					TimedEvent<?> event = new TimedPitchBend(track, t + bend.getTime(), b);
 					events.add(event);
 				}
+			}
+		}
+
+		// add audio events
+		for(AudioTrack track : audioTracks) {
+			for(PartContainer<AudioPart> part : track.getParts()) {
+				AudioData data = part.getPart().getData();
+				if(data == null) {
+					continue;
+				}
+
+				int sampleRate = data.getSampleRate();
+
+				long partStartTick = part.getStart();
+				long partEndTick = part.getEnd();
+				long startTime = tempoTrack.getTime(partStartTick);
+				long endTime = tempoTrack.getTime(partEndTick);
+
+				int startSample = 0;
+				int endSample = (int) ((endTime - startTime) * sampleRate / 1_000_000_000);
+				if(endSample > data.getSampleCount()) {
+					endSample = data.getSampleCount();
+				}
+
+				if(startTime < 0) {
+					startSample = (int) (-startTime * sampleRate / 1_000_000_000);
+				}
+
+				if(partStartTick < 0) {
+					partStartTick = 0;
+				}
+
+				// adjust for startTick
+				if(startTick > 0) {
+					long playbackStartTime = tempoTrack.getTime(startTick);
+					if(playbackStartTime > startTime && playbackStartTime < endTime) {
+						partStartTick = startTick;
+						startSample = (int) ((playbackStartTime - startTime) * sampleRate /
+								1_000_000_000);
+					}
+				}
+
+				TimedEvent<?> event = new TimedAudioPart(track, part.getPart(), partStartTick,
+						startSample, endSample);
+				events.add(event);
 			}
 		}
 
@@ -139,7 +193,7 @@ public class Sequencer {
 		}
 		microTempo = tempoCheckpoint.getMicroTempo();
 		while(index < events.size()) {
-			TimedEvent evt = events.get(index);
+			TimedEvent<?> evt = events.get(index);
 			if(evt.getTime() < startTick) {
 				index++;
 			} else {
@@ -150,7 +204,7 @@ public class Sequencer {
 		playing = true;
 		try {
 			while(index < events.size()) {
-				TimedEvent next = events.get(index);
+				TimedEvent<?> next = events.get(index);
 
 				// wait until this event is scheduled
 				long dt = waitFor(next);
@@ -187,7 +241,7 @@ public class Sequencer {
 		return tempoCheckpoint.getTime() + dtime;
 	}
 
-	private long waitFor(TimedEvent event) {
+	private long waitFor(TimedEvent<?> event) {
 		long t = getTime(event.getTime());
 		long now = System.nanoTime() - time;
 		long dt = t - now;
@@ -198,14 +252,14 @@ public class Sequencer {
 		}
 	}
 
-	private void process(TimedEvent event) {
+	private void process(TimedEvent<?> event) {
 		if(event instanceof TimedTempo) {
 			TimedTempo tempo = (TimedTempo) event;
 			microTempo = tempo.getMicroTempo();
 			tempoIndex++;
 			tempoCheckpoint = tempoCheckpoints.get(tempoIndex);
 		} else {
-			MidiTrack track = event.getTrack();
+			Track<?> track = event.getTrack();
 			if(!track.isMuted()) {
 				event.transmit();
 			}

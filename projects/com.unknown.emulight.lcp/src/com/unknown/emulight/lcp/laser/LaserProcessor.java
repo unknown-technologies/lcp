@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 
-import com.unknown.emulight.lcp.project.EmulightSystem;
+import com.unknown.emulight.lcp.project.SystemConfiguration;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.net.shownet.InterfaceId;
 import com.unknown.net.shownet.Laser;
@@ -34,15 +34,15 @@ public class LaserProcessor {
 
 	private final ConcurrentMap<InterfaceId, ClipRef> currentClip = new ConcurrentHashMap<>();
 
-	private final EmulightSystem sys;
+	private final SystemConfiguration config;
 
 	private final Timer connectTimer;
 
 	private LaserRenderer renderer;
 
-	public LaserProcessor(EmulightSystem sys, int rate) throws IOException {
+	public LaserProcessor(SystemConfiguration config, int rate) throws IOException {
+		this.config = config;
 		this.rate = rate;
-		this.sys = sys;
 
 		net = new ShowNET(true);
 
@@ -76,7 +76,7 @@ public class LaserProcessor {
 			public void run() {
 				for(LaserInfo info : getAvailableLasers()) {
 					Laser laser = getLaser(info.getAddress());
-					LaserConfig cfg = sys.getConfig().getLaser(info.getInterfaceId());
+					LaserConfig cfg = config.getLaser(info.getInterfaceId());
 					if(cfg != null) {
 						if(laser == null && cfg.isActive()) {
 							// try to connect
@@ -115,7 +115,7 @@ public class LaserProcessor {
 	private void tryConnect(LaserInfo info) {
 		InterfaceId id = info.getInterfaceId();
 		if(id != null) {
-			LaserConfig cfg = sys.getConfig().getLaser(id);
+			LaserConfig cfg = config.getLaser(id);
 			if(cfg != null && cfg.isActive()) {
 				Laser laser = net.getLaser(info.getAddress());
 				if(laser != null && laser.isConnected()) {

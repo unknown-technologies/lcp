@@ -3,7 +3,7 @@ package com.unknown.emulight.lcp.sequencer.event;
 import com.unknown.audio.midi.smf.TempoEvent;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 
-public class TimedTempo extends TimedEvent {
+public class TimedTempo extends TimedEvent<MidiTrack> {
 	private final int microTempo;
 
 	public TimedTempo(MidiTrack track, long time, int microTempo) {

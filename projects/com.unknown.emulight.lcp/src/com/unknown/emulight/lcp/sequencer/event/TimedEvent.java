@@ -1,12 +1,12 @@
 package com.unknown.emulight.lcp.sequencer.event;
 
-import com.unknown.emulight.lcp.sequencer.MidiTrack;
+import com.unknown.emulight.lcp.project.Track;
 
-public abstract class TimedEvent {
-	protected final MidiTrack track;
+public abstract class TimedEvent<T extends Track<?>> {
+	protected final T track;
 	protected final long time;
 
-	protected TimedEvent(MidiTrack track, long time) {
+	protected TimedEvent(T track, long time) {
 		this.track = track;
 		this.time = time;
 	}
@@ -15,7 +15,7 @@ public abstract class TimedEvent {
 		return time;
 	}
 
-	public MidiTrack getTrack() {
+	public T getTrack() {
 		return track;
 	}
 
