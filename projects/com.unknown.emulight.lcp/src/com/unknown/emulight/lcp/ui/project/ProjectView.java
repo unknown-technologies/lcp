@@ -1132,6 +1132,11 @@ public class ProjectView extends JComponent {
 					return;
 				}
 
+				// double-clicking onto the track header should not open the part editor
+				if(e.getX() < CONTENT_X) {
+					return;
+				}
+
 				if(selectedPart.getPart() instanceof MidiPart) {
 					// open a MIDI part editor
 					@SuppressWarnings("unchecked")
