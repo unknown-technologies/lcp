@@ -71,7 +71,7 @@ public class PointNode extends Node {
 	@Override
 	public PointNode clone() {
 		PointNode node = new PointNode();
-		node.copyFrom(this);
+		copy(node);
 		return node;
 	}
 }

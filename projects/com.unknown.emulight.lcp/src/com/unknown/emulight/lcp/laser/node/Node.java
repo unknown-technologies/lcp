@@ -256,22 +256,22 @@ public abstract class Node implements Cloneable {
 		return result;
 	}
 
-	private <T> void copyProperty(Property<T> other) {
+	private <T> void copy(Property<T> other) {
 		@SuppressWarnings("unchecked")
 		Property<T> prop = (Property<T>) properties.get(other.getName());
-		prop.copyFrom(other);
+		prop.copy(other);
 	}
 
-	protected void copyFrom(Node other) {
-		for(Property<? extends Object> p : other.propertyList) {
-			Property<? extends Object> prop = properties.get(p.getName());
+	protected void copy(Node other) {
+		for(Property<? extends Object> p : propertyList) {
+			Property<? extends Object> prop = other.properties.get(p.getName());
 			if(prop != null) {
-				copyProperty(prop);
+				copy(prop);
 			} else if(!other.getClass().equals(getClass())) {
 				throw new IllegalArgumentException("the other node has additional properties");
 			}
 		}
-		clip = other.clip;
+		other.clip = clip;
 	}
 
 	@Override

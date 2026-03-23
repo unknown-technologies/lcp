@@ -189,9 +189,9 @@ public class Property<T> implements Cloneable {
 		values.put(0, defaultValue);
 	}
 
-	public void copyFrom(Property<T> other) {
-		values.clear();
-		values.putAll(other.values);
+	public void copy(Property<T> other) {
+		other.values.clear();
+		other.values.putAll(values);
 	}
 
 	@Override

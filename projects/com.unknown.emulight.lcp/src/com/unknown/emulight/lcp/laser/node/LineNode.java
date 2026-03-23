@@ -140,7 +140,7 @@ public class LineNode extends Node {
 	@Override
 	public LineNode clone() {
 		LineNode node = new LineNode();
-		node.copyFrom(this);
+		copy(node);
 		return node;
 	}
 }

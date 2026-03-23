@@ -61,7 +61,7 @@ public class GroupNode extends Node {
 	@Override
 	public GroupNode clone() {
 		GroupNode node = new GroupNode();
-		node.copyFrom(this);
+		copy(node);
 		for(Node n : children) {
 			node.addChild(n.clone());
 		}

@@ -130,7 +130,7 @@ public class CircleNode extends Node {
 	@Override
 	public CircleNode clone() {
 		CircleNode node = new CircleNode();
-		node.copyFrom(this);
+		copy(node);
 		return node;
 	}
 }
