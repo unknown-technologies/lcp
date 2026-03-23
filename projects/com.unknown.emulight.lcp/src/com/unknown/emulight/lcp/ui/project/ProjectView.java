@@ -602,7 +602,11 @@ public class ProjectView extends JComponent {
 			g.setFont(font);
 			g.setColor(selected == i ? Color.BLACK : Color.WHITE);
 			py = y + 2 + (17 / 2) + (metrics.getAscent() / 2);
-			g.drawString(track.getName(), x + 98, py);
+			int trackNameMaxLength = HEADER_WIDTH - 98 - 20;
+			String trackName = truncate(track.getName(), metrics, trackNameMaxLength);
+			if(trackName != null) {
+				g.drawString(trackName, x + 98, py);
+			}
 
 			// draw grid line
 			g.setColor(TRACK_SEPARATOR);
@@ -740,6 +744,25 @@ public class ProjectView extends JComponent {
 			g.setColor(Color.WHITE);
 			g.drawLine(cursor - 1, BORDER, cursor - 1, height - BORDER);
 			g.drawLine(cursor + 1, BORDER, cursor + 1, height - BORDER);
+		}
+	}
+
+	private static String truncate(String text, FontMetrics metrics, int maxlen) {
+		int width = metrics.stringWidth(text);
+		if(width <= maxlen) {
+			return text;
+		} else {
+			String best = null;
+			for(int i = 0; i < text.length(); i++) {
+				String temp = text.substring(0, i) + "...";
+				int w = metrics.stringWidth(temp);
+				if(w < maxlen) {
+					best = temp;
+				} else {
+					break;
+				}
+			}
+			return best;
 		}
 	}
 
