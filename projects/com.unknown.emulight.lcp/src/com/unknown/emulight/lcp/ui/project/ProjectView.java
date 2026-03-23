@@ -668,7 +668,25 @@ public class ProjectView extends JComponent {
 					}
 
 					String name = part.getPart().getName();
-					if(name != null && length > name.length() * ADM3AFont.WIDTH + 10) {
+					if(name != null) {
+						// truncate name
+						int maxlen = (length - 10) / ADM3AFont.WIDTH;
+						if(length >= name.length() * ADM3AFont.WIDTH + 10) {
+							// everything is fine
+						} else if(maxlen > 3) {
+							name = name.substring(0, maxlen - 3) + "...";
+						} else if(maxlen == 3) {
+							name = "...";
+						} else if(maxlen == 2) {
+							name = "..";
+						} else if(maxlen == 1) {
+							name = ".";
+						} else {
+							name = null;
+						}
+					}
+
+					if(name != null) {
 						g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(),
 								128));
 						g.fillRect(startX + 3, y + 3, name.length() * ADM3AFont.WIDTH + 4,
