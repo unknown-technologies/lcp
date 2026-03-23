@@ -21,17 +21,19 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
+import com.unknown.emulight.lcp.event.ConfigChangeListener;
 import com.unknown.emulight.lcp.event.TrackListener;
 import com.unknown.emulight.lcp.laser.LaserReference;
 import com.unknown.emulight.lcp.laser.LaserTrack;
 import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
+import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.emulight.lcp.ui.project.TrackEditor;
 import com.unknown.util.ui.LabeledPairLayout;
 
 @SuppressWarnings("serial")
-public class LaserTrackEditor extends TrackEditor implements TrackListener {
+public class LaserTrackEditor extends TrackEditor implements TrackListener, ConfigChangeListener {
 	private final LaserTrack track;
 	private final JTextField name;
 	private final JComboBox<String> port;
@@ -45,6 +47,7 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener {
 		this.track = track;
 
 		track.addTrackListener(this);
+		sys.getConfig().addConfigChangeListener(this);
 
 		name = new JTextField(track.getName());
 		name.addKeyListener(new KeyAdapter() {
@@ -157,6 +160,7 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener {
 	public void destroy() {
 		// remove listeners
 		track.removeTrackListener(this);
+		sys.getConfig().removeConfigChangeListener(this);
 	}
 
 	@Override
@@ -167,6 +171,21 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener {
 			setTitle("Track: " + track.getName());
 			break;
 		}
+	}
+
+	@Override
+	public void configChanged(String key, String value) {
+		// nothing
+	}
+
+	@Override
+	public void laserChanged(LaserConfig laser) {
+		refreshLasers();
+	}
+
+	@Override
+	public void midiPortChanged(MidiPortConfig p) {
+		// nothing
 	}
 
 	private class PortModel extends AbstractListModel<String> implements ComboBoxModel<String> {

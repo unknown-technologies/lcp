@@ -21,9 +21,11 @@ import com.unknown.emulight.lcp.ui.midi.MidiTrackEditor;
 @SuppressWarnings("serial")
 public abstract class TrackEditor extends JDialog {
 	private static final int MENU_MODIFIER = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+	protected final EmulightSystem sys;
 
 	protected TrackEditor(EmulightSystem sys, Track<?> track) {
 		super(sys.getMainWindow(), "Track: " + track.getName());
+		this.sys = sys;
 
 		JComponent root = getRootPane();
 		KeyStroke quitKey = KeyStroke.getKeyStroke(KeyEvent.VK_Q, MENU_MODIFIER);

@@ -20,9 +20,12 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
+import com.unknown.emulight.lcp.event.ConfigChangeListener;
 import com.unknown.emulight.lcp.event.TrackListener;
 import com.unknown.emulight.lcp.io.midi.MidiOutPort;
 import com.unknown.emulight.lcp.project.EmulightSystem;
+import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
+import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.ui.SpinnerProgramEditor;
 import com.unknown.emulight.lcp.ui.SpinnerProgramModel;
@@ -31,7 +34,7 @@ import com.unknown.emulight.lcp.ui.project.TrackEditor;
 import com.unknown.util.ui.LabeledPairLayout;
 
 @SuppressWarnings("serial")
-public class MidiTrackEditor extends TrackEditor implements TrackListener {
+public class MidiTrackEditor extends TrackEditor implements TrackListener, ConfigChangeListener {
 	private static final String[] CHANNEL_NAMES;
 
 	private final MidiTrack track;
@@ -57,6 +60,7 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener {
 		this.track = track;
 
 		track.addTrackListener(this);
+		sys.getConfig().addConfigChangeListener(this);
 
 		name = new JTextField(track.getName());
 		name.addKeyListener(new KeyAdapter() {
@@ -180,6 +184,22 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener {
 	public void destroy() {
 		// remove listeners
 		track.removeTrackListener(this);
+		sys.getConfig().removeConfigChangeListener(this);
+	}
+
+	@Override
+	public void configChanged(String key, String value) {
+		// nothing
+	}
+
+	@Override
+	public void laserChanged(LaserConfig laser) {
+		// nothing
+	}
+
+	@Override
+	public void midiPortChanged(MidiPortConfig p) {
+		refreshMidiPorts();
 	}
 
 	@Override
