@@ -218,6 +218,8 @@ public class Project {
 	}
 
 	private void renderLaser() {
+		long time = sequencer.getTick();
+
 		Set<InterfaceId> alreadyDone = new HashSet<>();
 		for(LaserTrack track : laserTracks) {
 			if(track.isMuted()) {
@@ -228,7 +230,6 @@ public class Project {
 				continue;
 			}
 
-			long time = sequencer.getTick();
 			PartContainer<LaserPart> container = track.getFloorPart(time);
 			if(container == null) {
 				continue;
