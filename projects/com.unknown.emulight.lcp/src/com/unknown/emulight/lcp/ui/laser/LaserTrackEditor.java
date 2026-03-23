@@ -42,6 +42,8 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener, Conf
 
 	private LaserConfig[] ports;
 
+	private boolean bypassEvents = false;
+
 	public LaserTrackEditor(EmulightSystem sys, LaserTrack track) {
 		super(sys, track);
 		this.track = track;
@@ -53,7 +55,12 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener, Conf
 		name.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyReleased(KeyEvent e) {
-				track.setName(name.getText().trim());
+				try {
+					bypassEvents = true;
+					track.setName(name.getText().trim());
+				} finally {
+					bypassEvents = false;
+				}
 			}
 		});
 
@@ -167,7 +174,9 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener, Conf
 	public void propertyChanged(String key) {
 		switch(key) {
 		case TrackListener.NAME:
-			name.setText(track.getName());
+			if(!bypassEvents) {
+				name.setText(track.getName());
+			}
 			setTitle("Track: " + track.getName());
 			break;
 		}

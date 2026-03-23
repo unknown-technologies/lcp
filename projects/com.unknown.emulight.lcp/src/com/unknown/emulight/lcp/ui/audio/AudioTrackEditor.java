@@ -28,6 +28,8 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 	private final JSlider volume;
 	private final JSpinner numericVolume;
 
+	private boolean bypassEvents = false;
+
 	public AudioTrackEditor(EmulightSystem sys, AudioTrack track) {
 		super(sys, track);
 		this.track = track;
@@ -38,7 +40,12 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 		name.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyReleased(KeyEvent e) {
-				track.setName(name.getText().trim());
+				try {
+					bypassEvents = true;
+					track.setName(name.getText().trim());
+				} finally {
+					bypassEvents = false;
+				}
 			}
 		});
 
@@ -109,7 +116,9 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 	public void propertyChanged(String key) {
 		switch(key) {
 		case TrackListener.NAME:
-			name.setText(track.getName());
+			if(!bypassEvents) {
+				name.setText(track.getName());
+			}
 			setTitle("Track: " + track.getName());
 			break;
 		}

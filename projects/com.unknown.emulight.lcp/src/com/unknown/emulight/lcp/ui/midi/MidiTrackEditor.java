@@ -47,6 +47,8 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 
 	private MidiOutPort[] ports;
 
+	private boolean bypassEvents = false;
+
 	static {
 		CHANNEL_NAMES = new String[17];
 		CHANNEL_NAMES[0] = "Any";
@@ -66,7 +68,12 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 		name.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyReleased(KeyEvent e) {
-				track.setName(name.getText().trim());
+				try {
+					bypassEvents = true;
+					track.setName(name.getText().trim());
+				} finally {
+					bypassEvents = false;
+				}
 			}
 		});
 
@@ -206,7 +213,9 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 	public void propertyChanged(String key) {
 		switch(key) {
 		case TrackListener.NAME:
-			name.setText(track.getName());
+			if(!bypassEvents) {
+				name.setText(track.getName());
+			}
 			setTitle("Track: " + track.getName());
 			break;
 		case TrackListener.CHANNEL:
