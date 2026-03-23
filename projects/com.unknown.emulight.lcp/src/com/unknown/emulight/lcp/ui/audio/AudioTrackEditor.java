@@ -49,7 +49,7 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 			trackVolumeLog = 6.02;
 		}
 		volume = new JSlider(JSlider.VERTICAL, -7000, 602, (int) Math.round(trackVolumeLog * 100));
-		numericVolume = new JSpinner(new SpinnerNumberModel(volume.getValue(), -70.0, 6.02, 0.1));
+		numericVolume = new JSpinner(new SpinnerNumberModel(trackVolumeLog, -70.0, 6.02, 0.1));
 
 		volume.addChangeListener(e -> {
 			int value = volume.getValue();
