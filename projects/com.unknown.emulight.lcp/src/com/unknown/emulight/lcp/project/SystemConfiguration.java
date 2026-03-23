@@ -304,10 +304,12 @@ public class SystemConfiguration implements AutoCloseable {
 	}
 
 	protected void delete(ESLMidiPortConfig port) {
+		port.setActive(false); // this triggers a change event
 		eslMidiPortConfig.remove(port.getAlias());
 	}
 
 	protected void delete(LaserConfig laser) {
+		laser.setActive(false); // this triggers a change event
 		lasers.remove(laser.getName());
 	}
 
