@@ -12,7 +12,8 @@ import com.unknown.emulight.lcp.sequencer.TempoPart;
 import com.unknown.xml.dom.Element;
 
 public class TempoTrack extends Track<TempoPart> {
-	private NavigableMap<Long, TempoCheckpoint> tempoCheckpoints = new TreeMap<>();
+	private NavigableMap<Long, TempoCheckpoint> tempoCheckpointsTick = new TreeMap<>();
+	private NavigableMap<Long, TempoCheckpoint> tempoCheckpointsTime = new TreeMap<>();
 
 	public TempoTrack(Project project, String name) {
 		super(TEMPO, project, name);
@@ -88,8 +89,10 @@ public class TempoTrack extends Track<TempoPart> {
 		double initialBpm = getTempo(0);
 		int initialMicroTempo = (int) Math.round(60_000_000 / initialBpm);
 		TempoCheckpoint last = new TempoCheckpoint(0, 0, initialMicroTempo, ppq);
-		tempoCheckpoints.clear();
-		tempoCheckpoints.put(0L, last);
+		tempoCheckpointsTick.clear();
+		tempoCheckpointsTime.clear();
+		tempoCheckpointsTick.put(0L, last);
+		tempoCheckpointsTime.put(0L, last);
 		for(PartContainer<TempoPart> part : getParts()) {
 			long t = part.getTime();
 			for(TempoChange change : part.getPart().getTempoChanges()) {
@@ -104,17 +107,18 @@ public class TempoTrack extends Track<TempoPart> {
 				long dtick = time - last.getTick();
 				long nanotime = last.getTime() + dtick * last.getMicroTempo() * 1000 / ppq;
 				last = new TempoCheckpoint(time, nanotime, micro, ppq);
-				tempoCheckpoints.put(time, last);
+				tempoCheckpointsTick.put(time, last);
+				tempoCheckpointsTime.put(nanotime, last);
 			}
 		}
 	}
 
 	public NavigableMap<Long, TempoCheckpoint> getTempoCheckpoints() {
-		return tempoCheckpoints;
+		return tempoCheckpointsTick;
 	}
 
 	public long getTime(long tick) {
-		Entry<Long, TempoCheckpoint> entry = tempoCheckpoints.floorEntry(tick);
+		Entry<Long, TempoCheckpoint> entry = tempoCheckpointsTick.floorEntry(tick);
 		if(entry == null) {
 			long ppq = getProject().getPPQ();
 			double initialBpm = getTempo(0);
@@ -124,6 +128,20 @@ public class TempoTrack extends Track<TempoPart> {
 		} else {
 			TempoCheckpoint checkpoint = entry.getValue();
 			return checkpoint.getTime(tick);
+		}
+	}
+
+	public long getTick(long time) {
+		Entry<Long, TempoCheckpoint> entry = tempoCheckpointsTime.floorEntry(time);
+		if(entry == null) {
+			long ppq = getProject().getPPQ();
+			double initialBpm = getTempo(0);
+			int initialMicroTempo = (int) Math.round(60_000_000 / initialBpm);
+			TempoCheckpoint checkpoint = new TempoCheckpoint(0, 0, initialMicroTempo, ppq);
+			return checkpoint.getTick(time);
+		} else {
+			TempoCheckpoint checkpoint = entry.getValue();
+			return checkpoint.getTick(time);
 		}
 	}
 
