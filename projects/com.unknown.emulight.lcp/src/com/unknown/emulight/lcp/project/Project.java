@@ -83,6 +83,8 @@ public class Project {
 
 		addTrack(tempoTrack = new TempoTrack(this, "Tempo"));
 		addTrack(signatureTrack = new SignatureTrack(this, "Signature"));
+
+		system.getLaserProcessor().setRenderer(this::renderLaser);
 	}
 
 	public EmulightSystem getSystem() {
@@ -193,8 +195,6 @@ public class Project {
 			}
 		}
 
-		system.getLaserProcessor().setRenderer(this::renderLaser);
-
 		sequencer.setTempoTrack(tempoTrack);
 		sequencer.setTracks(midiTracks);
 		sequencer.setAudioTracks(audioTracks);
@@ -204,8 +204,17 @@ public class Project {
 
 	public void stop() {
 		sequencer.stop();
-		system.getLaserProcessor().setRenderer(null);
-		system.getLaserProcessor().resetAll();
+	}
+
+	public void setTick(long tick) {
+		boolean playing = sequencer.isPlaying();
+		if(playing) {
+			stop();
+		}
+		sequencer.setTick(tick);
+		if(playing) {
+			play();
+		}
 	}
 
 	private void renderLaser() {

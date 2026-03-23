@@ -1082,7 +1082,8 @@ public class ProjectView extends JComponent {
 				// left mouse button
 				if(startY < START_Y) {
 					long time = getTime(e.getX());
-					project.getSequencer().setTick(time < 0 ? 0 : time);
+					long t = quantizeTime(time < 0 ? 0 : time);
+					project.setTick(t);
 					repaint();
 				}
 
@@ -1191,7 +1192,8 @@ public class ProjectView extends JComponent {
 
 			if(e.getButton() == MouseEvent.BUTTON1) {
 				if(startY < START_Y) {
-					project.getSequencer().setTick(time < 0 ? 0 : time);
+					long t = quantizeTime(time < 0 ? 0 : time);
+					project.setTick(t);
 					repaint();
 				}
 
