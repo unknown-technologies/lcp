@@ -47,8 +47,7 @@ public class LaserReference {
 	}
 
 	public Laser get() {
-		// TODO: handle case when laser gets lost and reinitialized
-		if(laser != null) {
+		if(laser != null && laser.isConnected()) {
 			return laser;
 		} else {
 			LaserProcessor processor = sys.getLaserProcessor();
