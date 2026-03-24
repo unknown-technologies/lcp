@@ -14,6 +14,10 @@ public class AudioPart extends AbstractPart {
 		data = null;
 	}
 
+	public AudioPart(AudioData data) {
+		this.data = data;
+	}
+
 	public AudioPart(File file) throws IOException {
 		data = new AudioData(file);
 	}

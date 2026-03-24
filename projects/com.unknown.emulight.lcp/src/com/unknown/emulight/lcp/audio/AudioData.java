@@ -40,16 +40,35 @@ public class AudioData {
 		this.file = path;
 		try(InputStream in = new BufferedInputStream(new FileInputStream(file))) {
 			RiffWave wav = Riff.read(in);
-			channels = wav.getChannels();
-			sampleRate = wav.getSampleRate();
-			samples = wav.getFloatSamples();
-			length = wav.getSampleCount();
-			computeMono();
-			map = new AudioPeakMap(this);
+			load(wav);
 		}
 	}
 
+	public void setData(float[][] samples, int sampleRate) {
+		this.file = null;
+		this.samples = samples;
+		this.sampleRate = sampleRate;
+		this.channels = samples.length;
+		this.length = samples[0].length;
+		computeMono();
+		map = new AudioPeakMap(this);
+	}
+
+	public void load(RiffWave wav) {
+		channels = wav.getChannels();
+		sampleRate = wav.getSampleRate();
+		samples = wav.getFloatSamples();
+		length = wav.getSampleCount();
+		computeMono();
+		map = new AudioPeakMap(this);
+	}
+
 	private void computeMono() {
+		if(channels == 1) {
+			mono = samples[0];
+			return;
+		}
+
 		mono = new float[length];
 		float min = 1;
 		float max = -1;

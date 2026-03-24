@@ -153,6 +153,7 @@ public class MainWindow extends JFrame {
 		fileMenuListLasers.setMnemonic('L');
 		fileMenuListLasers.addActionListener(e -> {
 			LaserDiscovery discovery = new LaserDiscovery(MainWindow.this, processor);
+			discovery.setLocationRelativeTo(this);
 			discovery.setVisible(true);
 		});
 
@@ -218,7 +219,7 @@ public class MainWindow extends JFrame {
 		fileMenuSettings.setMnemonic('S');
 		fileMenuSettings.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
 		fileMenuSettings.addActionListener(e -> {
-			SettingsDialog settings = new SettingsDialog(sys);
+			SettingsDialog settings = new SettingsDialog(project);
 			settings.setLocationRelativeTo(this);
 			settings.setVisible(true);
 		});

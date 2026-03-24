@@ -32,8 +32,11 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JToggleButton;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
@@ -46,6 +49,7 @@ import com.unknown.emulight.lcp.io.midi.MidiIn;
 import com.unknown.emulight.lcp.io.midi.MidiOut;
 import com.unknown.emulight.lcp.io.midi.MidiRouter;
 import com.unknown.emulight.lcp.project.EmulightSystem;
+import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LookAndFeel;
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
@@ -85,15 +89,19 @@ public class SettingsDialog extends JDialog {
 	private LaserDiscoveryListener laserDiscoveryListener;
 	private LaserConnectionListener laserConnectionListener;
 
-	public SettingsDialog(EmulightSystem sys) {
-		super(sys.getMainWindow(), "Settings", true);
+	private AudioDelayMeasurementTool audioDelayMeasurement;
+
+	public SettingsDialog(Project project) {
+		super(project.getSystem().getMainWindow(), "Settings", true);
 		setIconImages(List.of(Icons.getImage(Icons.SETTINGS, 32), Icons.getImage(Icons.SETTINGS, 16)));
 		setSize(640, 480);
 
-		this.sys = sys;
+		this.sys = project.getSystem();
 
 		esl = sys.getESL();
 		router = sys.getMidiRouter();
+
+		audioDelayMeasurement = new AudioDelayMeasurementTool(project);
 
 		// I/O TAB
 		JPanel general = new JPanel(new BorderLayout());
@@ -238,12 +246,39 @@ public class SettingsDialog extends JDialog {
 		});
 		blockSize.setSelectedItem(sys.getConfig().getBlockSize());
 
+		JSpinner outputDelay = new JSpinner(new SpinnerNumberModel(
+				(int) (sys.getConfig().getOutputDelay() / 1_000_000), 0, Integer.MAX_VALUE, 1));
+		outputDelay.addChangeListener(e -> {
+			int value = (int) outputDelay.getValue();
+			sys.getConfig().setOutputDelay(value * 1_000_000);
+		});
+
+		JPanel outputDelayPanel = new JPanel(new BorderLayout());
+		outputDelayPanel.add(BorderLayout.CENTER, outputDelay);
+		outputDelayPanel.add(BorderLayout.EAST, new JLabel("ms"));
+
+		JToggleButton measureDelay = new JToggleButton("Measure");
+		measureDelay.addActionListener(e -> {
+			boolean state = measureDelay.isSelected();
+			if(state) {
+				audioDelayMeasurement.start();
+			} else {
+				audioDelayMeasurement.stop();
+			}
+		});
+
+		JPanel delayMeasurement = new JPanel(new BorderLayout());
+		delayMeasurement.add(BorderLayout.CENTER, outputDelayPanel);
+		delayMeasurement.add(BorderLayout.EAST, measureDelay);
+
 		JPanel audioConfig = new JPanel(new LabeledPairLayout());
 		audioConfig.setBorder(BorderFactory.createTitledBorder("Connection"));
 		audioConfig.add(LabeledPairLayout.LABEL, new JLabel("Sample Rate:"));
 		audioConfig.add(LabeledPairLayout.COMPONENT, sampleRate);
 		audioConfig.add(LabeledPairLayout.LABEL, new JLabel("Block Size:"));
 		audioConfig.add(LabeledPairLayout.COMPONENT, blockSize);
+		audioConfig.add(LabeledPairLayout.LABEL, new JLabel("Output Delay:"));
+		audioConfig.add(LabeledPairLayout.COMPONENT, delayMeasurement);
 		audio.add(BorderLayout.CENTER, audioConfig);
 
 		// LASER TAB
@@ -376,6 +411,8 @@ public class SettingsDialog extends JDialog {
 	}
 
 	private void close() {
+		audioDelayMeasurement.stop();
+		audioDelayMeasurement.destroy();
 		sys.getLaserProcessor().removeLaserConnectionListener(laserConnectionListener);
 		sys.getLaserProcessor().removeLaserDiscoveryListener(laserDiscoveryListener);
 	}

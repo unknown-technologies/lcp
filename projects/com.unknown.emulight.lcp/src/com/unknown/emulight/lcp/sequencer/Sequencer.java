@@ -71,6 +71,8 @@ public class Sequencer {
 	}
 
 	public void generateEvents() {
+		long outputDelay = tempoTrack.getProject().getSystem().getConfig().getOutputDelay();
+
 		events = new ArrayList<>();
 		tempoCheckpoints = new ArrayList<>();
 
@@ -104,6 +106,8 @@ public class Sequencer {
 		for(MidiTrack track : tracks) {
 			for(PartContainer<MidiPart> part : track.getParts()) {
 				long t = part.getTime();
+				long nanotime = tempoTrack.getTime(t) + outputDelay;
+				t = tempoTrack.getTick(nanotime);
 				for(Note note : part.getPart().getNotes()) {
 					if(!part.containsEvent(note.getTime())) {
 						continue;
@@ -319,6 +323,14 @@ public class Sequencer {
 			return tempoCheckpoint.getTick() + dtick;
 		} else {
 			return startTick;
+		}
+	}
+
+	public long getTime() {
+		if(isPlaying()) {
+			return System.nanoTime() - time;
+		} else {
+			return tempoTrack.getTime(startTick);
 		}
 	}
 

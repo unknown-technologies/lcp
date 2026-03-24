@@ -9,10 +9,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import com.unknown.emulight.lcp.audio.AudioData;
+import com.unknown.emulight.lcp.audio.AudioPart;
 import com.unknown.emulight.lcp.audio.AudioTrack;
 import com.unknown.emulight.lcp.event.ProjectListener;
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.LaserProcessor;
+import com.unknown.emulight.lcp.laser.LaserRenderer;
 import com.unknown.emulight.lcp.laser.LaserTrack;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.sequencer.Sequencer;
@@ -46,6 +49,8 @@ public class Project {
 	private final SignatureTrack signatureTrack;
 
 	private final List<Color> colors = new ArrayList<>();
+
+	private final AudioTrack systemSounds;
 
 	public Project(EmulightSystem system) {
 		this.system = system;
@@ -81,10 +86,14 @@ public class Project {
 
 		setName("Untitled Project");
 
+		systemSounds = new AudioTrack(this, "System");
+
 		addTrack(tempoTrack = new TempoTrack(this, "Tempo"));
 		addTrack(signatureTrack = new SignatureTrack(this, "Signature"));
 
-		system.getLaserProcessor().setRenderer(this::renderLaser);
+		sequencer.setTempoTrack(tempoTrack);
+
+		clearLaserRenderer();
 	}
 
 	public EmulightSystem getSystem() {
@@ -195,7 +204,6 @@ public class Project {
 			}
 		}
 
-		sequencer.setTempoTrack(tempoTrack);
 		sequencer.setTracks(midiTracks);
 		sequencer.setAudioTracks(audioTracks);
 		sequencer.generateEvents();
@@ -204,6 +212,11 @@ public class Project {
 
 	public void stop() {
 		sequencer.stop();
+	}
+
+	public void playSystemSound(AudioData data) {
+		AudioPart part = new AudioPart(data);
+		system.getAudioProcessor().playSystem(systemSounds, part, 0, data.getSampleCount());
 	}
 
 	public void setTick(long tick) {
@@ -217,8 +230,27 @@ public class Project {
 		}
 	}
 
+	public void setLaserRenderer(LaserRenderer renderer) {
+		if(renderer == null) {
+			clearLaserRenderer();
+		} else {
+			system.getLaserProcessor().setRenderer(renderer);
+		}
+	}
+
+	public void clearLaserRenderer() {
+		system.getLaserProcessor().setRenderer(this::renderLaser);
+	}
+
 	private void renderLaser() {
-		long time = sequencer.getTick();
+		long time;
+		if(sequencer.isPlaying()) {
+			long nanotime = sequencer.getTime();
+			nanotime -= system.getConfig().getOutputDelay();
+			time = tempoTrack.getTick(nanotime);
+		} else {
+			time = sequencer.getTick();
+		}
 
 		Set<InterfaceId> alreadyDone = new HashSet<>();
 		for(LaserTrack track : laserTracks) {

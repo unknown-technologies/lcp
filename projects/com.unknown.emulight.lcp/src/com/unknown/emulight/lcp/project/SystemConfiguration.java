@@ -38,6 +38,7 @@ public class SystemConfiguration implements AutoCloseable {
 	public static final String SERIAL_LINE = "serial-line";
 	public static final String SAMPLE_RATE = "sample-rate";
 	public static final String BLOCK_SIZE = "block-size";
+	public static final String OUTPUT_DELAY = "output-delay";
 	public static final String LOOKANDFEEL = "look-and-feel";
 	public static final String WINDOW_DECORATIONS = "window-decorations";
 
@@ -46,6 +47,7 @@ public class SystemConfiguration implements AutoCloseable {
 	private boolean windowDecorations = true;
 	private int sampleRate = 48000;
 	private int blockSize = 1024;
+	private long outputDelay = 0;
 
 	private Map<MidiPortId, MidiPortConfig> midiPortConfig = new HashMap<>();
 	private Map<String, ESLMidiPortConfig> eslMidiPortConfig = new HashMap<>();
@@ -116,6 +118,19 @@ public class SystemConfiguration implements AutoCloseable {
 
 		this.blockSize = blockSize;
 		fireConfigChangedEvent(BLOCK_SIZE, Integer.toString(blockSize));
+	}
+
+	public long getOutputDelay() {
+		return outputDelay;
+	}
+
+	public void setOutputDelay(long outputDelay) {
+		if(outputDelay == this.outputDelay) {
+			return;
+		}
+
+		this.outputDelay = outputDelay;
+		fireConfigChangedEvent(OUTPUT_DELAY, Long.toString(outputDelay));
 	}
 
 	public LookAndFeel getLookAndFeel() {
@@ -374,6 +389,7 @@ public class SystemConfiguration implements AutoCloseable {
 		Element audio = new Element("audio");
 		audio.addAttribute("sample-rate", Integer.toString(sampleRate));
 		audio.addAttribute("block-size", Integer.toString(blockSize));
+		audio.addAttribute("output-delay", Long.toString(outputDelay));
 		xml.addChild(audio);
 
 		Element midi = new Element("midi");
@@ -480,6 +496,7 @@ public class SystemConfiguration implements AutoCloseable {
 			case "audio":
 				setSampleRate(Integer.parseInt(node.getAttribute("sample-rate", "48000")));
 				setBlockSize(Integer.parseInt(node.getAttribute("block-size", "1024")));
+				setOutputDelay(Long.parseLong(node.getAttribute("output-delay", "0")));
 				break;
 			case "midi":
 				for(Element item : node.getChildren()) {

@@ -29,6 +29,7 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 	private volatile boolean playing = false;
 
 	private Set<Clip> clips = new HashSet<>();
+	private Set<Clip> systemClips = new HashSet<>();
 
 	private int blockSize = 1024;
 
@@ -125,51 +126,59 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 		}
 	}
 
+	private void process(Set<Clip> todo, float[] sumL, float[] sumR) {
+		synchronized(clips) {
+			Set<Clip> remove = new HashSet<>();
+			clip: for(Clip clip : todo) {
+				float volume = (float) clip.getVolume();
+				AudioData data = clip.getData();
+				if(data == null) {
+					log.info("Attempted to play empty audio part");
+					remove.add(clip);
+					continue clip;
+				}
+
+				int ch = data.getChannelCount();
+
+				for(int i = 0; i < blockSize; i++) {
+					boolean kill = false;
+					int pos = clip.getPosition();
+					if(clip.advance(1)) {
+						kill = true;
+					}
+
+					if(ch == 1) {
+						float sample = data.getSamples()[0][pos] * volume;
+						sumL[i] += sample;
+						sumR[i] += sample;
+					} else if(ch == 2) {
+						sumL[i] = data.getSamples()[0][pos] * (float) clip.getVolume();
+						sumR[i] = data.getSamples()[1][pos] * (float) clip.getVolume();
+					} else {
+						kill = true;
+					}
+
+					if(kill) {
+						remove.add(clip);
+						continue clip;
+					}
+				}
+			}
+			todo.removeAll(remove);
+		}
+	}
+
 	private void process() {
 		float[] sumL = new float[blockSize];
 		float[] sumR = new float[blockSize];
 
 		if(playing) {
 			// process clips
-			synchronized(clips) {
-				Set<Clip> remove = new HashSet<>();
-				clip: for(Clip clip : clips) {
-					float volume = (float) clip.getVolume();
-					AudioData data = clip.getData();
-					if(data == null) {
-						remove.add(clip);
-						continue clip;
-					}
-
-					int ch = data.getChannelCount();
-
-					for(int i = 0; i < blockSize; i++) {
-						boolean kill = false;
-						int pos = clip.getPosition();
-						if(clip.advance(1)) {
-							kill = true;
-						}
-
-						if(ch == 1) {
-							float sample = data.getSamples()[0][pos] * volume;
-							sumL[i] += sample;
-							sumR[i] += sample;
-						} else if(ch == 2) {
-							sumL[i] = data.getSamples()[0][pos] * (float) clip.getVolume();
-							sumR[i] = data.getSamples()[1][pos] * (float) clip.getVolume();
-						} else {
-							kill = true;
-						}
-
-						if(kill) {
-							remove.add(clip);
-							continue clip;
-						}
-					}
-				}
-				clips.removeAll(remove);
-			}
+			process(clips, sumL, sumR);
 		}
+
+		// always process system clips
+		process(systemClips, sumL, sumR);
 
 		byte[] samples = new byte[blockSize * 4];
 
@@ -198,10 +207,12 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 		waveout.write(samples, 0, samples.length);
 	}
 
+	@Override
 	public void playbackStarted() {
 		playing = true;
 	}
 
+	@Override
 	public void playbackStopped() {
 		playing = false;
 		synchronized(clips) {
@@ -209,6 +220,7 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 		}
 	}
 
+	@Override
 	public void positionChanged(long tick) {
 		// TODO
 	}
@@ -216,14 +228,32 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 	public void play(AudioTrack track, AudioPart part, int start, int end) {
 		AudioData data = part.getData();
 		if(data == null) {
+			log.info("Attempted to play empty audio part");
 			return;
 		}
 		if(data.getSampleRate() != sampleRate) {
+			log.info("Sample rate mismatch on audio part");
 			return;
 		}
 
 		synchronized(clips) {
 			clips.add(new Clip(track, part, start, end));
+		}
+	}
+
+	public void playSystem(AudioTrack track, AudioPart part, int start, int end) {
+		AudioData data = part.getData();
+		if(data == null) {
+			log.info("Attempted to play empty audio part");
+			return;
+		}
+		if(data.getSampleRate() != sampleRate) {
+			log.info("Sample rate mismatch on audio part");
+			return;
+		}
+
+		synchronized(systemClips) {
+			systemClips.add(new Clip(track, part, start, end));
 		}
 	}
 
@@ -255,6 +285,7 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 		public boolean advance(int samples) {
 			AudioData data = getData();
 			if(data == null) {
+				log.info("Attempted to play empty audio part");
 				return false;
 			}
 			position += samples;
