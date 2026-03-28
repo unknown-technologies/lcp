@@ -16,6 +16,7 @@ import com.unknown.emulight.lcp.io.esl.ESL;
 import com.unknown.emulight.lcp.project.SystemConfiguration;
 import com.unknown.emulight.lcp.project.SystemConfiguration.ESLMidiPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
+import com.unknown.emulight.lcp.project.SystemConfiguration.NetworkMidiPortConfig;
 import com.unknown.util.HexFormatter;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
@@ -26,10 +27,11 @@ public class MidiRouter {
 	private final ESL esl;
 	private final SystemConfiguration conf;
 
-	private MidiIn[] inputs;
-	private MidiOut[] outputs;
+	private MidiInPort[] inputs;
+	private MidiOutPort[] outputs;
 
 	private List<ESLMidiOut> eslOutPorts = new ArrayList<>();
+	private List<NetworkMidiOut> networkOutPorts = new ArrayList<>();
 
 	private List<MidiReceiver> allBusReceivers = new ArrayList<>();
 
@@ -41,13 +43,13 @@ public class MidiRouter {
 
 	public void closeAll() {
 		if(inputs != null) {
-			for(MidiIn input : inputs) {
+			for(MidiInPort input : inputs) {
 				input.closeDevice();
 			}
 		}
 
 		if(outputs != null) {
-			for(MidiOut output : outputs) {
+			for(MidiOutPort output : outputs) {
 				output.closeDevice();
 			}
 		}
@@ -77,17 +79,22 @@ public class MidiRouter {
 	}
 
 	private void configure() {
-		for(MidiIn in : inputs) {
+		for(MidiInPort in : inputs) {
 			MidiPortConfig cfg = conf.getMidiPort(in.getName(), true);
 			in.setAlias(cfg.getAlias());
 			in.setActive(cfg.isActive());
 			in.setAll(cfg.isAll());
 		}
 
-		for(MidiOut out : outputs) {
+		for(MidiOutPort out : outputs) {
 			MidiPortConfig cfg = conf.getMidiPort(out.getName(), false);
 			out.setAlias(cfg.getAlias());
 			out.setActive(cfg.isActive());
+		}
+
+		for(NetworkMidiPortConfig cfg : conf.getNetworkMidiPorts()) {
+			NetworkMidiOut port = new NetworkMidiOut(cfg, this);
+			networkOutPorts.add(port);
 		}
 
 		for(ESLMidiPortConfig cfg : conf.getESLMidiPorts()) {
@@ -108,6 +115,14 @@ public class MidiRouter {
 		}
 	}
 
+	public NetworkMidiPortConfig getNetworkPortConfig(MidiPort port) {
+		if(port instanceof NetworkMidiOut) {
+			return conf.getNetworkMidiPort(port.getAlias());
+		} else {
+			throw new IllegalArgumentException("not a network MIDI port");
+		}
+	}
+
 	public ESLMidiOut addESLMidiOutPort(String name) {
 		try {
 			ESLMidiPortConfig cfg = conf.addESLMidiPort(name);
@@ -120,17 +135,39 @@ public class MidiRouter {
 		}
 	}
 
+	public NetworkMidiOut addNetworkMidiOutPort(String name) {
+		try {
+			NetworkMidiPortConfig cfg = conf.addNetworkMidiPort(name);
+			NetworkMidiOut port = new NetworkMidiOut(cfg, this);
+			networkOutPorts.add(port);
+			return port;
+		} catch(IllegalArgumentException e) {
+			// name already exists
+			return null;
+		}
+	}
+
 	public void delete(ESLMidiOut port) {
 		eslOutPorts.remove(port);
 		getESLPortConfig(port).delete();
 	}
 
-	public MidiIn[] getInputs() {
+	public void delete(NetworkMidiOut port) {
+		networkOutPorts.remove(port);
+		getNetworkPortConfig(port).delete();
+	}
+
+	public MidiInPort[] getInputs() {
 		return inputs;
 	}
 
-	public MidiOut[] getOutputs() {
-		return outputs;
+	public MidiOutPort[] getOutputs() {
+		MidiOutPort[] outs = new MidiOutPort[outputs.length + networkOutPorts.size()];
+		System.arraycopy(outputs, 0, outs, 0, outputs.length);
+		for(int i = 0; i < networkOutPorts.size(); i++) {
+			outs[outputs.length + i] = networkOutPorts.get(i);
+		}
+		return outs;
 	}
 
 	public ESLMidiOut[] getESLOutputs() {
@@ -138,10 +175,13 @@ public class MidiRouter {
 	}
 
 	public MidiOutPort[] getOutputPorts() {
-		MidiOutPort[] outs = new MidiOutPort[outputs.length + eslOutPorts.size()];
+		MidiOutPort[] outs = new MidiOutPort[outputs.length + networkOutPorts.size() + eslOutPorts.size()];
 		System.arraycopy(outputs, 0, outs, 0, outputs.length);
+		for(int i = 0; i < networkOutPorts.size(); i++) {
+			outs[outputs.length + i] = networkOutPorts.get(i);
+		}
 		for(int i = 0; i < eslOutPorts.size(); i++) {
-			outs[outputs.length + i] = eslOutPorts.get(i);
+			outs[outputs.length + networkOutPorts.size() + i] = eslOutPorts.get(i);
 		}
 		return outs;
 	}

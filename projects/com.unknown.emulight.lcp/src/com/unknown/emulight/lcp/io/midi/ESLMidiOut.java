@@ -3,11 +3,13 @@ package com.unknown.emulight.lcp.io.midi;
 import java.io.IOException;
 import java.util.logging.Logger;
 
+import javax.sound.midi.MidiDevice.Info;
 import javax.sound.midi.MidiMessage;
 import javax.sound.midi.ShortMessage;
 
 import com.unknown.emulight.lcp.io.esl.ESL;
 import com.unknown.emulight.lcp.project.SystemConfiguration.ESLMidiPortConfig;
+import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
 
@@ -47,6 +49,27 @@ public class ESLMidiOut extends MidiOutPort {
 	@Override
 	public String getName() {
 		return cfg.getAlias();
+	}
+
+	@Override
+	public Info getInfo() {
+		return new Info(getName(), "unknown technologies", "ESL MIDI output port", "1.0") {
+		};
+	}
+
+	@Override
+	public MidiPortConfig getConfig() {
+		return cfg;
+	}
+
+	@Override
+	public void openDevice() {
+		// nothing
+	}
+
+	@Override
+	public void closeDevice() {
+		// nothing
 	}
 
 	@Override

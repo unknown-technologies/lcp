@@ -10,7 +10,6 @@ import javax.sound.midi.MidiUnavailableException;
 import javax.sound.midi.Receiver;
 import javax.sound.midi.ShortMessage;
 
-import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
 
 public class MidiIn extends MidiInPort {
@@ -20,12 +19,22 @@ public class MidiIn extends MidiInPort {
 	private final Info info;
 	private MidiDevice dev;
 
+	private boolean needPitchBendTransform = false;
+
 	public MidiIn(int id, Info info, MidiRouter router) {
 		super(router);
 		this.id = id;
 		this.info = info;
+
+		// the Linux version of the OpenJDK has a bug which requires a workaround
+		needPitchBendTransform = System.getProperty("os.name").contains("Linux");
 	}
 
+	public void setPitchBendTransform(boolean transform) {
+		needPitchBendTransform = transform;
+	}
+
+	@Override
 	public void openDevice() throws MidiUnavailableException {
 		if(dev != null) {
 			return;
@@ -48,6 +57,7 @@ public class MidiIn extends MidiInPort {
 		});
 	}
 
+	@Override
 	public void closeDevice() {
 		if(dev != null && dev.isOpen()) {
 			log.info("Closing MIDI device " + info.getName());
@@ -62,6 +72,7 @@ public class MidiIn extends MidiInPort {
 		return id;
 	}
 
+	@Override
 	public Info getInfo() {
 		return info;
 	}
@@ -71,24 +82,18 @@ public class MidiIn extends MidiInPort {
 		return info.getName();
 	}
 
-	@Override
-	public void setActive(boolean active) {
-		super.setActive(active);
-
-		try {
-			if(active) {
-				openDevice();
-			} else {
-				closeDevice();
-			}
-		} catch(MidiUnavailableException e) {
-			log.log(Levels.WARNING, "Failed to " + (active ? "open" : "close") + " MIDI device", e);
-		}
+	private static byte transformPitchBend(byte in) {
+		return (byte) ((in + 0x40) & 0x7F);
 	}
 
 	private void send(MidiMessage message) {
 		if(message instanceof ShortMessage) {
 			ShortMessage msg = (ShortMessage) message;
+			byte[] data = msg.getMessage();
+			if(needPitchBendTransform && data[0] == (byte) ShortMessage.PITCH_BEND) {
+				data[2] = transformPitchBend(data[2]);
+				msg = new BinaryShortMessage(data);
+			}
 			router.send(id, msg);
 		}
 	}

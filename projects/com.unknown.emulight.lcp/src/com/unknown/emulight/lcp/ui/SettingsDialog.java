@@ -18,10 +18,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import javax.sound.midi.MidiDevice;
 import javax.sound.midi.MidiDevice.Info;
-import javax.sound.midi.MidiSystem;
-import javax.sound.midi.MidiUnavailableException;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -45,9 +42,10 @@ import javax.swing.event.PopupMenuListener;
 import com.unknown.emulight.lcp.io.esl.ESL;
 import com.unknown.emulight.lcp.io.esl.protocol.ESLDescriptor;
 import com.unknown.emulight.lcp.io.midi.ESLMidiOut;
-import com.unknown.emulight.lcp.io.midi.MidiIn;
-import com.unknown.emulight.lcp.io.midi.MidiOut;
+import com.unknown.emulight.lcp.io.midi.MidiInPort;
+import com.unknown.emulight.lcp.io.midi.MidiOutPort;
 import com.unknown.emulight.lcp.io.midi.MidiRouter;
+import com.unknown.emulight.lcp.io.midi.NetworkMidiOut;
 import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
@@ -69,8 +67,8 @@ import com.unknown.util.ui.MixedTable;
 public class SettingsDialog extends JDialog {
 	private static final Logger log = Trace.create(SettingsDialog.class);
 
-	private MidiIn[] inputs;
-	private MidiOut[] outputs;
+	private MidiInPort[] inputs;
+	private MidiOutPort[] outputs;
 
 	private ESLMidiOut[] eslOutputs;
 
@@ -151,7 +149,71 @@ public class SettingsDialog extends JDialog {
 
 		JPanel midiOut = new JPanel(new BorderLayout());
 		midiOut.setBorder(BorderFactory.createTitledBorder("MIDI Outputs"));
-		midiOut.add(BorderLayout.CENTER, new JScrollPane(new MixedTable(midiOutModel = new MidiOutModel())));
+		JTable midiOutTable = new MixedTable(midiOutModel = new MidiOutModel());
+		JScrollPane midiOutScroller = new JScrollPane(midiOutTable);
+		midiOut.add(BorderLayout.CENTER, midiOutScroller);
+
+		JPopupMenu udpMidiOutPopup = new JPopupMenu();
+
+		JMenuItem udpMidiOutAdd = new JMenuItem("Add");
+		udpMidiOutAdd.addActionListener(e -> {
+			router.addNetworkMidiOutPort("unnamed network port");
+			updateMidiOutputs();
+		});
+
+		JMenuItem udpMidiOutRemove = new JMenuItem("Remove");
+		udpMidiOutRemove.addActionListener(e -> {
+			int row = midiOutTable.getSelectedRow();
+			if(row == -1) {
+				return;
+			} else {
+				MidiOutPort port = outputs[row];
+				if(port instanceof NetworkMidiOut) {
+					NetworkMidiOut netport = (NetworkMidiOut) port;
+					netport.delete();
+					updateMidiOutputs();
+				}
+			}
+		});
+
+		udpMidiOutPopup.add(udpMidiOutAdd);
+		udpMidiOutPopup.add(udpMidiOutRemove);
+		midiOutTable.setComponentPopupMenu(udpMidiOutPopup);
+		midiOutScroller.setComponentPopupMenu(udpMidiOutPopup);
+		udpMidiOutPopup.addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+				SwingUtilities.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						int row = midiOutTable.rowAtPoint(SwingUtilities.convertPoint(
+								udpMidiOutPopup, new Point(0, 0), midiOutTable));
+						if(row != -1) {
+							midiOutTable.setRowSelectionInterval(row, row);
+						}
+
+						row = midiOutTable.getSelectedRow();
+						if(row != -1) {
+							boolean en = midiOutModel
+									.getPort(row) instanceof NetworkMidiOut;
+							udpMidiOutRemove.setEnabled(en);
+						} else {
+							udpMidiOutRemove.setEnabled(false);
+						}
+					}
+				});
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+				// unused
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent e) {
+				// unused
+			}
+		});
 
 		JPanel midiInOut = new JPanel(new GridLayout(2, 1));
 		midiInOut.add(midiIn);
@@ -430,34 +492,18 @@ public class SettingsDialog extends JDialog {
 		eslMidiInModel.update();
 	}
 
+	private void updateMidiOutputs() {
+		MidiRouter midi = sys.getMidiRouter();
+		outputs = midi.getOutputs();
+		midiOutModel.update();
+	}
+
 	private void updateESLOutputs() {
 		eslOutputs = router.getESLOutputs();
 		Arrays.sort(eslOutputs, (a, b) -> Integer.compareUnsigned(a.getAddress() << 8 | a.getPort(),
 				b.getAddress() << 8 | b.getPort()));
 
 		eslMidiOutModel.update();
-	}
-
-	public static List<Info> getMIDIDevices(boolean input) throws MidiUnavailableException {
-		List<Info> devices = new ArrayList<>();
-		for(Info info : MidiSystem.getMidiDeviceInfo()) {
-			try {
-				MidiDevice device = MidiSystem.getMidiDevice(info);
-				int maxin = device.getMaxTransmitters();
-				int maxout = device.getMaxReceivers();
-				if(input && maxin == 0) {
-					continue;
-				} else if(!input && maxout == 0) {
-					continue;
-				}
-				devices.add(info);
-			} catch(Throwable t) {
-				log.log(Levels.ERROR, "Error reading device: " + t.getMessage(), t);
-				throw t;
-			}
-		}
-
-		return devices;
 	}
 
 	private class MidiInModel extends ExtendedTableModel {
@@ -503,7 +549,7 @@ public class SettingsDialog extends JDialog {
 
 		@Override
 		public Object getValueAt(int row, int col) {
-			MidiIn input = inputs[row];
+			MidiInPort input = inputs[row];
 			Info info = input.getInfo();
 			switch(col) {
 			case 0:
@@ -574,7 +620,11 @@ public class SettingsDialog extends JDialog {
 
 		@Override
 		public boolean isCellEditable(int row, int col) {
-			return col > 2;
+			if(outputs[row] instanceof NetworkMidiOut) {
+				return col != 1;
+			} else {
+				return col > 2;
+			}
 		}
 
 		@Override
@@ -589,7 +639,7 @@ public class SettingsDialog extends JDialog {
 
 		@Override
 		public Object getValueAt(int row, int col) {
-			MidiOut output = outputs[row];
+			MidiOutPort output = outputs[row];
 			Info info = output.getInfo();
 			switch(col) {
 			case 0:
@@ -611,7 +661,29 @@ public class SettingsDialog extends JDialog {
 
 		@Override
 		public void setValueAt(Object value, int row, int col) {
-			if(col == 3) {
+			if(col == 0) {
+				MidiOutPort output = outputs[row];
+				if(output instanceof NetworkMidiOut) {
+					NetworkMidiOut netout = (NetworkMidiOut) output;
+					String target = (String) value;
+					int split = target.indexOf(':');
+					if(split == -1) {
+						return;
+					}
+					String hostname = target.substring(0, split);
+					String portname = target.substring(split + 1);
+					int port;
+					try {
+						port = Integer.parseInt(portname);
+						if(port <= 0 || port > 65535) {
+							return;
+						}
+					} catch(NumberFormatException e) {
+						return;
+					}
+					netout.setTarget(hostname, port);
+				}
+			} else if(col == 3) {
 				String alias = (String) value;
 				if(alias != null) {
 					alias = alias.trim();
@@ -625,6 +697,10 @@ public class SettingsDialog extends JDialog {
 			} else if(col == 5) {
 				outputs[row].setClock((boolean) value);
 			}
+		}
+
+		public MidiOutPort getPort(int row) {
+			return outputs[row];
 		}
 
 		public void update() {

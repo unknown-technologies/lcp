@@ -1197,9 +1197,6 @@ public class ProjectView extends JComponent {
 			tempParts.clear();
 			for(PartContainer<?> part : selection) {
 				PartContainer<?> newPart = part.copyAt(part.getTime());
-				if(newPart == null) {
-					throw new AssertionError();
-				}
 				startTimes.put(part, part.getTime());
 				startLengths.put(part, part.getLength());
 				startTimes.put(newPart, part.getTime());

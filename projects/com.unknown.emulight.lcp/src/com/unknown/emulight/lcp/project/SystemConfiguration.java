@@ -51,6 +51,7 @@ public class SystemConfiguration implements AutoCloseable {
 
 	private Map<MidiPortId, MidiPortConfig> midiPortConfig = new HashMap<>();
 	private Map<String, ESLMidiPortConfig> eslMidiPortConfig = new HashMap<>();
+	private Map<String, NetworkMidiPortConfig> networkMidiPortConfig = new HashMap<>();
 
 	private Set<LaserAddress> laserAddresses = new HashSet<>();
 	private Map<String, LaserConfig> lasers = new HashMap<>();
@@ -161,6 +162,11 @@ public class SystemConfiguration implements AutoCloseable {
 			return eslcfg;
 		}
 
+		NetworkMidiPortConfig netcfg = networkMidiPortConfig.get(name);
+		if(netcfg != null) {
+			return netcfg;
+		}
+
 		MidiPortId id = new MidiPortId(name, input);
 		MidiPortConfig cfg = midiPortConfig.get(id);
 		if(cfg == null) {
@@ -182,7 +188,7 @@ public class SystemConfiguration implements AutoCloseable {
 	public ESLMidiPortConfig addESLMidiPort(String name) {
 		ESLMidiPortConfig cfg = eslMidiPortConfig.get(name);
 		if(cfg != null) {
-			throw new IllegalArgumentException("name already exists");
+			throw new IllegalArgumentException("name already exists: " + name);
 		} else {
 			cfg = new ESLMidiPortConfig(this, name);
 			eslMidiPortConfig.put(name, cfg);
@@ -192,6 +198,30 @@ public class SystemConfiguration implements AutoCloseable {
 
 	public Collection<ESLMidiPortConfig> getESLMidiPorts() {
 		return Collections.unmodifiableCollection(eslMidiPortConfig.values());
+	}
+
+	public NetworkMidiPortConfig getNetworkMidiPort(String name) {
+		NetworkMidiPortConfig cfg = networkMidiPortConfig.get(name);
+		if(cfg == null) {
+			cfg = new NetworkMidiPortConfig(this, name);
+			networkMidiPortConfig.put(name, cfg);
+		}
+		return cfg;
+	}
+
+	public NetworkMidiPortConfig addNetworkMidiPort(String name) {
+		NetworkMidiPortConfig cfg = networkMidiPortConfig.get(name);
+		if(cfg != null) {
+			throw new IllegalArgumentException("name already exists: " + name);
+		} else {
+			cfg = new NetworkMidiPortConfig(this, name);
+			networkMidiPortConfig.put(name, cfg);
+			return cfg;
+		}
+	}
+
+	public Collection<NetworkMidiPortConfig> getNetworkMidiPorts() {
+		return Collections.unmodifiableCollection(networkMidiPortConfig.values());
 	}
 
 	public LaserConfig getLaser(String name) {
@@ -281,6 +311,9 @@ public class SystemConfiguration implements AutoCloseable {
 		if(eslMidiPortConfig.containsKey(name)) {
 			return false;
 		}
+		if(networkMidiPortConfig.containsKey(name)) {
+			return false;
+		}
 
 		for(MidiPortConfig cfg : midiPortConfig.values()) {
 			if(cfg.getAlias() != null && cfg.getAlias().equals(name)) {
@@ -291,6 +324,38 @@ public class SystemConfiguration implements AutoCloseable {
 		// update in port map
 		eslMidiPortConfig.remove(port.getAlias());
 		eslMidiPortConfig.put(name, port);
+
+		return true;
+	}
+
+	protected boolean rename(NetworkMidiPortConfig port, String name) {
+		// check for empty name
+		if(name == null || name.length() == 0) {
+			return false;
+		}
+
+		// check if nothing was renamed
+		if(port.getAlias().equals(name)) {
+			return true;
+		}
+
+		// check for name collisions
+		if(eslMidiPortConfig.containsKey(name)) {
+			return false;
+		}
+		if(networkMidiPortConfig.containsKey(name)) {
+			return false;
+		}
+
+		for(MidiPortConfig cfg : midiPortConfig.values()) {
+			if(cfg.getAlias() != null && cfg.getAlias().equals(name)) {
+				return false;
+			}
+		}
+
+		// update in port map
+		networkMidiPortConfig.remove(port.getAlias());
+		networkMidiPortConfig.put(name, port);
 
 		return true;
 	}
@@ -321,6 +386,11 @@ public class SystemConfiguration implements AutoCloseable {
 	protected void delete(ESLMidiPortConfig port) {
 		port.setActive(false); // this triggers a change event
 		eslMidiPortConfig.remove(port.getAlias());
+	}
+
+	protected void delete(NetworkMidiPortConfig port) {
+		port.setActive(false); // this triggers a change event
+		networkMidiPortConfig.remove(port.getAlias());
 	}
 
 	protected void delete(LaserConfig laser) {
@@ -412,6 +482,19 @@ public class SystemConfiguration implements AutoCloseable {
 
 				midi.addChild(port);
 			}
+		}
+		for(Entry<String, NetworkMidiPortConfig> entry : networkMidiPortConfig.entrySet()) {
+			String name = entry.getKey();
+			NetworkMidiPortConfig cfg = entry.getValue();
+
+			Element port = new Element("network");
+			port.addAttribute("name", name);
+			port.addAttribute("type", "output");
+			port.addAttribute("active", Boolean.toString(cfg.isActive()));
+			port.addAttribute("address", cfg.getAddress());
+			port.addAttribute("port", Integer.toString(cfg.getPort()));
+
+			midi.addChild(port);
 		}
 		for(Entry<String, ESLMidiPortConfig> entry : eslMidiPortConfig.entrySet()) {
 			String name = entry.getKey();
@@ -513,6 +596,18 @@ public class SystemConfiguration implements AutoCloseable {
 						cfg.setAlias(alias);
 						cfg.setActive(active);
 						cfg.setAll(all);
+						break;
+					}
+					case "network": {
+						String name = item.getAttribute("name");
+						boolean active = Boolean.parseBoolean(item.getAttribute("active"));
+						String address = item.getAttribute("address");
+						int port = Integer.parseInt(item.getAttribute("port"));
+
+						NetworkMidiPortConfig cfg = getNetworkMidiPort(name);
+						cfg.setActive(active);
+						cfg.setAddress(address);
+						cfg.setPort(port);
 						break;
 					}
 					case "esl": {
@@ -656,6 +751,50 @@ public class SystemConfiguration implements AutoCloseable {
 		}
 
 		public void setAddress(int address) {
+			this.address = address;
+			cfg.fireMidiPortChangedEvent(this);
+		}
+
+		public int getPort() {
+			return port;
+		}
+
+		public void setPort(int port) {
+			this.port = port;
+			cfg.fireMidiPortChangedEvent(this);
+		}
+
+		public void delete() {
+			cfg.delete(this);
+		}
+	}
+
+	public static class NetworkMidiPortConfig extends MidiPortConfig {
+		private String address;
+		private int port;
+
+		protected NetworkMidiPortConfig(SystemConfiguration cfg, String name) {
+			super(cfg);
+			this.alias = name;
+			this.address = "localhost";
+			this.port = 5025;
+		}
+
+		@Override
+		public void setAlias(String alias) {
+			if(cfg.rename(this, alias)) {
+				this.alias = alias;
+				cfg.fireMidiPortChangedEvent(this);
+			} else {
+				throw new IllegalArgumentException("invalid name");
+			}
+		}
+
+		public String getAddress() {
+			return address;
+		}
+
+		public void setAddress(String address) {
 			this.address = address;
 			cfg.fireMidiPortChangedEvent(this);
 		}
