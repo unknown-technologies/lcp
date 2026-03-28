@@ -264,7 +264,7 @@ public class Sequencer {
 			tempoCheckpoint = tempoCheckpoints.get(tempoIndex);
 		} else {
 			Track<?> track = event.getTrack();
-			if(!track.isMuted()) {
+			if(!track.isMuted() || track instanceof AudioTrack) {
 				event.transmit();
 			}
 		}

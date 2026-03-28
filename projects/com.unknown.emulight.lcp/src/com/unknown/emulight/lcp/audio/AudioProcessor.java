@@ -147,7 +147,9 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 						kill = true;
 					}
 
-					if(ch == 1) {
+					if(clip.isMuted()) {
+						// nothing
+					} else if(ch == 1) {
 						float sample = data.getSamples()[0][pos] * volume;
 						sumL[i] += sample;
 						sumR[i] += sample;
@@ -280,6 +282,10 @@ public class AudioProcessor implements AutoCloseable, SequencerListener {
 
 		public double getVolume() {
 			return track.getVolume();
+		}
+
+		public boolean isMuted() {
+			return track.isMuted();
 		}
 
 		public boolean advance(int samples) {
