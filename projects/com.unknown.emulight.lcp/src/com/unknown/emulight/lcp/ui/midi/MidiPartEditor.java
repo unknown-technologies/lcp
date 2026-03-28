@@ -559,6 +559,7 @@ public class MidiPartEditor extends JComponent {
 
 		private void updateSelection() {
 			startTimes.clear();
+			startLengths.clear();
 			startKeys.clear();
 			for(Note note : selection) {
 				startTimes.put(note, note.getTime());

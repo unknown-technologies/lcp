@@ -3,6 +3,8 @@ package com.unknown.emulight.lcp.ui.project;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.util.Collections;
+import java.util.Set;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -18,6 +20,8 @@ import com.unknown.emulight.lcp.project.Project;
 @SuppressWarnings("serial")
 public class ProjectEditor extends JPanel {
 	private PartContainer<?> selectedPart;
+	private Set<PartContainer<?>> selection = Collections.emptySet();
+	private boolean bypassEvents = false;
 
 	public ProjectEditor(Project project) {
 		super(new BorderLayout());
@@ -48,14 +52,22 @@ public class ProjectEditor extends JPanel {
 			}
 
 			private void update() {
+				if(bypassEvents) {
+					return;
+				}
+
 				if(selectedPart == null) {
 					return;
 				}
 				String s = name.getText().trim();
 				if(s.length() == 0) {
-					selectedPart.getPart().setName(null);
+					for(PartContainer<?> part : selection) {
+						part.getPart().setName(null);
+					}
 				} else {
-					selectedPart.getPart().setName(s);
+					for(PartContainer<?> part : selection) {
+						part.getPart().setName(s);
+					}
 				}
 				view.repaint();
 			}
@@ -90,23 +102,29 @@ public class ProjectEditor extends JPanel {
 		partProperties.add(new JLabel("Length:"));
 		partProperties.add(length);
 
-		view.addPartSelectionListener(part -> {
-			selectedPart = part;
-			if(part != null) {
-				String s = part.getPart().getName();
-				name.setText(s == null ? "" : s);
-				name.setEnabled(true);
-				start.setValue((int) selectedPart.getTime());
-				length.setValue((int) selectedPart.getLength());
-				start.setEnabled(true);
-				length.setEnabled(true);
-			} else {
-				name.setText("");
-				name.setEnabled(false);
-				start.setValue(0);
-				length.setValue(0);
-				start.setEnabled(false);
-				length.setEnabled(false);
+		view.addPartSelectionListener((parts, lastPart) -> {
+			selection = parts;
+			selectedPart = lastPart;
+			try {
+				bypassEvents = true;
+				if(selectedPart != null) {
+					String s = selectedPart.getPart().getName();
+					name.setText(s == null ? "" : s);
+					name.setEnabled(true);
+					start.setValue((int) selectedPart.getTime());
+					length.setValue((int) selectedPart.getLength());
+					start.setEnabled(true);
+					length.setEnabled(true);
+				} else {
+					name.setText("");
+					name.setEnabled(false);
+					start.setValue(0);
+					length.setValue(0);
+					start.setEnabled(false);
+					length.setEnabled(false);
+				}
+			} finally {
+				bypassEvents = false;
 			}
 		});
 

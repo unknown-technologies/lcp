@@ -1,6 +1,7 @@
 package com.unknown.emulight.lcp.ui.project;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
@@ -19,13 +20,15 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
-import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
@@ -89,6 +92,8 @@ public class ProjectView extends JComponent {
 	private static final int HEADER_SPACE = 7;
 	private static final int CONTENT_X = START_X + HEADER_WIDTH + 15;
 
+	private static final int RESIZE_AREA = 5;
+
 	private static final Color TRACK_SEPARATOR = new Color(113, 115, 117);
 	private static final Color TRACK_BACKGROUND = new Color(37, 40, 43);
 	private static final Color TRACK_SELECTED = new Color(233, 233, 233);
@@ -107,9 +112,10 @@ public class ProjectView extends JComponent {
 
 	private int selected = -1;
 
+	private Set<PartContainer<?>> selection = new HashSet<>();
 	private PartContainer<?> selectedPart = null;
-	private PartContainer<?> tempPart = null;
-	private PartContainer<?> hiddenPart = null;
+	private Set<PartContainer<?>> tempParts = new HashSet<>();
+	private Set<PartContainer<?>> hiddenParts = new HashSet<>();
 
 	private final Map<Track<?>, TrackEditor> trackEditors = new HashMap<>();
 
@@ -125,7 +131,8 @@ public class ProjectView extends JComponent {
 	private double grid = ppq / 4.0;
 	private int division = 1;
 
-	private final TrackListener trackListener = e -> repaint();
+	private final TrackListener trackListener = key -> repaint();
+
 	private final ProjectListener projectListener = new ProjectListener() {
 		@Override
 		public void propertyChanged(String key) {
@@ -209,7 +216,7 @@ public class ProjectView extends JComponent {
 			@Override
 			public void keyPressed(KeyEvent e) {
 				if(e.getKeyCode() == KeyEvent.VK_DELETE) {
-					deleteSelectedPart();
+					deleteSelectedParts();
 				}
 			}
 
@@ -285,9 +292,11 @@ public class ProjectView extends JComponent {
 		repaint();
 	}
 
-	public void deleteSelectedPart() {
-		if(selectedPart != null) {
-			selectedPart.delete();
+	public void deleteSelectedParts() {
+		if(!selection.isEmpty()) {
+			for(PartContainer<?> part : selection) {
+				part.delete();
+			}
 			setSelectedPart(null);
 		}
 	}
@@ -301,14 +310,62 @@ public class ProjectView extends JComponent {
 	}
 
 	public void setSelectedPart(PartContainer<?> part) {
+		selection.clear();
 		selectedPart = part;
+		if(part != null) {
+			selection.add(part);
+		}
+		fireSelectionChanged(selection, part);
+		repaint();
+	}
+
+	private static PartContainer<?> getFirstPart(Set<PartContainer<?>> parts) {
+		return parts.stream()
+				.sorted((a, b) -> Long.compare(a.getTime(), b.getTime()))
+				.findFirst().get();
+	}
+
+	public void setSelection(Set<PartContainer<?>> parts) {
+		selection.clear();
+		selection.addAll(parts);
+		if(parts.isEmpty()) {
+			selectedPart = null;
+		} else {
+			selectedPart = getFirstPart(parts);
+		}
+		fireSelectionChanged(selection, selectedPart);
+		repaint();
+	}
+
+	public void setSelection(Set<PartContainer<?>> parts, PartContainer<?> lastPart) {
+		selection.clear();
+		selection.addAll(parts);
+		if(lastPart == null && !parts.isEmpty()) {
+			selectedPart = getFirstPart(parts);
+		} else {
+			selectedPart = lastPart;
+		}
+		fireSelectionChanged(selection, lastPart);
+		repaint();
+	}
+
+	protected void fireSelectionChanged(Set<PartContainer<?>> parts, PartContainer<?> lastPart) {
 		for(PartSelectionListener listener : selectionListeners) {
 			try {
-				listener.selectionChanged(part);
+				listener.selectionChanged(parts, lastPart);
 			} catch(Throwable t) {
 				log.log(Levels.ERROR, "Failed to execute selection listener: " + t.getMessage(), t);
 			}
 		}
+	}
+
+	private void updateSelection(PartContainer<?> lastPart) {
+		if(lastPart == null && !selection.isEmpty()) {
+			selectedPart = getFirstPart(selection);
+		} else {
+			selectedPart = lastPart;
+		}
+		fireSelectionChanged(selection, lastPart);
 		repaint();
 	}
 
@@ -391,6 +448,20 @@ public class ProjectView extends JComponent {
 		return clickedOnTrack;
 	}
 
+	private int getTrack(int py) {
+		List<Track<?>> tracks = project.getTracks();
+		int y = START_Y;
+		for(int i = offsetY; i < tracks.size(); i++) {
+			if(py >= y && py <= (y + 41)) {
+				return i;
+			} else {
+				y += LINE_HEIGHT;
+			}
+		}
+
+		return -1;
+	}
+
 	public void cleanup() {
 		for(Track<?> track : project.getTracks()) {
 			track.removeTrackListener(trackListener);
@@ -400,30 +471,32 @@ public class ProjectView extends JComponent {
 	}
 
 	private <T extends AbstractPart> Iterable<PartContainer<T>> getParts(Track<T> track) {
-		if(tempPart != null && tempPart.getTrack() == track) {
+		if(!tempParts.isEmpty()) {
+			@SuppressWarnings("unchecked")
+			Set<PartContainer<T>> parts = tempParts.stream()
+					.filter(part -> part.getTrack() == track)
+					.map(p -> (PartContainer<T>) p)
+					.collect(Collectors.toUnmodifiableSet());
+
 			return () -> {
 				return new Iterator<>() {
-					boolean last = true;
 					final Iterator<PartContainer<T>> it = track.getParts().iterator();
+					final Iterator<PartContainer<T>> itTemp = parts.iterator();
 
 					public boolean hasNext() {
 						boolean next = it.hasNext();
 						if(next) {
 							return true;
 						} else {
-							return last;
+							return itTemp.hasNext();
 						}
 					}
 
-					@SuppressWarnings("unchecked")
 					public PartContainer<T> next() {
 						if(it.hasNext()) {
 							return it.next();
-						} else if(last) {
-							last = false;
-							return (PartContainer<T>) tempPart;
 						} else {
-							throw new NoSuchElementException();
+							return itTemp.next();
 						}
 					}
 				};
@@ -619,7 +692,7 @@ public class ProjectView extends JComponent {
 			Color trackText = UIUtils.getTextColor(trackColor);
 
 			for(PartContainer<?> part : getParts(track)) {
-				if(part == hiddenPart) {
+				if(hiddenParts.contains(part)) {
 					continue;
 				}
 
@@ -642,7 +715,7 @@ public class ProjectView extends JComponent {
 					Color color = trackColor;
 					Color outline = trackOutline;
 					Color text = trackText;
-					if(part == selectedPart || part == tempPart) {
+					if(selection.contains(part) || tempParts.contains(part)) {
 						color = trackOutline;
 						outline = trackColor;
 						text = UIUtils.getTextColor(color);
@@ -1108,13 +1181,75 @@ public class ProjectView extends JComponent {
 		private int startOffsetX;
 		private int startOffsetY;
 
-		private long partTime;
-
 		private boolean createPart;
+		private boolean resize;
+		private boolean resizeEnd;
+		private boolean move;
+
+		private Map<PartContainer<?>, Long> startTimes = new HashMap<>();
+		private Map<PartContainer<?>, Long> startLengths = new HashMap<>();
+
+		private void updatePartSelection() {
+			startTimes.clear();
+			startLengths.clear();
+			hiddenParts.clear();
+			hiddenParts.addAll(selection);
+			tempParts.clear();
+			for(PartContainer<?> part : selection) {
+				PartContainer<?> newPart = part.copyAt(part.getTime());
+				if(newPart == null) {
+					throw new AssertionError();
+				}
+				startTimes.put(part, part.getTime());
+				startLengths.put(part, part.getLength());
+				startTimes.put(newPart, part.getTime());
+				startLengths.put(newPart, part.getLength());
+				tempParts.add(newPart);
+			}
+		}
+
+		private void updateCursor(int x, int y) {
+			long time = getTime(x);
+			int trackId = getTrack(y);
+			boolean match = false;
+
+			if(trackId == -1) {
+				setCursor(Cursor.getDefaultCursor());
+				return;
+			}
+
+			Track<?> track = project.getTrack(trackId);
+
+			for(PartContainer<?> part : selection.isEmpty() ? track.getParts() : selection) {
+				// reference comparison is intentional
+				if(part.getTrack() != track) {
+					continue;
+				}
+				if(part.contains(time)) {
+					if(Math.abs(getPixel(part.getStart()) - x) < RESIZE_AREA) {
+						// update mouse cursor
+						setCursor(Cursor.getPredefinedCursor(Cursor.W_RESIZE_CURSOR));
+						return;
+					} else if(Math.abs(getPixel(part.getEnd()) - x) < RESIZE_AREA) {
+						// update mouse cursor
+						setCursor(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR));
+						return;
+					} else {
+						match = true;
+					}
+				}
+			}
+
+			if(match) {
+				setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+			} else {
+				setCursor(Cursor.getDefaultCursor());
+			}
+		}
 
 		@Override
 		public void mouseMoved(MouseEvent e) {
-			// TODO Auto-generated method stub
+			updateCursor(e.getX(), e.getY());
 		}
 
 		@Override
@@ -1123,33 +1258,98 @@ public class ProjectView extends JComponent {
 				// left mouse button
 				if(startY < START_Y) {
 					long time = getTime(e.getX());
-					long t = quantizeTime(time < 0 ? 0 : time);
+					long t = time < 0 ? 0 : time;
+
+					// quantize?
+					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
+						t = quantizeTime(t);
+					}
+
 					project.setTick(t);
 					repaint();
-				}
+				} else if(resize) {
+					long startTime = getTime(startX);
+					long endTime = getTime(e.getX());
+					long dt = endTime - startTime;
 
-				if(createPart && selectedPart != null) {
+					// quantize?
+					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
+						dt = quantizeTime(dt);
+					}
+
+					if(resizeEnd) {
+						for(PartContainer<?> part : tempParts) {
+							long length = startLengths.get(part);
+							if(length + dt > 0) {
+								part.setLength(length + dt);
+							}
+						}
+					} else {
+						for(PartContainer<?> part : tempParts) {
+							long time = startTimes.get(part);
+							long length = startLengths.get(part);
+							PartContainer<?> newPart = part.copyAt(time + dt);
+							if(length - dt > 0) {
+								newPart.setLength(length - dt);
+							}
+
+							// replace old part container with new one
+							startTimes.remove(part);
+							startLengths.remove(part);
+							startTimes.put(newPart, time);
+							startLengths.put(newPart, length);
+
+							// reference comparison is intentional
+							if(selectedPart == part) {
+								selectedPart = newPart;
+							}
+							tempParts.remove(part);
+							tempParts.add(newPart);
+						}
+					}
+
+					repaint();
+				} else if(createPart && selectedPart != null) {
 					// resize selected part
 					long startTime = selectedPart.getStart();
-					long endTime = quantizeTime(getTime(e.getX()));
+					long endTime = getTime(e.getX());
+
+					// quantize?
+					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
+						endTime = quantizeTime(endTime);
+					}
+
 					long dt = endTime - startTime;
 
 					if(dt > 0) {
 						selectedPart.setLength(dt);
 						repaint();
 					}
-				} else if(tempPart != null) {
+				} else if(!tempParts.isEmpty()) {
 					// move selected part
+					move = true;
 					long startTime = getTime(startX);
 					long endTime = getTime(e.getX());
-					long dt = quantizeTime(endTime - startTime);
+					long dt = endTime - startTime;
 
-					tempPart = tempPart.copyAt(partTime + dt);
+					// quantize?
+					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
+						dt = quantizeTime(dt);
+					}
 
-					if(e.getModifiersEx() == MouseEvent.BUTTON1_DOWN_MASK) {
-						hiddenPart = selectedPart;
-					} else {
-						hiddenPart = null;
+					Set<PartContainer<?>> newTempParts = new HashSet<>();
+					for(PartContainer<?> part : tempParts) {
+						long time = startTimes.get(part);
+						PartContainer<?> newPart = part.copyAt(time + dt);
+						newTempParts.add(newPart);
+						startTimes.remove(part);
+						startTimes.put(newPart, time);
+					}
+					tempParts = newTempParts;
+
+					hiddenParts.clear();
+					if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) == 0) {
+						hiddenParts.addAll(selection);
 					}
 
 					repaint();
@@ -1202,7 +1402,7 @@ public class ProjectView extends JComponent {
 					dlg.setLocationRelativeTo(ProjectView.this);
 					dlg.setVisible(true);
 				} else if(selectedPart.getPart() instanceof AudioPart) {
-					// open a tempo part editor
+					// open a audio part editor
 					@SuppressWarnings("unchecked")
 					PartContainer<AudioPart> container = (PartContainer<AudioPart>) selectedPart;
 					AudioPartEditorDialog dlg = new AudioPartEditorDialog(container,
@@ -1225,6 +1425,11 @@ public class ProjectView extends JComponent {
 			startOffsetY = offsetY;
 
 			createPart = false;
+			resize = false;
+			move = false;
+
+			tempParts.clear();
+			hiddenParts.clear();
 
 			int px = e.getX();
 			int py = e.getY();
@@ -1233,44 +1438,96 @@ public class ProjectView extends JComponent {
 
 			if(e.getButton() == MouseEvent.BUTTON1) {
 				if(startY < START_Y) {
-					long t = quantizeTime(time < 0 ? 0 : time);
+					long t = time < 0 ? 0 : time;
+
+					// quantize?
+					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
+						t = quantizeTime(t);
+					}
+
 					project.setTick(t);
 					repaint();
+					return;
 				}
 
 				if(updateSelection(px, py, true)) {
 					// clicked onto a track
-					if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) != 0) {
-						// draw a new part
-						createPart = true;
-						Track<?> track = project.getTrack(selected);
-						long start = quantizeTime(time);
-						setSelectedPart(track.createPart(start, Math.round(grid)));
-						repaint();
-					} else if(px > CONTENT_X && px <= getWidth() - BORDER) {
+					if(px > CONTENT_X && px <= getWidth() - BORDER) {
 						// clicked on some part?
-						boolean wasSelected = selectedPart != null;
-						PartContainer<?> selection = null;
+						boolean editSelection = (e.getModifiersEx() &
+								MouseEvent.SHIFT_DOWN_MASK) != 0 &&
+								(e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) == 0;
 						Track<?> track = project.getTrack(selected);
 						for(PartContainer<?> part : track.getParts()) {
 							if(part.contains(time)) {
 								// found the part
-								selection = part;
-								break;
+								resizeEnd = Math.abs(getPixel(part.getEnd()) -
+										px) < RESIZE_AREA;
+								if(Math.abs(getPixel(part.getStart()) -
+										px) < RESIZE_AREA || resizeEnd) {
+									if(selection.isEmpty()) {
+										resize = true;
+										selection.add(part);
+										updateCursor(px, py);
+										updateSelection(part);
+										updatePartSelection();
+										repaint();
+										return;
+									} else if(selection.contains(part)) {
+										resize = true;
+										updatePartSelection();
+										return;
+									}
+								}
+
+								if(editSelection) {
+									if(selection.contains(part)) {
+										selection.remove(part);
+										updateSelection(null);
+									} else {
+										selection.add(part);
+										updateSelection(part);
+									}
+								} else if(!selection.contains(part)) {
+									selection.clear();
+									selection.add(part);
+									updateSelection(part);
+								} else {
+									updateSelection(part);
+								}
+
+								updatePartSelection();
+								return;
 							}
 						}
 
-						setSelectedPart(selection);
+						if(!selection.isEmpty()) {
+							if(editSelection) {
+								// editing the selection, don't clear it
+								return;
+							}
 
-						if(selectedPart != null) {
-							partTime = selectedPart.getTime();
+							// clear selection
+							selection.clear();
+							updateSelection(null);
 						}
 
-						tempPart = selectedPart;
+						if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) != 0) {
+							// draw a new part?
+							if(selection.isEmpty()) {
+								createPart = true;
+								long start = time;
 
-						// also repaint if selection was cleared
-						if(wasSelected && selectedPart == null) {
-							repaint();
+								// quantize?
+								if((e.getModifiersEx() &
+										MouseEvent.CTRL_DOWN_MASK) == 0) {
+									start = quantizeTime(start);
+								}
+
+								setSelectedPart(track.createPart(start,
+										Math.round(grid)));
+								repaint();
+							}
 						}
 					}
 				}
@@ -1369,37 +1626,99 @@ public class ProjectView extends JComponent {
 		@Override
 		public void mouseReleased(MouseEvent e) {
 			if(e.getButton() == MouseEvent.BUTTON1) {
-				if(tempPart != null) {
+				if(!tempParts.isEmpty()) {
 					// move/copy selected part
 					long startTime = getTime(startX);
 					long endTime = getTime(e.getX());
-					long dt = quantizeTime(endTime - startTime);
+					long dt = endTime - startTime;
 
-					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) != 0) {
-						if((e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0) {
-							setSelectedPart(selectedPart.link(partTime + dt));
+					// quantize?
+					if((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
+						dt = quantizeTime(dt);
+					}
+
+					if(resize) {
+						if(resizeEnd) {
+							for(PartContainer<?> part : selection) {
+								long length = startLengths.get(part);
+								if(length + dt > 0) {
+									part.setLength(length + dt);
+								}
+							}
 						} else {
-							setSelectedPart(selectedPart.clone(partTime + dt));
+							Set<PartContainer<?>> newSelection = new HashSet<>();
+							PartContainer<?> newSelectedPart = selectedPart;
+							for(PartContainer<?> part : selection) {
+								long time = startTimes.get(part);
+								long length = startLengths.get(part);
+								PartContainer<?> newPart = part.move(time + dt);
+								if(length - dt > 0) {
+									newPart.setLength(length - dt);
+								}
+								newSelection.add(newPart);
+								if(selectedPart == part) {
+									newSelectedPart = newPart;
+								}
+							}
+							setSelection(newSelection, newSelectedPart);
 						}
-					} else if(selectedPart != null) {
-						setSelectedPart(selectedPart.move(partTime + dt));
+					} else if(move) {
+						Set<PartContainer<?>> newSelection = new HashSet<>();
+						PartContainer<?> newSelectedPart = selectedPart;
+						if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) != 0) {
+							if((e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0) {
+								for(PartContainer<?> part : selection) {
+									long time = startTimes.get(part);
+									PartContainer<?> newPart = part.link(time + dt);
+									newSelection.add(newPart);
+									if(selectedPart == part) {
+										newSelectedPart = newPart;
+									}
+								}
+							} else {
+								for(PartContainer<?> part : selection) {
+									long time = startTimes.get(part);
+									PartContainer<?> newPart = part
+											.clone(time + dt);
+									newSelection.add(newPart);
+									if(selectedPart == part) {
+										newSelectedPart = newPart;
+									}
+								}
+							}
+						} else if(!selection.isEmpty()) {
+							for(PartContainer<?> part : selection) {
+								long time = startTimes.get(part);
+								PartContainer<?> newPart = part.move(time + dt);
+								if(newPart != null) {
+									newSelection.add(newPart);
+								}
+								if(selectedPart == part) {
+									newSelectedPart = newPart;
+								}
+							}
+						}
+
+						setSelection(newSelection, newSelectedPart);
 					}
 				}
 			}
 
-			tempPart = null;
-			hiddenPart = null;
+			startTimes.clear();
+			startLengths.clear();
+			tempParts.clear();
+			hiddenParts.clear();
 			repaint();
 		}
 
 		@Override
 		public void mouseEntered(MouseEvent e) {
-			// TODO Auto-generated method stub
+			// empty
 		}
 
 		@Override
 		public void mouseExited(MouseEvent e) {
-			// TODO Auto-generated method stub
+			// empty
 		}
 
 		@Override
