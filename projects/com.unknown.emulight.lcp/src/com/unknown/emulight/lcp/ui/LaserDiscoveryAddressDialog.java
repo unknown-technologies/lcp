@@ -2,18 +2,24 @@ package com.unknown.emulight.lcp.ui;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Set;
 
+import javax.swing.AbstractAction;
 import javax.swing.AbstractListModel;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
+import javax.swing.KeyStroke;
 
 import com.unknown.emulight.lcp.laser.LaserProcessor;
 import com.unknown.emulight.lcp.project.EmulightSystem;
@@ -95,6 +101,17 @@ public class LaserDiscoveryAddressDialog extends JDialog {
 				removeAddress.setEnabled(true);
 			} else {
 				removeAddress.setEnabled(false);
+			}
+		});
+
+		KeyStroke escKey = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		Object quit = new Object();
+		JRootPane root = getRootPane();
+		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escKey, quit);
+		root.getActionMap().put(quit, new AbstractAction() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				dispose();
 			}
 		});
 
