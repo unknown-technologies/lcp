@@ -7,6 +7,7 @@ import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent.Cause;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -571,6 +572,11 @@ public class ClipPropertyAutomationEditor extends JDialog {
 			setBackground(BACKGROUND);
 			setOpaque(true);
 			setDoubleBuffered(true);
+
+			setFocusable(true);
+			setRequestFocusEnabled(true);
+			setFocusTraversalKeysEnabled(false);
+
 			MouseController mouse = new MouseController();
 			addMouseListener(mouse);
 			addMouseMotionListener(mouse);
@@ -1343,6 +1349,8 @@ public class ClipPropertyAutomationEditor extends JDialog {
 
 			@Override
 			public void mousePressed(MouseEvent e) {
+				requestFocusInWindow(Cause.MOUSE_EVENT);
+
 				startX = e.getX();
 				startY = e.getY();
 				startTranslate = translation;
