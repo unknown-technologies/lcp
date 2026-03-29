@@ -19,6 +19,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -1527,6 +1528,8 @@ public class ProjectView extends JComponent {
 							}
 						}
 					}
+				} else if((e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) == 0) {
+					setSelection(Collections.emptySet());
 				}
 			} else if(e.getButton() == MouseEvent.BUTTON3) {
 				boolean clickedOnTrack = updateSelection(px, py, false);
