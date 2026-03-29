@@ -103,7 +103,7 @@ public class LaserPartEditorDialog extends JFrame {
 
 		JMenuItem exit = new JMenuItem("Quit");
 		exit.setMnemonic('Q');
-		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, MENU_MODIFIER));
+		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
 		exit.addActionListener(e -> dispose());
 
 		fileMenu.add(loadClip);

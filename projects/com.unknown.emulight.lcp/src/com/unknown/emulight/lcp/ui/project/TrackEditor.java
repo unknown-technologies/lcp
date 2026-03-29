@@ -1,6 +1,5 @@
 package com.unknown.emulight.lcp.ui.project;
 
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 
@@ -20,7 +19,6 @@ import com.unknown.emulight.lcp.ui.midi.MidiTrackEditor;
 
 @SuppressWarnings("serial")
 public abstract class TrackEditor extends JDialog {
-	private static final int MENU_MODIFIER = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
 	protected final EmulightSystem sys;
 
 	protected TrackEditor(EmulightSystem sys, Track<?> track) {
@@ -28,11 +26,10 @@ public abstract class TrackEditor extends JDialog {
 		this.sys = sys;
 
 		JComponent root = getRootPane();
-		KeyStroke quitKey = KeyStroke.getKeyStroke(KeyEvent.VK_Q, MENU_MODIFIER);
 		KeyStroke escKey = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
-		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(quitKey, quitKey);
-		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escKey, quitKey);
-		root.getActionMap().put(quitKey, new AbstractAction() {
+		Object quit = new Object();
+		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escKey, quit);
+		root.getActionMap().put(quit, new AbstractAction() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				dispose();

@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent.Cause;
 import java.awt.event.KeyEvent;
@@ -46,8 +45,6 @@ import com.unknown.util.ui.ADM3AFont;
 
 @SuppressWarnings("serial")
 public class TempoPartEditorDialog extends JFrame {
-	private static final int MENU_MODIFIER = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
-
 	private static final String TITLE = "Tempo Editor";
 
 	private static final double BPM_MIN = 0.0;
@@ -164,11 +161,10 @@ public class TempoPartEditorDialog extends JFrame {
 			}
 		});
 
-		KeyStroke quitKey = KeyStroke.getKeyStroke(KeyEvent.VK_Q, MENU_MODIFIER);
 		KeyStroke escKey = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
-		editor.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(quitKey, quitKey);
-		editor.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escKey, quitKey);
-		editor.getActionMap().put(quitKey, new AbstractAction() {
+		Object quit = new Object();
+		editor.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escKey, quit);
+		editor.getActionMap().put(quit, new AbstractAction() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				project.getSequencer().removeListener(listener);
