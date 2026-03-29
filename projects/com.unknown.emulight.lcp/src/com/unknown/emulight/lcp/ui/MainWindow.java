@@ -47,7 +47,6 @@ import com.unknown.emulight.lcp.project.TempoTrack;
 import com.unknown.emulight.lcp.project.Track;
 import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
-import com.unknown.emulight.lcp.sequencer.Sequencer;
 import com.unknown.emulight.lcp.ui.help.HelpBrowser;
 import com.unknown.emulight.lcp.ui.laser.LaserDiscovery;
 import com.unknown.emulight.lcp.ui.project.ProjectEditor;
@@ -79,8 +78,6 @@ public class MainWindow extends JFrame {
 
 	private Project project;
 
-	private long lastStartPosition = 0;
-
 	public MainWindow(EmulightSystem sys) {
 		super(TITLE);
 
@@ -94,6 +91,7 @@ public class MainWindow extends JFrame {
 		this.sys = sys;
 		project = new Project(sys);
 		processor = sys.getLaserProcessor();
+		GlobalKeyboardShortcuts.create(project);
 
 		// log ESL stuff directly into system log
 		sys.getESL().addESLListener(new ESLListener() {
@@ -250,39 +248,17 @@ public class MainWindow extends JFrame {
 		JMenuItem transportMenuPlay = new JMenuItem("Play");
 		transportMenuPlay.setMnemonic('y');
 		transportMenuPlay.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0));
-		transportMenuPlay.addActionListener(e -> {
-			Sequencer seq = project.getSequencer();
-			if(seq.isPlaying()) {
-				long tick = seq.getTick();
-				project.stop();
-				seq.setTick(tick);
-				setStatus("Playback stopped");
-			} else {
-				lastStartPosition = seq.getTick();
-				project.play();
-				setStatus("Playback started");
-			}
-		});
+		transportMenuPlay.addActionListener(e -> project.playbackToggle());
 
 		JMenuItem transportMenuStop = new JMenuItem("Stop");
 		transportMenuStop.setMnemonic('S');
 		transportMenuStop.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD0, 0));
-		transportMenuStop.addActionListener(e -> {
-			Sequencer seq = project.getSequencer();
-			if(seq.isPlaying()) {
-				long tick = seq.getTick();
-				project.stop();
-				seq.setTick(tick);
-				setStatus("Playback stopped");
-			} else {
-				seq.setTick(lastStartPosition);
-			}
-		});
+		transportMenuStop.addActionListener(e -> project.playbackStop());
 
 		JMenuItem transportMenuStart = new JMenuItem("Go to start");
 		transportMenuStart.setMnemonic('G');
 		transportMenuStart.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD1, 0));
-		transportMenuStart.addActionListener(e -> project.getSequencer().setTick(0));
+		transportMenuStart.addActionListener(e -> project.playbackPositionReset());
 
 		transportMenu.add(transportMenuPlay);
 		transportMenu.add(transportMenuStop);

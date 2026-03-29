@@ -1,13 +1,26 @@
 package com.unknown.emulight.lcp.project;
 
 import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Logger;
+
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.KeyStroke;
 
 import com.unknown.emulight.lcp.audio.AudioData;
 import com.unknown.emulight.lcp.audio.AudioPart;
@@ -19,6 +32,7 @@ import com.unknown.emulight.lcp.laser.LaserRenderer;
 import com.unknown.emulight.lcp.laser.LaserTrack;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.sequencer.Sequencer;
+import com.unknown.emulight.lcp.ui.MainWindow;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.net.shownet.InterfaceId;
 import com.unknown.net.shownet.Laser;
@@ -51,6 +65,11 @@ public class Project {
 	private final List<Color> colors = new ArrayList<>();
 
 	private final AudioTrack systemSounds;
+
+	private long lastStartPosition = 0;
+
+	private final Map<KeyStroke, Object> keyboardShortcuts = new HashMap<>();
+	private final Map<Object, Action> keyboardActions = new HashMap<>();
 
 	public Project(EmulightSystem system) {
 		this.system = system;
@@ -94,6 +113,35 @@ public class Project {
 		sequencer.setTempoTrack(tempoTrack);
 
 		clearLaserRenderer();
+	}
+
+	public void addKeyboardShortcut(KeyStroke key, ActionListener action) {
+		addKeyboardShortcut(Set.of(key), new AbstractAction() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				action.actionPerformed(e);
+			}
+		});
+	}
+
+	public void addKeyboardShortcut(Set<KeyStroke> keys, Action action) {
+		Object link = new Object();
+		for(KeyStroke key : keys) {
+			keyboardShortcuts.put(key, link);
+		}
+		keyboardActions.put(link, action);
+	}
+
+	public void registerKeyboardShortcuts(JComponent c) {
+		InputMap inputMap = c.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+		for(Entry<KeyStroke, Object> entry : keyboardShortcuts.entrySet()) {
+			inputMap.put(entry.getKey(), entry.getValue());
+		}
+
+		ActionMap actionMap = c.getActionMap();
+		for(Entry<Object, Action> entry : keyboardActions.entrySet()) {
+			actionMap.put(entry.getKey(), entry.getValue());
+		}
 	}
 
 	public EmulightSystem getSystem() {
@@ -228,6 +276,46 @@ public class Project {
 		if(playing) {
 			play();
 		}
+	}
+
+	public void playbackToggle() {
+		JFrame mainWindow = system.getMainWindow();
+		MainWindow main = mainWindow instanceof MainWindow ? (MainWindow) mainWindow : null;
+
+		if(sequencer.isPlaying()) {
+			long tick = sequencer.getTick();
+			stop();
+			sequencer.setTick(tick);
+			if(main != null) {
+				main.setStatus("Playback stopped");
+			}
+		} else {
+			lastStartPosition = sequencer.getTick();
+			play();
+			if(main != null) {
+				main.setStatus("Playback started");
+			}
+		}
+	}
+
+	public void playbackStop() {
+		if(sequencer.isPlaying()) {
+			long tick = sequencer.getTick();
+			stop();
+			sequencer.setTick(tick);
+			JFrame mainWindow = system.getMainWindow();
+			MainWindow main = mainWindow instanceof MainWindow ? (MainWindow) mainWindow : null;
+			if(main != null) {
+				main.setStatus("Playback stopped");
+			}
+		} else {
+			sequencer.setTick(lastStartPosition);
+		}
+	}
+
+	public void playbackPositionReset() {
+		// TODO: once a loop region is implemented, this should go to the start of the loop
+		sequencer.setTick(0);
 	}
 
 	public void setLaserRenderer(LaserRenderer renderer) {
