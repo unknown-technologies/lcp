@@ -20,22 +20,27 @@ public class ClipTreeModel implements TreeModel {
 
 	private List<TreeModelListener> listeners = new ArrayList<>();
 
-	private LaserPart clip;
+	private ClipTreeNode root;
 
 	public void setClip(LaserPart clip) {
-		this.clip = clip;
+		if(clip == null) {
+			root = null;
+		} else {
+			root = new ClipTreeNode(clip.getRoot());
+		}
 		fireTreeStructureChanged();
 	}
 
-	public static TreePath getPath(Node node) {
+	public TreePath getPath(Node node) {
 		List<Node> path = new ArrayList<>();
 		for(Node n = node; n != null; n = n.getParent()) {
 			path.add(n);
 		}
 		Collections.reverse(path);
 		ClipTreeNode[] nodes = new ClipTreeNode[path.size()];
-		for(int i = 0; i < path.size(); i++) {
-			ClipTreeNode parent = i == 0 ? null : nodes[i - 1];
+		nodes[0] = root;
+		for(int i = 1; i < path.size(); i++) {
+			ClipTreeNode parent = nodes[i - 1];
 			nodes[i] = new ClipTreeNode(parent, path.get(i));
 		}
 
@@ -142,7 +147,7 @@ public class ClipTreeModel implements TreeModel {
 	}
 
 	@Override
-	public Object getChild(Object parent, int index) {
+	public ClipTreeNode getChild(Object parent, int index) {
 		ClipTreeNode node = (ClipTreeNode) parent;
 		return node.getChildAt(index);
 	}
@@ -161,12 +166,8 @@ public class ClipTreeModel implements TreeModel {
 	}
 
 	@Override
-	public Object getRoot() {
-		if(clip != null) {
-			return new ClipTreeNode(clip.getRoot());
-		} else {
-			return null;
-		}
+	public ClipTreeNode getRoot() {
+		return root;
 	}
 
 	@Override

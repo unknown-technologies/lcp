@@ -15,10 +15,6 @@ public class ClipTreeNode implements TreeNode {
 	private final ClipTreeNode parent;
 	private final Node node;
 
-	public ClipTreeNode(ClipTreeNode other) {
-		this(other.parent, other.node);
-	}
-
 	public ClipTreeNode(Node node) {
 		this(null, node);
 	}

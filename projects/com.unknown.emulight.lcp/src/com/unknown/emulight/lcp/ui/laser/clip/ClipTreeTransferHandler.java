@@ -11,6 +11,7 @@ import javax.swing.JTree;
 import javax.swing.TransferHandler;
 import javax.swing.tree.TreePath;
 
+import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
 
@@ -22,14 +23,9 @@ public class ClipTreeTransferHandler extends TransferHandler {
 	private DataFlavor[] flavors = new DataFlavor[1];
 
 	public ClipTreeTransferHandler() {
-		try {
-			String mimeType = DataFlavor.javaJVMLocalObjectMimeType + ";class=\"" +
-					TreePath[].class.getName() + "\"";
-			nodesFlavor = new DataFlavor(mimeType);
-			flavors[0] = nodesFlavor;
-		} catch(ClassNotFoundException e) {
-			log.log(Levels.ERROR, "ClassNotFound: " + e.getMessage(), e);
-		}
+		String mimeType = DataFlavor.javaJVMLocalObjectMimeType;
+		nodesFlavor = new DataFlavor(mimeType, "Node");
+		flavors[0] = nodesFlavor;
 	}
 
 	@Override
@@ -53,6 +49,30 @@ public class ClipTreeTransferHandler extends TransferHandler {
 			return false;
 		}
 
+		// if the source and destination trees are different, everything is fine
+		Node[] nodes = null;
+		try {
+			Transferable t = support.getTransferable();
+			nodes = (Node[]) t.getTransferData(nodesFlavor);
+		} catch(UnsupportedFlavorException e) {
+			log.log(Levels.WARNING, "Unsupported flavor: " + e.getMessage());
+			return false;
+		} catch(IOException e) {
+			log.log(Levels.WARNING, "I/O error: " + e.getMessage(), e);
+			return false;
+		}
+
+		if(nodes.length == 0) {
+			return false;
+		}
+
+		ClipTreeModel model = (ClipTreeModel) tree.getModel();
+		Node root = nodes[0].getRootNode();
+		if(model.getRoot().getNode() != root) {
+			return true;
+		}
+
+		// TODO: make sure this also works across different tree views which operate on the same model
 		int dropRow = tree.getRowForPath(path);
 		int[] selRows = tree.getSelectionRows();
 		for(int i = 0; i < selRows.length; i++) {
@@ -78,21 +98,32 @@ public class ClipTreeTransferHandler extends TransferHandler {
 			return null;
 		}
 
-		return new NodesTransferable(paths);
+		Node[] nodes = new Node[paths.length];
+		for(int i = 0; i < paths.length; i++) {
+			ClipTreeNode node = (ClipTreeNode) paths[i].getLastPathComponent();
+			nodes[i] = node.getNode().clone();
+		}
+
+		return new NodesTransferable(paths, nodes);
 	}
 
 	@Override
 	protected void exportDone(JComponent source, Transferable data, int action) {
+		NodesTransferable transfer = (NodesTransferable) data;
+
 		// TODO: properly implement copy vs move
 		if((action & MOVE) == MOVE) {
-			// JTree tree = (JTree) source;
-			// ClipTreeModel model = (ClipTreeModel) tree.getModel();
+			JTree tree = (JTree) source;
+			ClipTreeModel model = (ClipTreeModel) tree.getModel();
+			for(TreePath src : transfer.getPaths()) {
+				model.remove(src);
+			}
 		}
 	}
 
 	@Override
 	public int getSourceActions(JComponent c) {
-		return MOVE; // TODO: COPY_OR_MOVE
+		return COPY_OR_MOVE;
 	}
 
 	@Override
@@ -101,10 +132,10 @@ public class ClipTreeTransferHandler extends TransferHandler {
 			return false;
 		}
 
-		TreePath[] nodes = null;
+		Node[] nodes = null;
 		try {
 			Transferable t = support.getTransferable();
-			nodes = (TreePath[]) t.getTransferData(nodesFlavor);
+			nodes = (Node[]) t.getTransferData(nodesFlavor);
 		} catch(UnsupportedFlavorException e) {
 			log.log(Levels.WARNING, "Unsupported flavor: " + e.getMessage());
 			return false;
@@ -125,14 +156,8 @@ public class ClipTreeTransferHandler extends TransferHandler {
 			index = parent.getChildCount();
 		}
 
-		for(TreePath source : nodes) {
-			ClipTreeNode node = (ClipTreeNode) source.getLastPathComponent();
-			int rmidx = node.getParent() != null ? node.getParent().getIndex(node) : -1;
-			if(rmidx >= 0 && rmidx < index) {
-				index--;
-			}
-			model.remove(source);
-			model.insert(dest, node.getNode(), index++);
+		for(Node source : nodes) {
+			model.insert(dest, source, index++);
 		}
 
 		return true;
@@ -144,14 +169,20 @@ public class ClipTreeTransferHandler extends TransferHandler {
 	}
 
 	public class NodesTransferable implements Transferable {
-		private final TreePath[] nodes;
+		private final TreePath[] paths;
+		private final Node[] nodes;
 
-		public NodesTransferable(TreePath[] nodes) {
+		public NodesTransferable(TreePath[] paths, Node[] nodes) {
+			this.paths = paths;
 			this.nodes = nodes;
 		}
 
+		private TreePath[] getPaths() {
+			return paths;
+		}
+
 		@Override
-		public TreePath[] getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
+		public Node[] getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
 			if(!isDataFlavorSupported(flavor)) {
 				throw new UnsupportedFlavorException(flavor);
 			}

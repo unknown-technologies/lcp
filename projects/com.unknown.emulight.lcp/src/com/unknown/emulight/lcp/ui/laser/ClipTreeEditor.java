@@ -166,7 +166,7 @@ public class ClipTreeEditor extends JPanel {
 	}
 
 	public void select(Node node) {
-		TreePath path = ClipTreeModel.getPath(node);
+		TreePath path = model.getPath(node);
 		tree.setSelectionPath(path);
 		int row = tree.getRowForPath(path);
 		tree.expandRow(row);
