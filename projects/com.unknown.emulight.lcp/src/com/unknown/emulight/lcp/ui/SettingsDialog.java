@@ -329,6 +329,13 @@ public class SettingsDialog extends JDialog {
 		outputDelayPanel.add(BorderLayout.EAST, new JLabel("ms"));
 
 		JToggleButton measureDelay = new JToggleButton("Measure");
+		measureDelay.setToolTipText("<html>Start/Stop the manual delay measurement process. When enabled:" +
+				"<ul>" +
+				"<li>All lasers output a flashing circle pattern</li>" +
+				"<li>The audio system outputs a series of clicks</li>" +
+				"</ul>" +
+				"You have to adjust the output delay until the flashing circle and the click sound " +
+				"happen at the same time.</html>");
 		measureDelay.addActionListener(e -> {
 			boolean state = measureDelay.isSelected();
 			if(state) {
@@ -356,6 +363,8 @@ public class SettingsDialog extends JDialog {
 		JPanel laser = new JPanel(new BorderLayout());
 		JTable lasers = new MixedTable(laserModel = new LaserModel());
 		JButton laserDiscoveryButton = new JButton("Laser addresses...");
+		laserDiscoveryButton.setToolTipText("Define additional addresses for lasers which cannot be " +
+				"found via discovery. This is useful for lasers in remote subnets.");
 		laserDiscoveryButton.addActionListener(e -> {
 			LaserDiscoveryAddressDialog dlg = new LaserDiscoveryAddressDialog(this, sys);
 			dlg.setLocationRelativeTo(this);
@@ -404,6 +413,9 @@ public class SettingsDialog extends JDialog {
 		});
 
 		JCheckBox windowDecorations = new JCheckBox();
+		windowDecorations.setToolTipText("<html>When checked, the design's window decorations are used. " +
+				"When unchecked, the system's window decorations are used.<br/>" +
+				"Changing this option requires a restart of the application.</html>");
 		windowDecorations.setSelected(sys.getConfig().getWindowDecorations());
 		windowDecorations.addChangeListener(e -> {
 			sys.getConfig().setWindowDecorations(windowDecorations.isSelected());

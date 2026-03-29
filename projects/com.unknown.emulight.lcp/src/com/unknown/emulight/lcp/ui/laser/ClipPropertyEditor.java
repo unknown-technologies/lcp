@@ -110,6 +110,8 @@ public class ClipPropertyEditor extends JPanel {
 				JSpinner number = new JSpinner(
 						new SpinnerNumberModel((int) p.getValue(time), (int) p.getMinimum(),
 								(int) p.getMaximum(), 1));
+				number.setToolTipText("Integer value (" + p.getMinimum() + " to " + p.getMaximum() +
+						")");
 				number.addChangeListener(e -> {
 					if(!bypassEvents) {
 						p.setValue(time, (int) number.getValue());
@@ -131,6 +133,8 @@ public class ClipPropertyEditor extends JPanel {
 				JSpinner number = new JSpinner(
 						new SpinnerNumberModel((double) p.getValue(time),
 								(double) p.getMinimum(), (double) p.getMaximum(), 0.1));
+				number.setToolTipText("Floating point value (" + p.getMinimum() + " to " +
+						p.getMaximum() + ")");
 				number.addChangeListener(e -> {
 					if(!bypassEvents) {
 						p.setValue(time, (double) number.getValue());
@@ -155,6 +159,10 @@ public class ClipPropertyEditor extends JPanel {
 				JSpinner spinnerX = new JSpinner(new SpinnerNumberModel(vec.x, min.x, max.x, 0.1));
 				JSpinner spinnerY = new JSpinner(new SpinnerNumberModel(vec.y, min.y, max.y, 0.1));
 				JSpinner spinnerZ = new JSpinner(new SpinnerNumberModel(vec.z, min.z, max.z, 0.1));
+
+				spinnerX.setToolTipText("X component (" + min.x + " to " + max.x + ")");
+				spinnerY.setToolTipText("Y component (" + min.y + " to " + max.y + ")");
+				spinnerZ.setToolTipText("Z component (" + min.z + " to " + max.z + ")");
 
 				ChangeListener listener = e -> {
 					if(!bypassEvents) {
@@ -195,7 +203,12 @@ public class ClipPropertyEditor extends JPanel {
 				JSpinner spinnerG = new JSpinner(new SpinnerNumberModel(vec.getGreen(), 0.0, 1.0, 0.1));
 				JSpinner spinnerB = new JSpinner(new SpinnerNumberModel(vec.getBlue(), 0.0, 1.0, 0.1));
 
+				spinnerR.setToolTipText("Red component (0.0 to 1.0)");
+				spinnerG.setToolTipText("Green component (0.0 to 1.0)");
+				spinnerB.setToolTipText("Blue component (0.0 to 1.0)");
+
 				JPanel colorBox = new JPanel();
+				colorBox.setToolTipText("Click to open color chooser");
 				colorBox.setBackground(vec.getColor());
 				colorBox.setMinimumSize(new Dimension(22, 22));
 				colorBox.setPreferredSize(new Dimension(22, 22));
@@ -258,6 +271,7 @@ public class ClipPropertyEditor extends JPanel {
 			}
 
 			JCheckBox enableAutomation = new JCheckBox();
+			enableAutomation.setToolTipText("Enable/Disable animation");
 			enableAutomation.setEnabled(!prop.isStatic());
 			enableAutomation.setSelected(prop.isAutomation() && !prop.isStatic());
 			enableAutomation.addChangeListener(e -> {
@@ -277,6 +291,7 @@ public class ClipPropertyEditor extends JPanel {
 			});
 
 			JButton showAutomation = new JButton("...");
+			showAutomation.setToolTipText("Show automation editor");
 			showAutomation.setEnabled(!prop.isStatic());
 			showAutomation.setMinimumSize(new Dimension(22, 22));
 			showAutomation.setPreferredSize(new Dimension(22, 22));
