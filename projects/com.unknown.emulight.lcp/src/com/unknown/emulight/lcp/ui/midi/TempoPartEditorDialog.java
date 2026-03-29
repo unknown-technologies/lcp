@@ -7,6 +7,7 @@ import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.FocusEvent.Cause;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -362,6 +363,10 @@ public class TempoPartEditorDialog extends JFrame {
 			addMouseListener(mouse);
 			addMouseMotionListener(mouse);
 			addMouseWheelListener(mouse);
+
+			setFocusable(true);
+			setRequestFocusEnabled(true);
+			setFocusTraversalKeysEnabled(false);
 		}
 
 		@Override
@@ -925,6 +930,8 @@ public class TempoPartEditorDialog extends JFrame {
 
 			@Override
 			public void mousePressed(MouseEvent e) {
+				requestFocusInWindow(Cause.MOUSE_EVENT);
+
 				startX = e.getX();
 				startY = e.getY();
 				startTranslate = translation;
