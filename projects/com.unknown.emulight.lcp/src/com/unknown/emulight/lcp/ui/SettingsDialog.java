@@ -4,6 +4,9 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.Point;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -19,20 +22,24 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import javax.sound.midi.MidiDevice.Info;
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JRootPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JToggleButton;
+import javax.swing.KeyStroke;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -66,6 +73,8 @@ import com.unknown.util.ui.MixedTable;
 @SuppressWarnings("serial")
 public class SettingsDialog extends JDialog {
 	private static final Logger log = Trace.create(SettingsDialog.class);
+
+	private static final int MENU_MODIFIER = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
 
 	private MidiInPort[] inputs;
 	private MidiOutPort[] outputs;
@@ -466,6 +475,20 @@ public class SettingsDialog extends JDialog {
 			@Override
 			public void windowClosing(WindowEvent e) {
 				close();
+			}
+		});
+
+		KeyStroke quitKey = KeyStroke.getKeyStroke(KeyEvent.VK_Q, MENU_MODIFIER);
+		KeyStroke escKey = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
+		Object quit = new Object();
+		JRootPane root = getRootPane();
+		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(quitKey, quit);
+		root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(escKey, quit);
+		root.getActionMap().put(quit, new AbstractAction() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				close();
+				dispose();
 			}
 		});
 
