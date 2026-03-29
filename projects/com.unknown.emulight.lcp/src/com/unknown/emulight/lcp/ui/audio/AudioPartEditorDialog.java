@@ -48,8 +48,6 @@ public class AudioPartEditorDialog extends JFrame {
 
 		setLayout(new BorderLayout());
 
-		// AudioTrack track = (AudioTrack) container.getTrack();
-
 		AudioData data = container.getPart().getData();
 
 		editor = new WaveformEditor();
@@ -61,7 +59,9 @@ public class AudioPartEditorDialog extends JFrame {
 			editor.setSampleRate(data.getSampleRate());
 			editor.setSignal(data.getMono());
 		} else {
-			editor.setSampleRate(48000); // TODO
+			int sampleRate = container.getTrack().getProject().getSystem().getAudioProcessor()
+					.getSampleRate();
+			editor.setSampleRate(sampleRate);
 			editor.setSignal(new float[0]);
 		}
 
