@@ -349,6 +349,9 @@ public class Project {
 			if(laser == null || alreadyDone.contains(laser.getInterfaceId())) {
 				continue;
 			}
+			if(!laser.isConnected()) {
+				continue;
+			}
 
 			PartContainer<LaserPart> container = track.getFloorPart(time);
 			if(container == null) {
