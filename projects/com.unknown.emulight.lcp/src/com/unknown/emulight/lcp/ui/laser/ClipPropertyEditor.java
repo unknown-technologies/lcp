@@ -16,6 +16,7 @@ import javax.swing.JColorChooser;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -26,6 +27,7 @@ import javax.swing.event.DocumentEvent;
 import com.unknown.emulight.lcp.laser.node.Color3;
 import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.emulight.lcp.laser.node.Property;
+import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.math.g3d.Vec3;
 import com.unknown.util.ui.LabeledPairLayout;
 import com.unknown.util.ui.SimpleDocumentListener;
@@ -41,19 +43,24 @@ public class ClipPropertyEditor extends JPanel {
 	private boolean bypassEvents = false;
 	private boolean inCallback = false;
 
+	private final JPanel props;
+
 	private ClipPropertyAutomationEditor automationEditor;
 
 	public ClipPropertyEditor(Callback updated, ClipPropertyAutomationEditor automationEditor) {
-		super(new LabeledPairLayout());
+		super(new BorderLayout());
 		this.updated = updated;
 
+		props = new JPanel(new LabeledPairLayout());
+		props.setBorder(UIUtils.padding());
+		add(BorderLayout.CENTER, new JScrollPane(props));
 		this.automationEditor = automationEditor;
 	}
 
 	public void setNode(Node node) {
 		this.node = node;
 
-		removeAll();
+		props.removeAll();
 		updater.clear();
 
 		for(Property<?> prop : node.getProperties()) {
@@ -309,11 +316,11 @@ public class ClipPropertyEditor extends JPanel {
 			panel.add(BorderLayout.CENTER, component);
 			panel.add(BorderLayout.EAST, automation);
 
-			add(LabeledPairLayout.LABEL, new JLabel(prop.getName() + ":"));
-			add(LabeledPairLayout.COMPONENT, panel);
+			props.add(LabeledPairLayout.LABEL, new JLabel(prop.getName() + ":"));
+			props.add(LabeledPairLayout.COMPONENT, panel);
 		}
 
-		revalidate();
+		props.revalidate();
 		repaint();
 	}
 
