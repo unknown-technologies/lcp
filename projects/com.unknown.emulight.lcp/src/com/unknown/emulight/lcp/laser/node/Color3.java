@@ -9,6 +9,13 @@ public class Color3 extends Vec3 {
 
 	public Color3(double r, double g, double b) {
 		super(r, g, b);
+		if(r < 0 || r > 1 || g < 0 || g > 1 || b < 0 || b > 1) {
+			throw new IllegalArgumentException("Invalid color: red=" + r + ",green=" + g + ",blue=" + b);
+		}
+	}
+
+	public Color3(Vec3 vec) {
+		this(vec.x, vec.y, vec.z);
 	}
 
 	public Color3(Color color) {
