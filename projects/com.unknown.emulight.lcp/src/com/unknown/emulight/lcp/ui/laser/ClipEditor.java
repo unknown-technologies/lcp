@@ -306,6 +306,9 @@ public class ClipEditor extends JPanel {
 		long localTime = clip.getLocalTime(time);
 		long clipLength = clip.getLength();
 		long partLength = clip.getPart().getLength();
+		if(localTime < 0) {
+			localTime = 0;
+		}
 		if(clip.getPart().isLoop()) {
 			localTime %= partLength;
 		} else if(localTime > clipLength) {
