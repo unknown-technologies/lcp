@@ -139,6 +139,10 @@ public class LaserPartEditorDialog extends JFrame {
 			}
 		};
 
+		if(project.getSequencer().isPlaying()) {
+			timer.start();
+		}
+
 		project.getSequencer().addListener(listener);
 		addWindowListener(new WindowAdapter() {
 			@Override
