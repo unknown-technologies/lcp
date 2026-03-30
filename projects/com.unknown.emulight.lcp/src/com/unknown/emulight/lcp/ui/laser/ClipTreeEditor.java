@@ -6,10 +6,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.List;
 import java.util.function.Consumer;
 
 import javax.swing.AbstractAction;
 import javax.swing.DropMode;
+import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -26,6 +28,8 @@ import com.unknown.emulight.lcp.laser.node.GroupNode;
 import com.unknown.emulight.lcp.laser.node.LineNode;
 import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.emulight.lcp.laser.node.PointNode;
+import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePlugin;
+import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePluginRegistry;
 import com.unknown.emulight.lcp.ui.laser.clip.ClipTreeModel;
 import com.unknown.emulight.lcp.ui.laser.clip.ClipTreeNode;
 import com.unknown.emulight.lcp.ui.laser.clip.ClipTreeTransferHandler;
@@ -123,6 +127,20 @@ public class ClipTreeEditor extends JPanel {
 						menu.add(addPoint);
 						menu.add(addLine);
 						menu.add(addCircle);
+
+						List<CustomNodePlugin> plugins = CustomNodePluginRegistry.get()
+								.getPlugins();
+						if(!plugins.isEmpty()) {
+							JMenu pluginMenu = new JMenu("Plugins");
+							for(CustomNodePlugin plugin : plugins) {
+								JMenuItem item = new JMenuItem(plugin.getDisplayName());
+								item.addActionListener(
+										ev -> insert(path, plugin.create()));
+								pluginMenu.add(item);
+							}
+							menu.addSeparator();
+							menu.add(pluginMenu);
+						}
 					}
 
 					JMenuItem refresh = new JMenuItem("Refresh");

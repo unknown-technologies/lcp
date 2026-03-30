@@ -9,6 +9,8 @@ import java.util.Map;
 
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.Point3D;
+import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePlugin;
+import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePluginRegistry;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.math.g3d.Vec3;
 import com.unknown.xml.dom.Element;
@@ -18,6 +20,7 @@ public abstract class Node implements Cloneable {
 	protected static final Vec3 ONE = new Vec3(1.0, 1.0, 1.0);
 	protected static final Vec3 MIN3D = new Vec3(-1.0, -1.0, -1.0);
 	protected static final Vec3 MAX3D = new Vec3(1.0, 1.0, 1.0);
+	protected static final Color3 BLACK = new Color3(0.0, 0.0, 0.0);
 	protected static final Color3 WHITE = new Color3(1.0, 1.0, 1.0);
 
 	private final Property<String> name = new Property<>(StandardPropertyNames.NAME, String.class, true);
@@ -240,20 +243,34 @@ public abstract class Node implements Cloneable {
 		List<Shape> shapes = new ArrayList<>();
 		render(shapes, time, positionTransform, colorTransform);
 
-		// concatenate points and insert empty points between shapes
-		for(Shape shape : shapes) {
-			List<Point3D> points = shape.getPoints();
+		if(shapes.isEmpty()) {
+			Vec3 pos = positionTransform.mult(new Vec3(0, 0, 0));
+			Vec3 col = colorTransform.mult(new Vec3(0, 0, 0));
+			result.add(new Point3D(pos, col));
+		} else if(shapes.size() == 1) {
+			result.addAll(shapes.get(0).getPoints());
+		} else {
+			// concatenate points and insert empty points between shapes
+			for(Shape shape : shapes) {
+				List<Point3D> points = shape.getPoints();
 
-			Point3D first = points.getFirst();
-			Point3D last = points.getLast();
-			Point3D emptyStart = new Point3D(first.getPosition(), new Vec3(0, 0, 0));
-			result.add(emptyStart);
-			result.addAll(points);
-			Point3D emptyEnd = new Point3D(last.getPosition(), new Vec3(0, 0, 0));
-			result.add(emptyEnd);
+				Point3D first = points.getFirst();
+				Point3D last = points.getLast();
+				Point3D emptyStart = new Point3D(first.getPosition(), new Vec3(0, 0, 0));
+				result.add(emptyStart);
+				result.addAll(points);
+				Point3D emptyEnd = new Point3D(last.getPosition(), new Vec3(0, 0, 0));
+				result.add(emptyEnd);
+			}
 		}
 
 		return result;
+	}
+
+	public final List<Shape> getShapes(int time, Mtx44 positionTransform, Mtx44 colorTransform) {
+		List<Shape> shapes = new ArrayList<>();
+		render(shapes, time, positionTransform, colorTransform);
+		return shapes;
 	}
 
 	private <T> void copy(Property<T> other) {
@@ -323,7 +340,13 @@ public abstract class Node implements Cloneable {
 			node = new PointNode();
 			break;
 		default:
-			throw new IOException("unknown node type: " + type);
+			// maybe a node from a plugin?
+			CustomNodePlugin plugin = CustomNodePluginRegistry.get().getPlugin(type);
+			if(plugin != null) {
+				node = plugin.create();
+			} else {
+				throw new IOException("unknown node type: " + type);
+			}
 		}
 
 		for(Element e : xml.getChildren()) {

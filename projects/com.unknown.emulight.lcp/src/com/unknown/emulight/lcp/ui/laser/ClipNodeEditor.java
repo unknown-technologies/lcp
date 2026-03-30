@@ -118,6 +118,9 @@ public class ClipNodeEditor extends JComponent {
 					render(g, no, pos, col, sel);
 				}
 			}
+		} else {
+			// generic non-editable node
+			drawNode(g, n, posMtx, colMtx, sel);
 		}
 	}
 
@@ -130,7 +133,7 @@ public class ClipNodeEditor extends JComponent {
 		double translateX = width / 2.0;
 		double translateY = height / 2.0;
 
-		return Mtx44.trans(translateX, translateY, 0).applyScale(scale, scale, 1.0);
+		return Mtx44.scale(scale, scale, 1.0).transApply(translateX, translateY, 0);
 	}
 
 	private Mtx44 getInverseTransform() {
@@ -235,6 +238,58 @@ public class ClipNodeEditor extends JComponent {
 		}
 
 		g.drawPolyline(px, py, cnt);
+	}
+
+	private void drawNode(Graphics g, Node n, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+		List<Point3D> points = n.render(time, mtx, colorMtx);
+		Vec3 lastPos = null;
+
+		for(Point3D point : points) {
+			Vec3 pos = point.getPosition();
+			Color color = new Color3(point.getColor()).getColor();
+
+			if(lastPos != null) {
+				if((color.getRGB() & 0xFFFFFF) == 0) {
+					// laser is off, draw it as dark gray
+					g.setColor(Color.DARK_GRAY);
+				} else {
+					g.setColor(color);
+				}
+				int lastX = (int) Math.round(lastPos.x);
+				int lastY = (int) Math.round(lastPos.y);
+				int x = (int) Math.round(pos.x);
+				int y = (int) Math.round(pos.y);
+				g.drawLine(lastX, lastY, x, y);
+			}
+
+			lastPos = pos;
+		}
+
+		// dark to bright
+		points.sort((a, b) -> Double.compare(a.getColor().length(), b.getColor().length()));
+
+		for(Point3D point : points) {
+			Vec3 pos = point.getPosition();
+
+			int x = (int) Math.round(pos.x);
+			int y = (int) Math.round(pos.y);
+
+			Color color = new Color3(point.getColor()).getColor();
+			boolean outline = (color.getRGB() & 0xFFFFFF) == 0;
+			if(selected) {
+				g.setColor(SELECTION_COLOR);
+			} else if(outline) {
+				g.setColor(Color.DARK_GRAY);
+			} else {
+				g.setColor(color);
+			}
+
+			if(outline) {
+				g.drawOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+			} else {
+				g.fillOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+			}
+		}
 	}
 
 	private Node getNode(Vec3 point) {
