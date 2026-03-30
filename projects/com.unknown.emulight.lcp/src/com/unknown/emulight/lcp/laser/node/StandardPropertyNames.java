@@ -10,6 +10,8 @@ public class StandardPropertyNames {
 	public static final String BRIGHTNESS = "brightness";
 	public static final String POSITION = "position";
 	public static final String COLOR = "color";
+	public static final String COLOR_FADE = "colorFade";
+	public static final String GRADIENT = "gradient";
 	public static final String RADIUS = "radius";
 	public static final String POINTS = "points";
 	public static final String START = "start";

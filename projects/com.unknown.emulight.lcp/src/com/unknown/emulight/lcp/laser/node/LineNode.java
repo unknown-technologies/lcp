@@ -13,6 +13,8 @@ public class LineNode extends Node {
 	private Property<Vec3> start = new Property<>(StandardPropertyNames.START, new Vec3(-0.1, 0, 0), MIN3D, MAX3D);
 	private Property<Vec3> end = new Property<>(StandardPropertyNames.END, new Vec3(0.1, 0, 0), MIN3D, MAX3D);
 	private Property<Color3> color = new Property<>(StandardPropertyNames.COLOR, WHITE);
+	private Property<Color3> colorFade = new Property<>(StandardPropertyNames.COLOR_FADE, WHITE);
+	private Property<Boolean> gradient = new Property<>(StandardPropertyNames.GRADIENT, false);
 	private final Property<Integer> pointCount = new Property<>(StandardPropertyNames.POINTS, 2, 2, 1000, false);
 	private final Property<Integer> repetition = new Property<>(StandardPropertyNames.REPETITION, 1, 1, 1000,
 			false);
@@ -24,6 +26,8 @@ public class LineNode extends Node {
 		addProperty(start);
 		addProperty(end);
 		addProperty(color);
+		addProperty(colorFade);
+		addProperty(gradient);
 		addProperty(pointCount);
 		addProperty(repetition);
 		addProperty(connected);
@@ -51,6 +55,22 @@ public class LineNode extends Node {
 
 	public void setColor(int time, Color3 color) {
 		this.color.setValue(time, color);
+	}
+
+	public Color3 getColorFade(int time) {
+		return colorFade.getValue(time);
+	}
+
+	public void setColorFade(int time, Color3 colorFade) {
+		this.colorFade.setValue(time, colorFade);
+	}
+
+	public boolean isGradient(int time) {
+		return gradient.getValue(time);
+	}
+
+	public void setGradient(int time, boolean gradient) {
+		this.gradient.setValue(time, gradient);
 	}
 
 	public int getPointCount(int time) {
@@ -113,6 +133,10 @@ public class LineNode extends Node {
 			result.add(new Shape(this, points));
 		} else {
 			Vec3 step = delta.scale(1.0 / (count - 1.0));
+			Vec3 endColor = colorMtx.mult(getColorFade(time));
+			Vec3 colorDelta = endColor.sub(col);
+			Vec3 colorStep = colorDelta.scale(1.0 / (count - 1.0));
+			boolean useGradient = isGradient(time);
 
 			int rep = getRepetition(time);
 			boolean con = isConnected(time);
@@ -124,7 +148,12 @@ public class LineNode extends Node {
 					points.add(new Point3D(pos, new Vec3(0, 0, 0)));
 				}
 				for(int j = 0; j < rep; j++) {
-					points.add(new Point3D(pos, col));
+					if(useGradient) {
+						Vec3 pointColor = col.add(colorStep.scale(i));
+						points.add(new Point3D(pos, pointColor));
+					} else {
+						points.add(new Point3D(pos, col));
+					}
 				}
 				if(!con) {
 					points.add(new Point3D(pos, new Vec3(0, 0, 0)));
