@@ -18,6 +18,7 @@ import com.unknown.xml.dom.Element;
 public abstract class Node implements Cloneable {
 	protected static final Vec3 ZERO = new Vec3(0.0, 0.0, 0.0);
 	protected static final Vec3 ONE = new Vec3(1.0, 1.0, 1.0);
+	protected static final Vec3 TWO = new Vec3(2.0, 2.0, 2.0);
 	protected static final Vec3 MIN3D = new Vec3(-1.0, -1.0, -1.0);
 	protected static final Vec3 MAX3D = new Vec3(1.0, 1.0, 1.0);
 	protected static final Color3 BLACK = new Color3(0.0, 0.0, 0.0);
@@ -27,7 +28,7 @@ public abstract class Node implements Cloneable {
 	private final Property<Boolean> enabled = new Property<>(StandardPropertyNames.ENABLED, true);
 	private final Property<Vec3> translation = new Property<>(StandardPropertyNames.TRANSLATION, ZERO, MIN3D,
 			MAX3D);
-	private final Property<Vec3> scale = new Property<>(StandardPropertyNames.SCALE, ONE, ZERO, ONE);
+	private final Property<Vec3> scale = new Property<>(StandardPropertyNames.SCALE, ONE, ZERO, TWO);
 	private final Property<Double> rotation = new Property<>(StandardPropertyNames.ROTATION, 0.0, 0.0, 360.0);
 
 	private final Property<Vec3> colorScale = new Property<>(StandardPropertyNames.COLOR_SCALE, ONE, ZERO, ONE);
