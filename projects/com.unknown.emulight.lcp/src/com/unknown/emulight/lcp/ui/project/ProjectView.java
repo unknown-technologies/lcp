@@ -1132,8 +1132,8 @@ public class ProjectView extends JComponent {
 	private void drawLaserTrack(Graphics g, PartContainer<LaserPart> part, Color color, int x, int y, int length,
 			int height) {
 		// TODO: do something with the Trim Start
-		int minX = x;
-		int maxX = x + length;
+		int minX = x + 1;
+		int maxX = x + length - 2;
 
 		LaserPart laser = part.getPart();
 
@@ -1183,7 +1183,7 @@ public class ProjectView extends JComponent {
 					int px = getPixel(time + t);
 					if(px >= minX && px < maxX) {
 						g.fillOval(px - 2, py - 2, 4, 4);
-						g.drawLine(px, y, px, y + height);
+						g.drawLine(px, y + 1, px, y + height - 2);
 					}
 				}
 			}
