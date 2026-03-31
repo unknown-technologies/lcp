@@ -49,6 +49,9 @@ import com.unknown.emulight.lcp.event.SequencerListener;
 import com.unknown.emulight.lcp.event.TrackListener;
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.LaserTrack;
+import com.unknown.emulight.lcp.laser.node.GroupNode;
+import com.unknown.emulight.lcp.laser.node.Node;
+import com.unknown.emulight.lcp.laser.node.Property;
 import com.unknown.emulight.lcp.project.AbstractPart;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
@@ -743,6 +746,10 @@ public class ProjectView extends JComponent {
 						drawAudioTrack(g, (PartContainer<AudioPart>) part, outline, startX + 1,
 								y + 2, length - 1, LINE_HEIGHT - 5);
 						break;
+					case Track.LASER:
+						drawLaserTrack(g, (PartContainer<LaserPart>) part, outline, startX + 1,
+								y + 2, length - 1, LINE_HEIGHT - 5);
+						break;
 					}
 
 					String name = part.getPart().getName();
@@ -1104,6 +1111,84 @@ public class ProjectView extends JComponent {
 			float minY = min[i] * scale;
 			float maxY = max[i] * scale;
 			g.drawLine(x + i, Math.round(cy + minY), x + i, Math.round(cy + maxY));
+		}
+	}
+
+	private static void findAnimatedProperties(List<Property<?>> animatedProperties, Node node) {
+		for(Property<?> property : node.getProperties()) {
+			if(property.getCount() > 1) {
+				animatedProperties.add(property);
+			}
+		}
+
+		if(node instanceof GroupNode) {
+			GroupNode group = (GroupNode) node;
+			for(Node n : group.getChildren()) {
+				findAnimatedProperties(animatedProperties, n);
+			}
+		}
+	}
+
+	private void drawLaserTrack(Graphics g, PartContainer<LaserPart> part, Color color, int x, int y, int length,
+			int height) {
+		// TODO: do something with the Trim Start
+		int minX = x;
+		int maxX = x + length;
+
+		LaserPart laser = part.getPart();
+
+		List<Property<?>> animatedProperties = new ArrayList<>();
+
+		Node node = laser.getRoot();
+		findAnimatedProperties(animatedProperties, node);
+
+		long t = part.getTime();
+		long len = part.getEnd();
+
+		g.setColor(color);
+		int count = animatedProperties.size();
+		double scale = height / (double) count;
+		if(scale > 5) {
+			scale = 5;
+		}
+
+		int cy = y + height / 2;
+		int i = 0;
+		for(Property<?> property : animatedProperties) {
+			int py = (int) Math.round(cy + (i - animatedProperties.size() / 2.0) * scale);
+			NavigableMap<Integer, ?> values = property.getValues();
+
+			int min = values.firstKey();
+			int max = values.lastKey();
+
+			int xmin = getPixel(t + min);
+			int xmax = getPixel(t + max);
+
+			if(xmin < minX) {
+				xmin = minX;
+			} else if(xmin > maxX) {
+				xmin = maxX;
+			}
+
+			if(xmax < minX) {
+				xmax = minX;
+			} else if(xmax > maxX) {
+				xmax = maxX;
+			}
+
+			g.drawLine(xmin, py, xmax, py);
+
+			for(int time : values.sequencedKeySet()) {
+				if(time >= 0 && time < len) {
+					int px = getPixel(time + t);
+					if(px >= minX && px < maxX) {
+						g.fillOval(px - 2, py - 2, 4, 4);
+						g.drawLine(px, y, px, y + height);
+					}
+				}
+			}
+
+			i++;
 		}
 	}
 
