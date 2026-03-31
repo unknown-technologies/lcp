@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.logging.Logger;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -20,6 +21,7 @@ import javax.swing.KeyStroke;
 
 import com.unknown.emulight.lcp.audio.AudioData;
 import com.unknown.emulight.lcp.audio.AudioPart;
+import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.ui.laser.Callback;
 import com.unknown.util.log.Levels;
@@ -43,6 +45,8 @@ public class AudioPartEditorDialog extends JFrame {
 
 		this.container = container;
 
+		EmulightSystem sys = container.getTrack().getProject().getSystem();
+
 		FileDialog loadSequenceDialog = new FileDialog(this, "Load audio...", FileDialog.LOAD);
 		FileDialog saveSequenceDialog = new FileDialog(this, "Save audio...", FileDialog.SAVE);
 
@@ -59,8 +63,7 @@ public class AudioPartEditorDialog extends JFrame {
 			editor.setSampleRate(data.getSampleRate());
 			editor.setSignal(data.getMono());
 		} else {
-			int sampleRate = container.getTrack().getProject().getSystem().getAudioProcessor()
-					.getSampleRate();
+			int sampleRate = sys.getAudioProcessor().getSampleRate();
 			editor.setSampleRate(sampleRate);
 			editor.setSignal(new float[0]);
 		}
@@ -135,6 +138,15 @@ public class AudioPartEditorDialog extends JFrame {
 			// cfg.show();
 		});
 
+		JCheckBoxMenuItem alwaysOnTop = new JCheckBoxMenuItem("Always on top");
+		alwaysOnTop.setMnemonic('A');
+		alwaysOnTop.setSelected(sys.getConfig().isAlwaysOnTop(getClass()));
+		alwaysOnTop.addItemListener(e -> {
+			boolean value = alwaysOnTop.isSelected();
+			sys.getConfig().setAlwaysOnTop(getClass(), value);
+			setAlwaysOnTop(value);
+		});
+
 		JMenuItem exit = new JMenuItem("Quit");
 		exit.setMnemonic('Q');
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
@@ -143,12 +155,14 @@ public class AudioPartEditorDialog extends JFrame {
 		fileMenu.add(loadWaveData);
 		fileMenu.add(saveWaveData);
 		fileMenu.addSeparator();
-		fileMenu.add(preferences);
+		fileMenu.add(alwaysOnTop);
 		fileMenu.addSeparator();
 		fileMenu.add(exit);
 
 		menu.add(fileMenu);
 		setJMenuBar(menu);
+
+		setAlwaysOnTop(sys.getConfig().isAlwaysOnTop(getClass()));
 
 		setSize(640, 480);
 

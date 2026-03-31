@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.logging.Logger;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -25,6 +26,7 @@ import javax.swing.Timer;
 
 import com.unknown.emulight.lcp.event.SequencerListener;
 import com.unknown.emulight.lcp.laser.LaserPart;
+import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.util.log.Levels;
@@ -47,6 +49,9 @@ public class LaserPartEditorDialog extends JFrame {
 		super(getTitle(container));
 
 		this.container = container;
+
+		Project project = container.getTrack().getProject();
+		EmulightSystem sys = project.getSystem();
 
 		FileDialog loadClipDialog = new FileDialog(this, "Load clip...", FileDialog.LOAD);
 		FileDialog saveClipDialog = new FileDialog(this, "Save clip...", FileDialog.SAVE);
@@ -101,6 +106,15 @@ public class LaserPartEditorDialog extends JFrame {
 			}
 		});
 
+		JCheckBoxMenuItem alwaysOnTop = new JCheckBoxMenuItem("Always on top");
+		alwaysOnTop.setMnemonic('A');
+		alwaysOnTop.setSelected(sys.getConfig().isAlwaysOnTop(getClass()));
+		alwaysOnTop.addItemListener(e -> {
+			boolean value = alwaysOnTop.isSelected();
+			sys.getConfig().setAlwaysOnTop(getClass(), value);
+			setAlwaysOnTop(value);
+		});
+
 		JMenuItem exit = new JMenuItem("Quit");
 		exit.setMnemonic('Q');
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
@@ -110,17 +124,19 @@ public class LaserPartEditorDialog extends JFrame {
 		fileMenu.add(saveClip);
 		fileMenu.addSeparator();
 		// fileMenu.add(preferences);
-		// fileMenu.addSeparator();
+		fileMenu.add(alwaysOnTop);
+		fileMenu.addSeparator();
 		fileMenu.add(exit);
 
 		menu.add(fileMenu);
 		setJMenuBar(menu);
 
+		setAlwaysOnTop(sys.getConfig().isAlwaysOnTop(getClass()));
+
 		setSize(1280, 720);
 
 		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-		Project project = container.getTrack().getProject();
 		Timer timer = new Timer(50, e -> editor.setPosition(project.getSequencer().getTick()));
 		timer.setRepeats(true);
 

@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.logging.Logger;
 
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -27,6 +28,7 @@ import com.unknown.audio.midi.smf.MTrk;
 import com.unknown.audio.midi.smf.SMF;
 import com.unknown.audio.midi.smf.SequenceNameEvent;
 import com.unknown.audio.midi.smf.TempoEvent;
+import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
@@ -52,6 +54,8 @@ public class MidiPartEditorDialog extends JFrame {
 		super(getTitle(container));
 
 		this.container = container;
+
+		EmulightSystem sys = container.getTrack().getProject().getSystem();
 
 		FileDialog loadSequenceDialog = new FileDialog(this, "Load sequence...", FileDialog.LOAD);
 		FileDialog saveSequenceDialog = new FileDialog(this, "Save sequence...", FileDialog.SAVE);
@@ -129,6 +133,15 @@ public class MidiPartEditorDialog extends JFrame {
 			// cfg.show();
 		});
 
+		JCheckBoxMenuItem alwaysOnTop = new JCheckBoxMenuItem("Always on top");
+		alwaysOnTop.setMnemonic('A');
+		alwaysOnTop.setSelected(sys.getConfig().isAlwaysOnTop(getClass()));
+		alwaysOnTop.addItemListener(e -> {
+			boolean value = alwaysOnTop.isSelected();
+			sys.getConfig().setAlwaysOnTop(getClass(), value);
+			setAlwaysOnTop(value);
+		});
+
 		JMenuItem exit = new JMenuItem("Quit");
 		exit.setMnemonic('Q');
 		exit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0));
@@ -137,12 +150,14 @@ public class MidiPartEditorDialog extends JFrame {
 		fileMenu.add(loadSequence);
 		fileMenu.add(saveSequence);
 		fileMenu.addSeparator();
-		fileMenu.add(preferences);
+		fileMenu.add(alwaysOnTop);
 		fileMenu.addSeparator();
 		fileMenu.add(exit);
 
 		menu.add(fileMenu);
 		setJMenuBar(menu);
+
+		setAlwaysOnTop(sys.getConfig().isAlwaysOnTop(getClass()));
 
 		setSize(640, 480);
 

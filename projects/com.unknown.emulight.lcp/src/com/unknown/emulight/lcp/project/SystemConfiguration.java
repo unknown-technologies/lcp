@@ -53,6 +53,8 @@ public class SystemConfiguration implements AutoCloseable {
 	private Map<String, ESLMidiPortConfig> eslMidiPortConfig = new HashMap<>();
 	private Map<String, NetworkMidiPortConfig> networkMidiPortConfig = new HashMap<>();
 
+	private Map<String, Boolean> alwaysOnTop = new HashMap<>();
+
 	private Set<LaserAddress> laserAddresses = new HashSet<>();
 	private Map<String, LaserConfig> lasers = new HashMap<>();
 	private Map<InterfaceId, LaserConfig> lasersLookup = new HashMap<>();
@@ -154,6 +156,21 @@ public class SystemConfiguration implements AutoCloseable {
 			this.windowDecorations = windowDecorations;
 			fireConfigChangedEvent(WINDOW_DECORATIONS, Boolean.toString(windowDecorations));
 		}
+	}
+
+	public boolean isAlwaysOnTop(Class<?> clazz) {
+		String name = clazz.getSimpleName();
+		Boolean value = alwaysOnTop.get(name);
+		if(value == null) {
+			return false;
+		} else {
+			return value;
+		}
+	}
+
+	public void setAlwaysOnTop(Class<?> clazz, boolean value) {
+		String name = clazz.getSimpleName();
+		alwaysOnTop.put(name, value);
 	}
 
 	public MidiPortConfig getMidiPort(String name, boolean input) {
@@ -451,10 +468,16 @@ public class SystemConfiguration implements AutoCloseable {
 		}
 		xml.addChild(pcif);
 
-		Element desktop = new Element("user-interface");
-		desktop.addAttribute("look-and-feel", laf.toString());
-		desktop.addAttribute("window-decorations", Boolean.toString(windowDecorations));
-		xml.addChild(desktop);
+		Element ui = new Element("user-interface");
+		ui.addAttribute("look-and-feel", laf.toString());
+		ui.addAttribute("window-decorations", Boolean.toString(windowDecorations));
+		for(Entry<String, Boolean> entry : alwaysOnTop.entrySet()) {
+			Element element = new Element("always-on-top");
+			element.addAttribute("dialog", entry.getKey());
+			element.addAttribute("enabled", entry.getValue().toString());
+			ui.addChild(element);
+		}
+		xml.addChild(ui);
 
 		Element audio = new Element("audio");
 		audio.addAttribute("sample-rate", Integer.toString(sampleRate));
@@ -575,6 +598,17 @@ public class SystemConfiguration implements AutoCloseable {
 				setLookAndFeel(LookAndFeel.valueOf(node.getAttribute("look-and-feel", "MOTIF")));
 				setWindowDecorations(
 						Boolean.parseBoolean(node.getAttribute("window-decorations", "true")));
+				for(Element item : node.getChildren()) {
+					switch(item.name) {
+					case "always-on-top": {
+						String name = item.getAttribute("dialog");
+						boolean value = Boolean
+								.parseBoolean(item.getAttribute("enabled", "false"));
+						alwaysOnTop.put(name, value);
+						break;
+					}
+					}
+				}
 				break;
 			case "audio":
 				setSampleRate(Integer.parseInt(node.getAttribute("sample-rate", "48000")));
