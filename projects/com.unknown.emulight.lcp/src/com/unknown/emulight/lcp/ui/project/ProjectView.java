@@ -1274,10 +1274,12 @@ public class ProjectView extends JComponent {
 
 		private Map<PartContainer<?>, Long> startTimes = new HashMap<>();
 		private Map<PartContainer<?>, Long> startLengths = new HashMap<>();
+		private Map<PartContainer<?>, Track<?>> startTracks = new HashMap<>();
 
 		private void updatePartSelection() {
 			startTimes.clear();
 			startLengths.clear();
+			startTracks.clear();
 			hiddenParts.clear();
 			hiddenParts.addAll(selection);
 			tempParts.clear();
@@ -1285,8 +1287,10 @@ public class ProjectView extends JComponent {
 				PartContainer<?> newPart = part.copyAt(part.getTime());
 				startTimes.put(part, part.getTime());
 				startLengths.put(part, part.getLength());
+				startTracks.put(part, part.getTrack());
 				startTimes.put(newPart, part.getTime());
 				startLengths.put(newPart, part.getLength());
+				startTracks.put(newPart, part.getTrack());
 				tempParts.add(newPart);
 			}
 		}
@@ -1296,7 +1300,7 @@ public class ProjectView extends JComponent {
 			int trackId = getTrack(y);
 			boolean match = false;
 
-			if(trackId == -1) {
+			if(trackId == -1 || x < CONTENT_X) {
 				setCursor(Cursor.getDefaultCursor());
 				return;
 			}
@@ -1371,6 +1375,7 @@ public class ProjectView extends JComponent {
 						for(PartContainer<?> part : tempParts) {
 							long time = startTimes.get(part);
 							long length = startLengths.get(part);
+							Track<?> track = startTracks.get(part);
 							PartContainer<?> newPart = part.copyAt(time + dt);
 							if(length - dt > 0) {
 								newPart.setLength(length - dt);
@@ -1379,8 +1384,10 @@ public class ProjectView extends JComponent {
 							// replace old part container with new one
 							startTimes.remove(part);
 							startLengths.remove(part);
+							startTracks.remove(part);
 							startTimes.put(newPart, time);
 							startLengths.put(newPart, length);
+							startTracks.put(newPart, track);
 
 							// reference comparison is intentional
 							if(selectedPart == part) {
@@ -1420,13 +1427,45 @@ public class ProjectView extends JComponent {
 						dt = quantizeTime(dt);
 					}
 
+					int startTrackId = getTrack(startY);
+					int trackId = getTrack(e.getY());
+
+					int trackMove = trackId - startTrackId;
+
+					boolean canMove = true;
+					List<Track<?>> tracks = project.getTracks();
+					for(PartContainer<?> part : tempParts) {
+						Track<?> startTrack = startTracks.get(part);
+						int idx = tracks.indexOf(startTrack);
+						int newIdx = idx + trackMove;
+						if(newIdx < 0 || newIdx >= tracks.size()) {
+							canMove = false;
+							break;
+						}
+						Track<?> track = tracks.get(newIdx);
+						if(track.getType() != part.getTrack().getType()) {
+							canMove = false;
+							break;
+						}
+					}
+
 					Set<PartContainer<?>> newTempParts = new HashSet<>();
 					for(PartContainer<?> part : tempParts) {
 						long time = startTimes.get(part);
-						PartContainer<?> newPart = part.copyAt(time + dt);
+						Track<?> startTrack = startTracks.get(part);
+						PartContainer<?> newPart;
+						if(canMove) {
+							int idx = tracks.indexOf(startTrack);
+							int newIdx = idx + trackMove;
+							newPart = part.copyAt(time + dt, project.getTrack(newIdx));
+						} else {
+							newPart = part.copyAt(time + dt);
+						}
 						newTempParts.add(newPart);
 						startTimes.remove(part);
+						startTracks.remove(part);
 						startTimes.put(newPart, time);
+						startTracks.put(newPart, startTrack);
 					}
 					tempParts = newTempParts;
 
@@ -1750,11 +1789,46 @@ public class ProjectView extends JComponent {
 					} else if(move) {
 						Set<PartContainer<?>> newSelection = new HashSet<>();
 						PartContainer<?> newSelectedPart = selectedPart;
+
+						int startTrackId = getTrack(startY);
+						int trackId = getTrack(e.getY());
+
+						int trackMove = trackId - startTrackId;
+
+						boolean canMove = trackMove != 0;
+						List<Track<?>> tracks = project.getTracks();
+						if(canMove) {
+							for(PartContainer<?> part : selection) {
+								Track<?> startTrack = startTracks.get(part);
+								int idx = tracks.indexOf(startTrack);
+								int newIdx = idx + trackMove;
+								if(newIdx < 0 || newIdx >= tracks.size()) {
+									canMove = false;
+									break;
+								}
+								Track<?> track = tracks.get(newIdx);
+								if(track.getType() != part.getTrack().getType()) {
+									canMove = false;
+									break;
+								}
+							}
+						}
+
 						if((e.getModifiersEx() & MouseEvent.ALT_DOWN_MASK) != 0) {
 							if((e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0) {
 								for(PartContainer<?> part : selection) {
 									long time = startTimes.get(part);
-									PartContainer<?> newPart = part.link(time + dt);
+									PartContainer<?> newPart;
+									if(canMove) {
+										Track<?> startTrack = startTracks
+												.get(part);
+										int idx = tracks.indexOf(startTrack);
+										int newIdx = idx + trackMove;
+										newPart = part.link(time + dt, project
+												.getTrack(newIdx));
+									} else {
+										newPart = part.link(time + dt);
+									}
 									newSelection.add(newPart);
 									if(selectedPart == part) {
 										newSelectedPart = newPart;
@@ -1763,8 +1837,17 @@ public class ProjectView extends JComponent {
 							} else {
 								for(PartContainer<?> part : selection) {
 									long time = startTimes.get(part);
-									PartContainer<?> newPart = part
-											.clone(time + dt);
+									PartContainer<?> newPart;
+									if(canMove) {
+										Track<?> startTrack = startTracks
+												.get(part);
+										int idx = tracks.indexOf(startTrack);
+										int newIdx = idx + trackMove;
+										newPart = part.clone(time + dt, project
+												.getTrack(newIdx));
+									} else {
+										newPart = part.clone(time + dt);
+									}
 									newSelection.add(newPart);
 									if(selectedPart == part) {
 										newSelectedPart = newPart;
@@ -1774,7 +1857,16 @@ public class ProjectView extends JComponent {
 						} else if(!selection.isEmpty()) {
 							for(PartContainer<?> part : selection) {
 								long time = startTimes.get(part);
-								PartContainer<?> newPart = part.move(time + dt);
+								PartContainer<?> newPart;
+								if(canMove) {
+									Track<?> startTrack = startTracks.get(part);
+									int idx = tracks.indexOf(startTrack);
+									int newIdx = idx + trackMove;
+									newPart = part.move(time + dt,
+											project.getTrack(newIdx));
+								} else {
+									newPart = part.move(time + dt);
+								}
 								if(newPart != null) {
 									newSelection.add(newPart);
 								}

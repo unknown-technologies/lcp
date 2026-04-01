@@ -30,8 +30,11 @@ import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.LaserProcessor;
 import com.unknown.emulight.lcp.laser.LaserRenderer;
 import com.unknown.emulight.lcp.laser.LaserTrack;
+import com.unknown.emulight.lcp.project.PartPool.PartInfo;
+import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.sequencer.Sequencer;
+import com.unknown.emulight.lcp.sequencer.TempoPart;
 import com.unknown.emulight.lcp.ui.MainWindow;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.net.shownet.InterfaceId;
@@ -211,8 +214,9 @@ public class Project {
 		return track;
 	}
 
-	public Track<?> getTrack(int index) {
-		return tracks.get(index);
+	@SuppressWarnings("unchecked")
+	public <T extends AbstractPart> Track<T> getTrack(int index) {
+		return (Track<T>) tracks.get(index);
 	}
 
 	public List<Track<?>> getTracks() {
@@ -453,8 +457,46 @@ public class Project {
 		setName(xml.getAttribute("name"));
 		setPPQ(Integer.parseInt(xml.getAttribute("ppq")));
 
+		Map<Integer, AbstractPart> parts = new HashMap<>();
+
 		for(Element child : xml.getChildren()) {
-			if(child.name.equals("track")) {
+			switch(child.name) {
+			case "parts": {
+				for(Element e : child.getChildren()) {
+					AbstractPart part;
+					switch(e.getAttribute("type")) {
+					case "tempo":
+						part = new TempoPart();
+						break;
+					case "audio":
+						part = new AudioPart();
+						break;
+					case "midi":
+						part = new MidiPart();
+						break;
+					case "laser":
+						part = new LaserPart(this);
+						break;
+					default:
+						throw new IOException("unknown part type: " + e.getAttribute("type"));
+					}
+
+					String partName = e.getAttribute("name");
+					if(partName != null) {
+						part.setName(partName);
+					}
+
+					part.read(e);
+
+					try {
+						parts.put(Integer.parseInt(e.getAttribute("id")), part);
+					} catch(NumberFormatException ex) {
+						throw new IOException("invalid part ID: " + e.getAttribute("id"));
+					}
+				}
+				break;
+			}
+			case "track": {
 				Track<?> track;
 
 				switch(child.getAttribute("type")) {
@@ -479,7 +521,9 @@ public class Project {
 				}
 
 				addTrack(track);
-				track.read(child);
+				track.read(child, parts);
+				break;
+			}
 			}
 		}
 
@@ -492,8 +536,30 @@ public class Project {
 		xml.addAttribute("name", name);
 		xml.addAttribute("ppq", Integer.toString(ppq));
 
+		PartPool pool = new PartPool();
 		for(Track<?> track : tracks) {
-			xml.addChild(track.write());
+			track.addPartsToPool(pool);
+		}
+
+		Element poolxml = new Element("parts");
+		for(Entry<AbstractPart, PartInfo> entry : pool.getUniqueParts().entrySet()) {
+			AbstractPart part = entry.getKey();
+			PartInfo info = entry.getValue();
+
+			Element partxml = new Element("part");
+			partxml.addAttribute("type", Track.TRACK_TYPES[info.getType()]);
+			partxml.addAttribute("id", Integer.toString(info.getId()));
+			String partName = part.getName();
+			if(partName != null) {
+				partxml.addAttribute("name", partName);
+			}
+			part.write(partxml);
+			poolxml.addChild(partxml);
+		}
+		xml.addChild(poolxml);
+
+		for(Track<?> track : tracks) {
+			xml.addChild(track.write(pool));
 		}
 
 		return xml;

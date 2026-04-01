@@ -62,8 +62,8 @@ public class PartContainer<T extends AbstractPart> {
 		return t - getStart() + trimStart;
 	}
 
-	PartContainer<T> moveInternal(long newTime) {
-		PartContainer<T> container = new PartContainer<>(track, part, newTime);
+	PartContainer<T> moveInternal(long newTime, Track<T> target) {
+		PartContainer<T> container = new PartContainer<>(target, part, newTime);
 		container.trimStart = trimStart;
 		container.length = length;
 		return container;
@@ -73,21 +73,42 @@ public class PartContainer<T extends AbstractPart> {
 		return track.movePart(newTime, this);
 	}
 
+	public PartContainer<T> move(long newTime, Track<T> target) {
+		track.removePart(this);
+		return target.linkPart(newTime, this);
+	}
+
 	public PartContainer<T> clone(long newTime) {
 		return track.clonePart(newTime, this);
+	}
+
+	public PartContainer<T> clone(long newTime, Track<T> target) {
+		return target.clonePart(newTime, this);
 	}
 
 	public PartContainer<T> link(long newTime) {
 		return track.linkPart(newTime, this);
 	}
 
+	public PartContainer<T> link(long newTime, Track<T> target) {
+		return target.linkPart(newTime, this);
+	}
+
 	public PartContainer<T> copyAt(long newTime) {
-		return moveInternal(newTime);
+		return moveInternal(newTime, track);
+	}
+
+	public PartContainer<T> copyAt(long newTime, Track<T> target) {
+		return moveInternal(newTime, target);
 	}
 
 	PartContainer<T> cloneAt(long newTime) {
+		return cloneAt(newTime, track);
+	}
+
+	PartContainer<T> cloneAt(long newTime, Track<T> target) {
 		@SuppressWarnings("unchecked")
-		PartContainer<T> container = new PartContainer<>(track, (T) part.clone(), newTime);
+		PartContainer<T> container = new PartContainer<>(target, (T) part.clone(), newTime);
 		container.trimStart = trimStart;
 		container.length = length;
 		return container;

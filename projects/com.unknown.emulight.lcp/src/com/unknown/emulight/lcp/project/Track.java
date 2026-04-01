@@ -263,7 +263,7 @@ public abstract class Track<T extends AbstractPart> {
 		if(container.getTime() == time) {
 			return container;
 		}
-		PartContainer<T> newContainer = container.moveInternal(time);
+		PartContainer<T> newContainer = container.moveInternal(time, this);
 		newContainer.getPart().removeReference(container);
 		newContainer.getPart().addReference(newContainer);
 		parts.remove(container.getTime());
@@ -273,14 +273,11 @@ public abstract class Track<T extends AbstractPart> {
 	}
 
 	public PartContainer<T> clonePart(long time, PartContainer<T> container) {
-		if(parts.get(container.getTime()) != container) {
-			// the part was never on this track
-			return null;
-		}
-		if(container.getTime() == time) {
+		if(parts.get(container.getTime()) == container && container.getTime() == time) {
+			// the part was on this track already, therefore no change
 			return container;
 		}
-		PartContainer<T> newContainer = container.cloneAt(time);
+		PartContainer<T> newContainer = container.cloneAt(time, this);
 		newContainer.getPart().addReference(newContainer);
 		parts.put(time, newContainer);
 		fireEvent(TrackListener.PART);
@@ -288,14 +285,11 @@ public abstract class Track<T extends AbstractPart> {
 	}
 
 	public PartContainer<T> linkPart(long time, PartContainer<T> container) {
-		if(parts.get(container.getTime()) != container) {
-			// the part was never on this track
-			return null;
-		}
-		if(container.getTime() == time) {
+		if(parts.get(container.getTime()) == container && container.getTime() == time) {
+			// the part was on this track already, therefore no change
 			return container;
 		}
-		PartContainer<T> newContainer = container.moveInternal(time);
+		PartContainer<T> newContainer = container.moveInternal(time, this);
 		newContainer.getPart().addReference(newContainer);
 		parts.put(time, newContainer);
 		fireEvent(TrackListener.PART);
@@ -399,13 +393,18 @@ public abstract class Track<T extends AbstractPart> {
 
 	protected abstract T createPart();
 
-	private void readParts(Element xml) throws IOException {
+	@SuppressWarnings("unchecked")
+	private void readParts(Element xml, Map<Integer, AbstractPart> pool) throws IOException {
 		Map<Integer, T> uniqueParts = new HashMap<>();
 
 		parts.clear();
 
+		T dummy = createPart();
+		Class<?> clazz = dummy != null ? dummy.getClass() : null;
+
 		for(Element child : xml.getChildren()) {
-			if(child.name.equals("part")) {
+			switch(child.name) {
+			case "part": {
 				T part = createPart();
 				String partName = child.getAttribute("name");
 				if(partName != null) {
@@ -414,27 +413,50 @@ public abstract class Track<T extends AbstractPart> {
 				part.read(child);
 				int id = Integer.parseInt(child.getAttribute("id"));
 				uniqueParts.put(id, part);
-			} else if(child.name.equals("container")) {
+				break;
+			}
+			case "container": {
 				int id = Integer.parseInt(child.getAttribute("part"));
 				long time = Long.parseLong(child.getAttribute("time"));
 				T part = uniqueParts.get(id);
+				if(part == null) {
+					// try to get this part from the global pool
+					AbstractPart p = pool.get(id);
+					if(p == null) {
+						throw new IOException("part not found: " + id);
+					}
+					if(p.getClass().equals(clazz)) {
+						part = (T) p;
+					} else {
+						throw new IOException("invalid part reference");
+					}
+				}
 				PartContainer<T> container = new PartContainer<>(this, part, time);
 				part.addReference(container);
 				container.read(child);
 				parts.put(time, container);
+				break;
+			}
 			}
 		}
 
 		fireEvent(TrackListener.PART);
 	}
 
-	private void writeParts(Element xml) {
-		Map<T, Integer> uniqueParts = new HashMap<>();
-
-		int id = 0;
+	public void addPartsToPool(PartPool pool) {
 		for(PartContainer<T> container : parts.sequencedValues()) {
 			T part = container.getPart();
-			if(!uniqueParts.containsKey(part)) {
+			pool.add(part, type);
+		}
+	}
+
+	private void writeParts(Element xml, PartPool pool) {
+		Map<T, Integer> uniqueParts = new HashMap<>();
+
+		int id = pool.size();
+		for(PartContainer<T> container : parts.sequencedValues()) {
+			T part = container.getPart();
+			if(!pool.contains(part) && !uniqueParts.containsKey(part)) {
 				uniqueParts.put(part, id++);
 			}
 		}
@@ -452,7 +474,12 @@ public abstract class Track<T extends AbstractPart> {
 
 		for(PartContainer<T> container : parts.sequencedValues()) {
 			T part = container.getPart();
-			int partId = uniqueParts.get(part);
+			int partId;
+			if(pool.contains(part)) {
+				partId = pool.getId(part);
+			} else {
+				partId = uniqueParts.get(part);
+			}
 
 			Element xmlContainer = new Element("container");
 			xmlContainer.addAttribute("part", Integer.toString(partId));
@@ -462,7 +489,7 @@ public abstract class Track<T extends AbstractPart> {
 		}
 	}
 
-	public void read(Element xml) throws IOException {
+	public void read(Element xml, Map<Integer, AbstractPart> pool) throws IOException {
 		if(!xml.name.equals("track")) {
 			throw new IOException("not a track");
 		}
@@ -477,10 +504,10 @@ public abstract class Track<T extends AbstractPart> {
 		setLocked(Boolean.parseBoolean(xml.getAttribute("locked")));
 		setVolume(Double.parseDouble(xml.getAttribute("volume")));
 		readTrack(xml);
-		readParts(xml);
+		readParts(xml, pool);
 	}
 
-	public Element write() {
+	public Element write(PartPool pool) {
 		Element xml = new Element("track");
 		xml.addAttribute("type", Track.TRACK_TYPES[getType()]);
 		xml.addAttribute("name", getName());
@@ -493,7 +520,7 @@ public abstract class Track<T extends AbstractPart> {
 		xml.addAttribute("locked", Boolean.toString(locked));
 		xml.addAttribute("volume", Double.toString(volume));
 		writeTrack(xml);
-		writeParts(xml);
+		writeParts(xml, pool);
 		return xml;
 	}
 
