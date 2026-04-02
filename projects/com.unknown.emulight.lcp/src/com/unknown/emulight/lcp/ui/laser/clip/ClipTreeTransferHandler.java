@@ -111,7 +111,6 @@ public class ClipTreeTransferHandler extends TransferHandler {
 	protected void exportDone(JComponent source, Transferable data, int action) {
 		NodesTransferable transfer = (NodesTransferable) data;
 
-		// TODO: properly implement copy vs move
 		if((action & MOVE) == MOVE) {
 			JTree tree = (JTree) source;
 			ClipTreeModel model = (ClipTreeModel) tree.getModel();

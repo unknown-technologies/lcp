@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.Point3D;
+import com.unknown.emulight.lcp.laser.node.fx.StroboNode;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePlugin;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePluginRegistry;
 import com.unknown.math.g3d.Mtx44;
@@ -102,6 +103,7 @@ public abstract class Node implements Cloneable {
 	// the clip is only ever set on the root node
 	public LaserPart getClip() {
 		Node root = getRootNode();
+		assert root.clip != null;
 		return root.clip;
 	}
 
@@ -323,7 +325,7 @@ public abstract class Node implements Cloneable {
 
 		String type = xml.getAttribute("type");
 		if(type == null) {
-			throw new IOException("invalid type: NULL");
+			throw new IOException("missing node type");
 		}
 
 		Node node;
@@ -339,6 +341,9 @@ public abstract class Node implements Cloneable {
 			break;
 		case PointNode.TYPE:
 			node = new PointNode();
+			break;
+		case StroboNode.TYPE:
+			node = new StroboNode();
 			break;
 		default:
 			// maybe a node from a plugin?

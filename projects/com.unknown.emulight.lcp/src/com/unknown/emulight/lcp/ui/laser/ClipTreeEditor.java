@@ -28,6 +28,7 @@ import com.unknown.emulight.lcp.laser.node.GroupNode;
 import com.unknown.emulight.lcp.laser.node.LineNode;
 import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.emulight.lcp.laser.node.PointNode;
+import com.unknown.emulight.lcp.laser.node.fx.StroboNode;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePlugin;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePluginRegistry;
 import com.unknown.emulight.lcp.ui.laser.clip.ClipTreeModel;
@@ -74,9 +75,13 @@ public class ClipTreeEditor extends JPanel {
 
 		tree.addTreeSelectionListener(e -> {
 			TreePath path = e.getNewLeadSelectionPath();
-			if(path != null && selector != null) {
-				ClipTreeNode node = (ClipTreeNode) path.getLastPathComponent();
-				selector.accept(node.getNode());
+			if(selector != null) {
+				if(path != null) {
+					ClipTreeNode node = (ClipTreeNode) path.getLastPathComponent();
+					selector.accept(node.getNode());
+				} else {
+					selector.accept(model.getRoot().getNode());
+				}
 			}
 		});
 
@@ -87,7 +92,7 @@ public class ClipTreeEditor extends JPanel {
 				TreePath path = tree.getPathForLocation(e.getX(), e.getY());
 				if(row != -1 && e.getClickCount() == 1 && e.getButton() == MouseEvent.BUTTON3) {
 					// open context menu
-					JMenuItem add = new JMenuItem("Add node");
+					JMenuItem add = new JMenuItem("Add group");
 					add.setMnemonic('A');
 					add.addActionListener(ev -> {
 						insert(path, new GroupNode());
@@ -128,9 +133,23 @@ public class ClipTreeEditor extends JPanel {
 						menu.add(addLine);
 						menu.add(addCircle);
 
+						JMenu fx = new JMenu("Effects");
+						JMenuItem addStrobo = new JMenuItem("Add strobo");
+						addStrobo.setMnemonic('S');
+						addStrobo.addActionListener(ev -> {
+							insert(path, new StroboNode());
+						});
+
+						fx.add(addStrobo);
+
+						menu.addSeparator();
+						menu.add(fx);
+
 						List<CustomNodePlugin> plugins = CustomNodePluginRegistry.get()
 								.getPlugins();
 						if(!plugins.isEmpty()) {
+							plugins.sort((a, b) -> a.getDisplayName()
+									.compareToIgnoreCase(b.getDisplayName()));
 							JMenu pluginMenu = new JMenu("Plugins");
 							for(CustomNodePlugin plugin : plugins) {
 								JMenuItem item = new JMenuItem(plugin.getDisplayName());

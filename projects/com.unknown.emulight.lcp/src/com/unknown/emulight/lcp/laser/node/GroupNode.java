@@ -12,6 +12,10 @@ public class GroupNode extends Node {
 
 	private final List<Node> children = new ArrayList<>();
 
+	protected GroupNode(String type) {
+		super(type, false);
+	}
+
 	public GroupNode() {
 		super(TYPE, false);
 	}
