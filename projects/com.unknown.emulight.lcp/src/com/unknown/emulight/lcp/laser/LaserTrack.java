@@ -1,20 +1,21 @@
 package com.unknown.emulight.lcp.laser;
 
 import java.io.IOException;
-import java.util.List;
 
-import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.Track;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.net.shownet.Laser;
-import com.unknown.net.shownet.Point;
 import com.unknown.xml.dom.Element;
 
 public class LaserTrack extends Track<LaserPart> {
 	private LaserReference laser;
 
 	private Mtx44 projection = new Mtx44();
+	private Mtx44 trackProjection = new Mtx44();
+
+	private boolean mirrorX = false;
+	private boolean mirrorY = false;
 
 	public LaserTrack(Project project, String name) {
 		this(project, name, null);
@@ -41,43 +42,35 @@ public class LaserTrack extends Track<LaserPart> {
 		}
 	}
 
+	private void updateProjection() {
+		trackProjection = projection.scaleApply(mirrorX ? -1 : 1, mirrorY ? -1 : 1, 1);
+	}
+
 	public Mtx44 getProjection() {
-		return projection;
+		return trackProjection;
 	}
 
 	public void setProjection(Mtx44 projection) {
 		this.projection = projection;
+		updateProjection();
 	}
 
-	public void render(long time) throws IOException {
-		if(laser == null) {
-			return;
-		}
+	public boolean isMirrorX() {
+		return mirrorX;
+	}
 
-		PartContainer<LaserPart> ref = getFloorPart(time);
-		if(ref == null) {
-			return;
-		}
+	public void setMirrorX(boolean mirror) {
+		mirrorX = mirror;
+		updateProjection();
+	}
 
-		LaserPart part = ref.getPart();
+	public boolean isMirrorY() {
+		return mirrorY;
+	}
 
-		long t = time - ref.getTime();
-		if(t < ref.getLength()) {
-			Laser l = laser.get();
-			if(l != null) {
-				if(t > part.getLength()) {
-					if(part.isLoop()) {
-						t %= part.getLength();
-					} else {
-						t = part.getLength() - 1;
-					}
-				}
-
-				double vol = getVolume();
-				List<Point> points = part.render((int) t, projection, Mtx44.scale(vol, vol, vol));
-				l.sendFrame(points, part.getSpeed());
-			}
-		}
+	public void setMirrorY(boolean mirror) {
+		mirrorY = mirror;
+		updateProjection();
 	}
 
 	@Override
@@ -86,6 +79,9 @@ public class LaserTrack extends Track<LaserPart> {
 		if(name != null) {
 			laser = getProject().getSystem().getLaser(name);
 		}
+		mirrorX = Boolean.parseBoolean(xml.getAttribute("mirror-x", "false"));
+		mirrorY = Boolean.parseBoolean(xml.getAttribute("mirror-y", "false"));
+		updateProjection();
 	}
 
 	@Override
@@ -93,6 +89,8 @@ public class LaserTrack extends Track<LaserPart> {
 		if(laser != null) {
 			xml.addAttribute("laser", laser.getName());
 		}
+		xml.addAttribute("mirror-x", Boolean.toString(mirrorX));
+		xml.addAttribute("mirror-y", Boolean.toString(mirrorY));
 	}
 
 	@Override

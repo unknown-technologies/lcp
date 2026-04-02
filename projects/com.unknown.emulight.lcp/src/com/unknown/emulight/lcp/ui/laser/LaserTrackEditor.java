@@ -13,6 +13,7 @@ import javax.swing.AbstractListModel;
 import javax.swing.BoxLayout;
 import javax.swing.ComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -101,12 +102,24 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener, Conf
 			}
 		});
 
+		JCheckBox mirrorX = new JCheckBox();
+		mirrorX.setSelected(track.isMirrorX());
+		mirrorX.addItemListener(e -> track.setMirrorX(mirrorX.isSelected()));
+
+		JCheckBox mirrorY = new JCheckBox();
+		mirrorY.setSelected(track.isMirrorY());
+		mirrorY.addItemListener(e -> track.setMirrorY(mirrorY.isSelected()));
+
 		JPanel controls = new JPanel(new LabeledPairLayout());
 		controls.setBorder(UIUtils.border("Track Properties"));
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Name:"));
 		controls.add(LabeledPairLayout.COMPONENT, name);
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Laser:"));
 		controls.add(LabeledPairLayout.COMPONENT, port);
+		controls.add(LabeledPairLayout.LABEL, new JLabel("Mirror X:"));
+		controls.add(LabeledPairLayout.COMPONENT, mirrorX);
+		controls.add(LabeledPairLayout.LABEL, new JLabel("Mirror Y:"));
+		controls.add(LabeledPairLayout.COMPONENT, mirrorY);
 
 		JPanel volumeControls = new JPanel();
 		volumeControls.setBorder(UIUtils.border("Brightness"));

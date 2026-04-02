@@ -371,7 +371,8 @@ public class Project {
 			if(part.isLoop()) {
 				localTime %= part.getLength();
 			}
-			List<Point> points = part.render((int) localTime, new Mtx44(), Mtx44.scale(vol, vol, vol));
+			List<Point> points = part.render((int) localTime, track.getProjection(),
+					Mtx44.scale(vol, vol, vol));
 			try {
 				laser.sendFrame(points, part.getSpeed());
 			} catch(IOException e) {
