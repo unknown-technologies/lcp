@@ -101,7 +101,9 @@ public class LaserProcessor {
 				InetAddress addr = info.getAddress();
 				if(addr != null) {
 					Laser laser = getLaser(addr);
-					disconnect(laser);
+					if(laser != null) {
+						disconnect(laser);
+					}
 				}
 			}
 
@@ -171,6 +173,7 @@ public class LaserProcessor {
 	}
 
 	public void disconnect(Laser laser) {
+		assert laser != null;
 		net.disconnect(laser);
 	}
 
