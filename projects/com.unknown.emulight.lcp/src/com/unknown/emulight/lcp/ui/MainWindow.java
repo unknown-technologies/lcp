@@ -222,6 +222,15 @@ public class MainWindow extends JFrame {
 			settings.setVisible(true);
 		});
 
+		JMenuItem fileMenuProjectSettings = new JMenuItem("Project Settings");
+		fileMenuProjectSettings.setMnemonic('P');
+		fileMenuProjectSettings.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0));
+		fileMenuProjectSettings.addActionListener(e -> {
+			ProjectSettingsDialog settings = new ProjectSettingsDialog(project);
+			settings.setLocationRelativeTo(this);
+			settings.setVisible(true);
+		});
+
 		JMenuItem fileMenuExit = new JMenuItem("Exit");
 		fileMenuExit.setMnemonic('x');
 		fileMenuExit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, MENU_MODIFIER));
@@ -238,6 +247,7 @@ public class MainWindow extends JFrame {
 		fileMenu.add(fileMenuImport);
 		fileMenu.addSeparator();
 		fileMenu.add(fileMenuSettings);
+		fileMenu.add(fileMenuProjectSettings);
 		fileMenu.addSeparator();
 		fileMenu.add(fileMenuExit);
 
