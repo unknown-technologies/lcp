@@ -54,7 +54,8 @@ public class LaserReference {
 			InetAddress addr = processor.getLaserAddress(cfg.getId());
 			if(addr != null) {
 				laser = processor.getLaser(addr);
-				assert laser == null || laser.getInterfaceId().equals(cfg.getId());
+				assert laser == null || laser.getInterfaceId() == null ||
+						laser.getInterfaceId().equals(cfg.getId());
 				return laser;
 			} else {
 				return null;
