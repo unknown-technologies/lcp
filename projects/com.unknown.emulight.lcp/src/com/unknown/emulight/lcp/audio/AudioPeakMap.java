@@ -38,9 +38,14 @@ public class AudioPeakMap {
 		double pointsPerSample = (end - start) / (double) len;
 		double position = Math.log(pointsPerSample) / Math.log(2);
 		int layerId = (int) Math.floor(position);
+		if(layerId < 0) {
+			layerId = 0;
+		}
 		int layerIdCeil = (int) Math.ceil(position);
 		if(layerIdCeil >= map.length) {
 			layerIdCeil = map.length - 1;
+		} else if(layerIdCeil < 0) {
+			layerIdCeil = 0;
 		}
 
 		Layer layer = map[layerId];
