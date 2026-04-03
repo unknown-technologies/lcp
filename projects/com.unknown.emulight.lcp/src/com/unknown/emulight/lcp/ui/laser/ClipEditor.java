@@ -48,7 +48,7 @@ public class ClipEditor extends JPanel {
 
 		clip = container;
 
-		propertyEditor = new ClipPropertyEditor(this::updateProperty, automationEditor);
+		propertyEditor = new ClipPropertyEditor(project, this::updateProperty, automationEditor);
 
 		treeEditor = new ClipTreeEditor(this::update);
 		treeEditor.setSelectionListener(n -> {

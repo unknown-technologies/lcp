@@ -46,6 +46,7 @@ import com.unknown.xml.dom.Element;
 
 public class Project {
 	private static final Logger log = Trace.create(Project.class);
+	private static final Color DEFAULT_COLOR = new Color(142, 160, 178);
 
 	private final EmulightSystem system;
 
@@ -65,7 +66,9 @@ public class Project {
 	private final TempoTrack tempoTrack;
 	private final SignatureTrack signatureTrack;
 
-	private final List<Color> colors = new ArrayList<>();
+	private final Palette palette = new Palette();
+
+	private final List<Color> recentColors = new ArrayList<>();
 
 	private final AudioTrack systemSounds;
 
@@ -80,29 +83,33 @@ public class Project {
 		sequencer.addListener(system.getAudioProcessor());
 
 		// default colors
-		colors.add(new Color(0x8EA0B2));
-		colors.add(new Color(0xE53636));
-		colors.add(new Color(0xE57636));
-		colors.add(new Color(0xE5BA3B));
-		colors.add(new Color(0xD5E84C));
-		colors.add(new Color(0x8DE536));
-		colors.add(new Color(0x51D83C));
-		colors.add(new Color(0x35DD5F));
-		colors.add(new Color(0x33D697));
-		colors.add(new Color(0x30CCCC));
-		colors.add(new Color(0x40AAE8));
-		colors.add(new Color(0x5D80EA));
-		colors.add(new Color(0x796AED));
-		colors.add(new Color(0xA056EA));
-		colors.add(new Color(0xCF44E5));
-		colors.add(new Color(0xE536B9));
-		colors.add(new Color(0xE53679));
-		colors.add(new Color(0xFE0000));
-		colors.add(new Color(0x00FEFE));
-		colors.add(new Color(0x0000FE));
-		colors.add(new Color(0xE47535));
-		colors.add(new Color(0xAF6929));
-		colors.add(new Color(0x885732));
+		palette.clear();
+		palette.addColor(new Color(0x8EA0B2));
+		palette.addColor(new Color(0xE53636));
+		palette.addColor(new Color(0xE57636));
+		palette.addColor(new Color(0xE5BA3B));
+		palette.addColor(new Color(0xD5E84C));
+		palette.addColor(new Color(0x8DE536));
+		palette.addColor(new Color(0x51D83C));
+		palette.addColor(new Color(0x35DD5F));
+		palette.addColor(new Color(0x33D697));
+		palette.addColor(new Color(0x30CCCC));
+		palette.addColor(new Color(0x40AAE8));
+		palette.addColor(new Color(0x5D80EA));
+		palette.addColor(new Color(0x796AED));
+		palette.addColor(new Color(0xA056EA));
+		palette.addColor(new Color(0xCF44E5));
+		palette.addColor(new Color(0xE536B9));
+		palette.addColor(new Color(0xE53679));
+		palette.addColor(new Color(0xFF0000));
+		palette.addColor(new Color(0x00FF00));
+		palette.addColor(new Color(0x0000FF));
+		palette.addColor(new Color(0xFFFF00));
+		palette.addColor(new Color(0x00FFFF));
+		palette.addColor(new Color(0xFF00FF));
+		palette.addColor(new Color(0xE47535));
+		palette.addColor(new Color(0xAF6929));
+		palette.addColor(new Color(0x885732));
 
 		setPPQ(1920);
 
@@ -156,11 +163,20 @@ public class Project {
 	}
 
 	public Color getColor(int index) {
-		if(index < 0 || index >= colors.size()) {
-			return colors.get(0);
-		} else {
-			return colors.get(index);
-		}
+		return palette.getColor(index, DEFAULT_COLOR);
+	}
+
+	public List<Color> getRecentColors() {
+		return Collections.unmodifiableList(recentColors);
+	}
+
+	public void setRecentColors(List<Color> colors) {
+		recentColors.clear();
+		recentColors.addAll(colors);
+	}
+
+	public Palette getPalette() {
+		return palette;
 	}
 
 	public String getName() {
@@ -462,6 +478,39 @@ public class Project {
 
 		for(Element child : xml.getChildren()) {
 			switch(child.name) {
+			case "recent-colors":
+				recentColors.clear();
+				for(Element e : child.getChildren()) {
+					if(e.name.equals("color")) {
+						try {
+							int red = Integer.parseInt(e.getAttribute("red", "0"));
+							int green = Integer.parseInt(e.getAttribute("green", "0"));
+							int blue = Integer.parseInt(e.getAttribute("blue", "0"));
+							recentColors.add(new Color(red, green, blue));
+						} catch(NumberFormatException ex) {
+							throw new IOException("invalid color");
+						}
+					}
+				}
+				break;
+			case "palette":
+				palette.clear();
+				for(Element e : child.getChildren()) {
+					if(e.name.equals("color")) {
+						try {
+							int red = Integer.parseInt(e.getAttribute("red", "0"));
+							int green = Integer.parseInt(e.getAttribute("green", "0"));
+							int blue = Integer.parseInt(e.getAttribute("blue", "0"));
+							palette.addColor(new Color(red, green, blue));
+						} catch(NumberFormatException ex) {
+							throw new IOException("invalid color");
+						}
+					}
+				}
+				if(palette.getColorCount() == 0) {
+					palette.initDefault();
+				}
+				break;
 			case "parts": {
 				for(Element e : child.getChildren()) {
 					AbstractPart part;
@@ -536,6 +585,26 @@ public class Project {
 
 		xml.addAttribute("name", name);
 		xml.addAttribute("ppq", Integer.toString(ppq));
+
+		Element xmlRecentColors = new Element("recent-colors");
+		for(Color color : recentColors) {
+			Element e = new Element("color");
+			e.addAttribute("red", Integer.toString(color.getRed()));
+			e.addAttribute("green", Integer.toString(color.getGreen()));
+			e.addAttribute("blue", Integer.toString(color.getBlue()));
+			xmlRecentColors.addChild(e);
+		}
+		xml.addChild(xmlRecentColors);
+
+		Element xmlpalette = new Element("palette");
+		for(Color color : palette.getColors()) {
+			Element e = new Element("color");
+			e.addAttribute("red", Integer.toString(color.getRed()));
+			e.addAttribute("green", Integer.toString(color.getGreen()));
+			e.addAttribute("blue", Integer.toString(color.getBlue()));
+			xmlpalette.addChild(e);
+		}
+		xml.addChild(xmlpalette);
 
 		PartPool pool = new PartPool();
 		for(Track<?> track : tracks) {

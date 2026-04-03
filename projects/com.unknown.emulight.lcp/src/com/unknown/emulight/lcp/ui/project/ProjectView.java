@@ -79,10 +79,6 @@ import com.unknown.util.ui.ADM3AFont;
 public class ProjectView extends JComponent {
 	private static final Logger log = Trace.create(ProjectView.class);
 
-	private static final Color PALETTE[] = {
-			new Color(142, 160, 178)
-	};
-
 	private static final int BORDER = 5;
 
 	private static final int RULER_Y = BORDER;
@@ -648,7 +644,7 @@ public class ProjectView extends JComponent {
 			}
 
 			// draw filled box
-			g.setColor(getColor(track.getColor()));
+			g.setColor(project.getColor(track.getColor()));
 			g.fillRect(x, y, 40, 41);
 
 			try {
@@ -1219,14 +1215,6 @@ public class ProjectView extends JComponent {
 		default:
 			return List.of(new TrackControlMuteSolo(this, track),
 					new TrackControlRecordMonitor(this, track));
-		}
-	}
-
-	public Color getColor(int index) {
-		if(index >= PALETTE.length) {
-			return PALETTE[0];
-		} else {
-			return PALETTE[index];
 		}
 	}
 

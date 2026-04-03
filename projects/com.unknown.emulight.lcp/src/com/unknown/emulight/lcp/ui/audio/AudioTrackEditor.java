@@ -81,6 +81,8 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 		controls.setBorder(UIUtils.border("Track Properties"));
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Name:"));
 		controls.add(LabeledPairLayout.COMPONENT, name);
+		controls.add(LabeledPairLayout.LABEL, new JLabel("Color:"));
+		controls.add(LabeledPairLayout.COMPONENT, createColorBox());
 
 		JPanel volumeControls = new JPanel();
 		volumeControls.setBorder(UIUtils.border("Volume"));

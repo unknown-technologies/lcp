@@ -137,6 +137,8 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 		controls.add(LabeledPairLayout.COMPONENT, port);
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Program:"));
 		controls.add(LabeledPairLayout.COMPONENT, program);
+		controls.add(LabeledPairLayout.LABEL, new JLabel("Color:"));
+		controls.add(LabeledPairLayout.COMPONENT, createColorBox());
 
 		JPanel volumeControls = new JPanel();
 		volumeControls.setBorder(UIUtils.border("Volume"));

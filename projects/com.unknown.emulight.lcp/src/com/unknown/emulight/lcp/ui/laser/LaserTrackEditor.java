@@ -120,6 +120,8 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener, Conf
 		controls.add(LabeledPairLayout.COMPONENT, mirrorX);
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Mirror Y:"));
 		controls.add(LabeledPairLayout.COMPONENT, mirrorY);
+		controls.add(LabeledPairLayout.LABEL, new JLabel("Color:"));
+		controls.add(LabeledPairLayout.COMPONENT, createColorBox());
 
 		JPanel volumeControls = new JPanel();
 		volumeControls.setBorder(UIUtils.border("Brightness"));

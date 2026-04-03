@@ -1,12 +1,24 @@
 package com.unknown.emulight.lcp.ui;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
 import javax.swing.BorderFactory;
+import javax.swing.JColorChooser;
+import javax.swing.JDialog;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
+import javax.swing.colorchooser.AbstractColorChooserPanel;
+
+import com.unknown.emulight.lcp.project.Palette;
+import com.unknown.emulight.lcp.project.Project;
+import com.unknown.emulight.lcp.ui.color.ColorTracker;
+import com.unknown.emulight.lcp.ui.color.DisposeOnClose;
+import com.unknown.emulight.lcp.ui.color.PaletteChooserPanel;
+import com.unknown.emulight.lcp.ui.color.PaletteSwatchChooserPanel;
+import com.unknown.emulight.lcp.ui.color.SwatchChooserPanel;
 
 public class UIUtils {
 	public static final DecimalFormatSymbols NUMBER_FMT_SYMBOLS;
@@ -46,5 +58,52 @@ public class UIUtils {
 		} else {
 			return Color.WHITE;
 		}
+	}
+
+	public static Color showColorChooser(Component component, String title, Color initialColor, Palette palette,
+			Color[] colors, Project project) {
+		JColorChooser chooser = new JColorChooser(initialColor);
+
+		chooser.addChooserPanel(new PaletteChooserPanel(palette));
+		chooser.addChooserPanel(new PaletteSwatchChooserPanel(colors));
+
+		AbstractColorChooserPanel[] panels = chooser.getChooserPanels();
+		panels[0] = new SwatchChooserPanel(project);
+		chooser.setChooserPanels(panels);
+
+		for(AbstractColorChooserPanel panel : chooser.getChooserPanels()) {
+			panel.setColorTransparencySelectionEnabled(false);
+		}
+
+		ColorTracker ok = new ColorTracker(chooser);
+		JDialog dialog = JColorChooser.createDialog(component, title, true, chooser, ok, null);
+		dialog.setResizable(false);
+
+		dialog.addComponentListener(new DisposeOnClose());
+		dialog.setVisible(true);
+
+		return ok.getColor();
+	}
+
+	public static Color showPaletteColorChooser(Component component, String title, Palette palette) {
+		JColorChooser chooser = new JColorChooser();
+
+		AbstractColorChooserPanel[] panels = new AbstractColorChooserPanel[] {
+				new PaletteChooserPanel(palette)
+		};
+		chooser.setChooserPanels(panels);
+
+		for(AbstractColorChooserPanel panel : chooser.getChooserPanels()) {
+			panel.setColorTransparencySelectionEnabled(false);
+		}
+
+		ColorTracker ok = new ColorTracker(chooser);
+		JDialog dialog = JColorChooser.createDialog(component, title, true, chooser, ok, null);
+		dialog.setResizable(false);
+
+		dialog.addComponentListener(new DisposeOnClose());
+		dialog.setVisible(true);
+
+		return ok.getColor();
 	}
 }

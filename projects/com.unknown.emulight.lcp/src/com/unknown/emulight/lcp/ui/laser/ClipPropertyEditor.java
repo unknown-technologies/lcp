@@ -3,16 +3,19 @@ package com.unknown.emulight.lcp.ui.laser;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JColorChooser;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -25,8 +28,10 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 
 import com.unknown.emulight.lcp.laser.node.Color3;
+import com.unknown.emulight.lcp.laser.node.GroupNode;
 import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.emulight.lcp.laser.node.Property;
+import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.math.g3d.Vec3;
 import com.unknown.util.ui.LabeledPairLayout;
@@ -45,10 +50,13 @@ public class ClipPropertyEditor extends JPanel {
 
 	private final JPanel props;
 
+	private final Project project;
+
 	private ClipPropertyAutomationEditor automationEditor;
 
-	public ClipPropertyEditor(Callback updated, ClipPropertyAutomationEditor automationEditor) {
+	public ClipPropertyEditor(Project project, Callback updated, ClipPropertyAutomationEditor automationEditor) {
 		super(new BorderLayout());
+		this.project = project;
 		this.updated = updated;
 
 		props = new JPanel(new LabeledPairLayout());
@@ -214,17 +222,28 @@ public class ClipPropertyEditor extends JPanel {
 				spinnerG.setToolTipText("Green component (0.0 to 1.0)");
 				spinnerB.setToolTipText("Blue component (0.0 to 1.0)");
 
-				JPanel colorBox = new JPanel();
+				JComponent colorBox = new JComponent() {
+					@Override
+					protected void paintComponent(Graphics g) {
+						super.paintComponent(g);
+						double red = (double) spinnerR.getValue();
+						double green = (double) spinnerG.getValue();
+						double blue = (double) spinnerB.getValue();
+						Color3 color = new Color3(red, green, blue);
+						g.setColor(color.getColor());
+						g.fillRect(0, 0, getWidth(), getHeight());
+					}
+				};
 				colorBox.setToolTipText("Click to open color chooser");
-				colorBox.setBackground(vec.getColor());
 				colorBox.setMinimumSize(new Dimension(22, 22));
 				colorBox.setPreferredSize(new Dimension(22, 22));
 				colorBox.setBorder(BorderFactory.createBevelBorder(BevelBorder.LOWERED));
 				colorBox.addMouseListener(new MouseAdapter() {
 					@Override
 					public void mouseClicked(MouseEvent e) {
-						Color color = JColorChooser.showDialog(ClipPropertyEditor.this,
-								"Color chooser...", colorBox.getBackground());
+						Color color = UIUtils.showColorChooser(ClipPropertyEditor.this,
+								"Color chooser...", colorBox.getBackground(),
+								project.getPalette(), getColors(node), project);
 						if(color != null) {
 							Color3 col = new Color3(color);
 							colorBox.setBackground(color);
@@ -356,5 +375,30 @@ public class ClipPropertyEditor extends JPanel {
 	@FunctionalInterface
 	private interface Updater {
 		void update();
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void addColors(Set<Color> colors, Node node) {
+		for(Property<?> property : node.getProperties()) {
+			if(property.getType().equals(Color3.class)) {
+				Property<Color3> prop = (Property<Color3>) property;
+				for(Color3 color : prop.getValues().values()) {
+					colors.add(color.getColor());
+				}
+			}
+		}
+		if(node instanceof GroupNode) {
+			for(Node n : node.getChildren()) {
+				addColors(colors, n);
+			}
+		}
+	}
+
+	private static Color[] getColors(Node node) {
+		Set<Color> colors = new HashSet<>();
+		addColors(colors, node.getRootNode());
+		Color[] result = colors.toArray(new Color[colors.size()]);
+		Arrays.sort(result, (a, b) -> Integer.compareUnsigned(a.getRGB() & 0xFFFFFF, b.getRGB() & 0xFFFFFF));
+		return result;
 	}
 }
