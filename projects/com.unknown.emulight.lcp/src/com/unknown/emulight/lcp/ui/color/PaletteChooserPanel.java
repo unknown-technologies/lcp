@@ -10,6 +10,7 @@ import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JColorChooser;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.colorchooser.AbstractColorChooserPanel;
 
 import com.unknown.emulight.lcp.project.Palette;
@@ -19,6 +20,8 @@ public class PaletteChooserPanel extends AbstractColorChooserPanel {
 	private final Palette palette;
 
 	private static final int COLORS_PER_ROW = 9;
+
+	private JButton[] buttons;
 
 	public int getColorCount() {
 		return palette.getColorCount();
@@ -50,7 +53,13 @@ public class PaletteChooserPanel extends AbstractColorChooserPanel {
 		int rows = (int) Math.ceil(getColorCount() / (double) COLORS_PER_ROW);
 		JPanel colors = new JPanel(new GridLayout(rows, COLORS_PER_ROW));
 
+		buttons = new JButton[getColorCount()];
+
 		Dimension size = new Dimension(50, 50);
+
+		Color selected = getColorFromModel();
+
+		int focus = -1;
 
 		for(int i = 0; i < getColorCount(); i++) {
 			final int c = i;
@@ -70,6 +79,12 @@ public class PaletteChooserPanel extends AbstractColorChooserPanel {
 			button.setSize(size);
 			button.setToolTipText(tooltip);
 			colors.add(button);
+
+			if(color.equals(selected)) {
+				focus = i;
+			}
+
+			buttons[i] = button;
 		}
 
 		for(int i = getColorCount() % COLORS_PER_ROW; i < COLORS_PER_ROW; i++) {
@@ -77,11 +92,17 @@ public class PaletteChooserPanel extends AbstractColorChooserPanel {
 		}
 
 		add(BorderLayout.CENTER, colors);
+
+		if(focus != -1) {
+			JButton button = buttons[focus];
+			SwingUtilities.invokeLater(() -> button.requestFocusInWindow());
+		}
 	}
 
 	@Override
 	public void uninstallChooserPanel(JColorChooser enclosingChooser) {
 		super.uninstallChooserPanel(enclosingChooser);
+		buttons = null;
 		removeAll();
 	}
 

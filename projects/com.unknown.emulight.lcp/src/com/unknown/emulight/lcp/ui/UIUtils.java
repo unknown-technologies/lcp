@@ -85,8 +85,9 @@ public class UIUtils {
 		return ok.getColor();
 	}
 
-	public static Color showPaletteColorChooser(Component component, String title, Palette palette) {
-		JColorChooser chooser = new JColorChooser();
+	public static Color showPaletteColorChooser(Component component, String title, Color initialColor,
+			Palette palette) {
+		JColorChooser chooser = new JColorChooser(initialColor);
 
 		AbstractColorChooserPanel[] panels = new AbstractColorChooserPanel[] {
 				new PaletteChooserPanel(palette)

@@ -64,7 +64,8 @@ public abstract class TrackEditor extends JDialog {
 			@Override
 			public void mouseClicked(MouseEvent e) {
 				Color color = UIUtils.showPaletteColorChooser(TrackEditor.this,
-						"Track color...", track.getProject().getPalette());
+						"Track color...", track.getProject().getColor(track.getColor()),
+						track.getProject().getPalette());
 				if(color != null) {
 					int idx = track.getProject().getPalette().getColorIndex(color);
 					if(idx != -1) {
