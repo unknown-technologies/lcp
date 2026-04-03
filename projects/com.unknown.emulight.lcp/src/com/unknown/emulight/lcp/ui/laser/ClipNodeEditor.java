@@ -86,17 +86,15 @@ public class ClipNodeEditor extends JComponent {
 		g.setColor(Color.GREEN);
 		g.drawPolygon(boundX, boundY, vertices.length);
 
-		render(g, root, mtx, new Mtx44(), root == node);
+		render(g, root, mtx, new Mtx44(), root == node, true);
 	}
 
-	private void render(Graphics g, Node n, Mtx44 posMtx, Mtx44 colMtx, boolean selected) {
-		if(!n.isEnabled(time)) {
-			return;
-		}
-
+	private void render(Graphics g, Node n, Mtx44 posMtx, Mtx44 colMtx, boolean selected, boolean enabled) {
 		Mtx44 pos = posMtx.concat(n.getTransformation(time));
 		Mtx44 col = colMtx.concat(n.getColorTransformation(time));
+
 		boolean sel = selected || n == node;
+		boolean en = enabled && n.isEnabled(time);
 		if(sel) {
 			Vec3 zero = pos.mult(new Vec3(0, 0, 0));
 			int zx = (int) Math.round(zero.x);
@@ -107,20 +105,18 @@ public class ClipNodeEditor extends JComponent {
 			g.drawLine(zx, zy - CROSSHAIR, zx, zy + CROSSHAIR);
 		}
 		if(n instanceof PointNode) {
-			drawPoint(g, (PointNode) n, pos, col, sel);
+			drawPoint(g, (PointNode) n, pos, col, sel, en);
 		} else if(n instanceof LineNode) {
-			drawLine(g, (LineNode) n, pos, col, sel);
+			drawLine(g, (LineNode) n, pos, col, sel, en);
 		} else if(n instanceof CircleNode) {
-			drawCircle(g, (CircleNode) n, pos, col, sel);
+			drawCircle(g, (CircleNode) n, pos, col, sel, en);
 		} else if(n instanceof GroupNode) {
 			for(Node no : n.getChildren()) {
-				if(no.isEnabled(time)) {
-					render(g, no, pos, col, sel);
-				}
+				render(g, no, pos, col, sel, en);
 			}
 		} else {
 			// generic non-editable node
-			drawNode(g, n, posMtx, colMtx, sel);
+			drawNode(g, n, posMtx, colMtx, sel, en);
 		}
 	}
 
@@ -156,22 +152,33 @@ public class ClipNodeEditor extends JComponent {
 		return mtx;
 	}
 
-	private void drawPoint(Graphics g, PointNode point, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+	private void drawPoint(Graphics g, PointNode point, Mtx44 mtx, Mtx44 colorMtx, boolean selected,
+			boolean enabled) {
 		Vec3 pos = mtx.mult(point.getPosition(time));
 		int x = (int) Math.round(pos.x);
 		int y = (int) Math.round(pos.y);
 
+		boolean en = enabled && point.isEnabled(time);
+
+		boolean black = false;
 		if(selected) {
 			g.setColor(SELECTION_COLOR);
+		} else if(!en) {
+			g.setColor(Color.DARK_GRAY);
 		} else {
 			Color3 color = point.getColor(time);
 			Vec3 result = colorMtx.mult(color);
+			black = (new Color3(color).getColor().getRGB() & 0xFFFFFF) == 0;
 			g.setColor(new Color((float) result.x, (float) result.y, (float) result.z));
 		}
-		g.fillOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+		if(en && !black) {
+			g.fillOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+		} else {
+			g.drawOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+		}
 	}
 
-	private void drawLine(Graphics g, LineNode line, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+	private void drawLine(Graphics g, LineNode line, Mtx44 mtx, Mtx44 colorMtx, boolean selected, boolean enabled) {
 		Vec3 pos1 = mtx.mult(line.getStart(time));
 		Vec3 pos2 = mtx.mult(line.getEnd(time));
 		int x1 = (int) Math.round(pos1.x);
@@ -179,8 +186,12 @@ public class ClipNodeEditor extends JComponent {
 		int x2 = (int) Math.round(pos2.x);
 		int y2 = (int) Math.round(pos2.y);
 
+		boolean en = enabled && line.isEnabled(time);
+
 		if(selected) {
 			g.setColor(SELECTION_COLOR);
+		} else if(!en) {
+			g.setColor(Color.DARK_GRAY);
 		} else {
 			Color3 color = line.getColor(time);
 			Vec3 result = colorMtx.mult(color);
@@ -192,8 +203,13 @@ public class ClipNodeEditor extends JComponent {
 		int count = line.getPointCount(time);
 
 		if(count <= 2) {
-			g.fillOval(x1 - POINT_RADIUS, y1 - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
-			g.fillOval(x2 - POINT_RADIUS, y2 - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+			if(en) {
+				g.fillOval(x1 - POINT_RADIUS, y1 - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+				g.fillOval(x2 - POINT_RADIUS, y2 - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+			} else {
+				g.drawOval(x1 - POINT_RADIUS, y1 - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+				g.drawOval(x2 - POINT_RADIUS, y2 - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+			}
 		} else {
 			Vec3 delta = pos2.sub(pos1);
 
@@ -203,12 +219,19 @@ public class ClipNodeEditor extends JComponent {
 				Vec3 pos = pos1.add(step.scale(i));
 				int x = (int) Math.round(pos.x);
 				int y = (int) Math.round(pos.y);
-				g.fillOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS, 2 * POINT_RADIUS);
+				if(en) {
+					g.fillOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS,
+							2 * POINT_RADIUS);
+				} else {
+					g.drawOval(x - POINT_RADIUS, y - POINT_RADIUS, 2 * POINT_RADIUS,
+							2 * POINT_RADIUS);
+				}
 			}
 		}
 	}
 
-	private void drawCircle(Graphics g, CircleNode circle, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+	private void drawCircle(Graphics g, CircleNode circle, Mtx44 mtx, Mtx44 colorMtx, boolean selected,
+			boolean enabled) {
 		int cnt = circle.getPointCount(time) + 1;
 		int max = cnt - 1;
 		if(cnt < 2) {
@@ -229,8 +252,12 @@ public class ClipNodeEditor extends JComponent {
 			py[i] = (int) Math.round(p.y);
 		}
 
+		boolean en = enabled && circle.isEnabled(time);
+
 		if(selected) {
 			g.setColor(SELECTION_COLOR);
+		} else if(!en) {
+			g.setColor(Color.DARK_GRAY);
 		} else {
 			Color3 color = circle.getColor(time);
 			Vec3 result = colorMtx.mult(color);
@@ -240,16 +267,18 @@ public class ClipNodeEditor extends JComponent {
 		g.drawPolyline(px, py, cnt);
 	}
 
-	private void drawNode(Graphics g, Node n, Mtx44 mtx, Mtx44 colorMtx, boolean selected) {
+	private void drawNode(Graphics g, Node n, Mtx44 mtx, Mtx44 colorMtx, boolean selected, boolean enabled) {
 		List<Point3D> points = n.render(time, mtx, colorMtx);
 		Vec3 lastPos = null;
+
+		boolean en = enabled && n.isEnabled(time);
 
 		for(Point3D point : points) {
 			Vec3 pos = point.getPosition();
 			Color color = new Color3(point.getColor()).getColor();
 
 			if(lastPos != null) {
-				if((color.getRGB() & 0xFFFFFF) == 0) {
+				if(!en || (color.getRGB() & 0xFFFFFF) == 0) {
 					// laser is off, draw it as dark gray
 					g.setColor(Color.DARK_GRAY);
 				} else {
@@ -275,7 +304,7 @@ public class ClipNodeEditor extends JComponent {
 			int y = (int) Math.round(pos.y);
 
 			Color color = new Color3(point.getColor()).getColor();
-			boolean outline = (color.getRGB() & 0xFFFFFF) == 0;
+			boolean outline = !en || (color.getRGB() & 0xFFFFFF) == 0;
 			if(selected) {
 				g.setColor(SELECTION_COLOR);
 			} else if(outline) {
