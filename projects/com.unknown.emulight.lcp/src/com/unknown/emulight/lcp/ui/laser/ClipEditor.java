@@ -102,6 +102,8 @@ public class ClipEditor extends JPanel {
 		tabs.addTab("Settings", settings);
 		add(BorderLayout.CENTER, split);
 		add(BorderLayout.EAST, tabs);
+
+		setPosition(project.getSequencer().getTick());
 	}
 
 	public void setClip(PartContainer<LaserPart> clip) {

@@ -58,9 +58,9 @@ public class LaserPartEditorDialog extends JFrame {
 
 		setLayout(new BorderLayout());
 
-		editor = new ClipEditor(this, container, t -> setStatus("Time: " + t));
-
 		status = new JLabel("READY");
+
+		editor = new ClipEditor(this, container, t -> setStatus("Time: " + t));
 
 		add(BorderLayout.CENTER, editor);
 		add(BorderLayout.SOUTH, status);
