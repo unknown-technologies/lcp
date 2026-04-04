@@ -129,6 +129,7 @@ public class ClipEditor extends JPanel {
 		nodeEditor.setTime(time);
 		propertyEditor.setTime(time);
 		positionCallback.accept(time);
+		automationEditor.updateView();
 	}
 
 	public void setPosition(long time) {
