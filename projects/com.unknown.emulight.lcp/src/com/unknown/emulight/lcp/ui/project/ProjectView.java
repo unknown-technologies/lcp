@@ -1442,6 +1442,10 @@ public class ProjectView extends JComponent {
 						long time = startTimes.get(part);
 						Track<?> startTrack = startTracks.get(part);
 						PartContainer<?> newPart;
+						if(time + dt < 0 && startTrack.getType() != Track.AUDIO) {
+							newTempParts.add(part);
+							continue;
+						}
 						if(canMove) {
 							int idx = tracks.indexOf(startTrack);
 							int newIdx = idx + trackMove;
@@ -1799,6 +1803,14 @@ public class ProjectView extends JComponent {
 									canMove = false;
 									break;
 								}
+							}
+						}
+
+						// clamp dt to disallow move before 0
+						for(PartContainer<?> part : selection) {
+							long time = startTimes.get(part);
+							if(part.getTrack().getType() != Track.AUDIO && time + dt < 0) {
+								dt = -time;
 							}
 						}
 
