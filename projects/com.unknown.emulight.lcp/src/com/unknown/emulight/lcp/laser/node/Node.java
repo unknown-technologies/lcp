@@ -345,6 +345,9 @@ public abstract class Node implements Cloneable {
 		case StroboNode.TYPE:
 			node = new StroboNode();
 			break;
+		case RasterImageNode.TYPE:
+			node = new RasterImageNode();
+			break;
 		default:
 			// maybe a node from a plugin?
 			CustomNodePlugin plugin = CustomNodePluginRegistry.get().getPlugin(type);

@@ -1,5 +1,6 @@
 package com.unknown.emulight.lcp.laser.node;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map.Entry;
@@ -23,7 +24,7 @@ public class Property<T> implements Cloneable {
 		if(clazz == null) {
 			throw new IllegalArgumentException("clazz is null");
 		}
-		if(!clazz.equals(String.class) && !clazz.equals(Boolean.class)) {
+		if(!clazz.equals(String.class) && !clazz.equals(Boolean.class) && !clazz.equals(CachedImage.class)) {
 			throw new IllegalArgumentException("minimum/maximum is required");
 		}
 		this.name = name;
@@ -38,7 +39,7 @@ public class Property<T> implements Cloneable {
 		if(clazz == null) {
 			throw new IllegalArgumentException("clazz is null");
 		}
-		if(!clazz.equals(String.class) && !clazz.equals(Boolean.class)) {
+		if(!clazz.equals(String.class) && !clazz.equals(Boolean.class) && !clazz.equals(CachedImage.class)) {
 			throw new IllegalArgumentException("minimum/maximum is required");
 		}
 		this.name = name;
@@ -221,6 +222,10 @@ public class Property<T> implements Cloneable {
 				point.addAttribute("r", Double.toString(color.getRed()));
 				point.addAttribute("g", Double.toString(color.getGreen()));
 				point.addAttribute("b", Double.toString(color.getBlue()));
+			} else if(type.equals(CachedImage.class)) {
+				CachedImage image = (CachedImage) value;
+				File file = image.getFile();
+				point.addAttribute("file", file.toString());
 			} else {
 				point.addAttribute("value", value.toString());
 			}
@@ -295,6 +300,11 @@ public class Property<T> implements Cloneable {
 			} else if(type.equals(String.class)) {
 				String value = point.getAttribute("value");
 				values.put(time, (T) value);
+			} else if(type.equals(CachedImage.class)) {
+				String filename = point.getAttribute("file");
+				File file = new File(filename);
+				CachedImage image = new CachedImage(file);
+				values.put(time, (T) image);
 			} else {
 				throw new IOException("Unknown type " + type.getSimpleName());
 			}

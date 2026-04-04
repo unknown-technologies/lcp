@@ -40,6 +40,8 @@ public class LaserProcessor {
 
 	private LaserRenderer renderer;
 
+	private long frameNumber = 0;
+
 	public LaserProcessor(SystemConfiguration config, int rate) throws IOException {
 		this.config = config;
 		this.rate = rate;
@@ -59,6 +61,7 @@ public class LaserProcessor {
 					} else {
 						process();
 					}
+					frameNumber++;
 				} catch(Throwable t) {
 					log.log(Levels.ERROR, "Exception while processing laser data: " +
 							t.getMessage(), t);
@@ -139,6 +142,10 @@ public class LaserProcessor {
 
 	public void setRenderer(LaserRenderer renderer) {
 		this.renderer = renderer;
+	}
+
+	public long getFrameNumber() {
+		return frameNumber;
 	}
 
 	public void resetAll() {

@@ -7,6 +7,8 @@ import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -17,6 +19,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -26,7 +29,9 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.border.BevelBorder;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
+import com.unknown.emulight.lcp.laser.node.CachedImage;
 import com.unknown.emulight.lcp.laser.node.Color3;
 import com.unknown.emulight.lcp.laser.node.GroupNode;
 import com.unknown.emulight.lcp.laser.node.Node;
@@ -35,6 +40,7 @@ import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.math.g3d.Vec3;
 import com.unknown.util.ui.LabeledPairLayout;
+import com.unknown.util.ui.MessageBox;
 import com.unknown.util.ui.SimpleDocumentListener;
 
 @SuppressWarnings("serial")
@@ -290,6 +296,62 @@ public class ClipPropertyEditor extends JPanel {
 				JPanel panel = new JPanel(new BorderLayout());
 				panel.add(BorderLayout.WEST, colorBox);
 				panel.add(BorderLayout.CENTER, controls);
+
+				component = panel;
+			} else if(prop.getType().equals(CachedImage.class)) {
+				@SuppressWarnings("unchecked")
+				Property<CachedImage> p = (Property<CachedImage>) prop;
+
+				CachedImage img = p.getValue(time);
+
+				JTextField path = new JTextField();
+				path.setEditable(false);
+
+				if(img != null) {
+					path.setText(img.getFile().toString());
+				} else {
+					path.setText("(none)");
+					path.setEnabled(false);
+				}
+
+				JButton load = new JButton("Load");
+				load.addActionListener(e -> {
+					CachedImage image = p.getValue(time);
+					File file;
+					if(image != null) {
+						file = image.getFile();
+					} else {
+						file = null;
+					}
+
+					JFileChooser chooser = new JFileChooser(file);
+					FileNameExtensionFilter filter = new FileNameExtensionFilter("Images", "jpg",
+							"jpeg", "png", "gif");
+					chooser.setFileFilter(filter);
+					chooser.showOpenDialog(this);
+
+					File selected = chooser.getSelectedFile();
+					if(selected != null) {
+						try {
+							CachedImage newimg = new CachedImage(selected);
+							p.setValue(time, newimg);
+							path.setEnabled(true);
+							path.setText(selected.toString());
+						} catch(IOException ex) {
+							MessageBox.showError(this,
+									"Failed to load file: " + ex.getMessage());
+						}
+					}
+				});
+				Dimension size = load.getPreferredSize();
+				Dimension sz = new Dimension(size.width, 22);
+				load.setSize(sz);
+				load.setPreferredSize(sz);
+				load.setMaximumSize(sz);
+
+				JPanel panel = new JPanel(new BorderLayout());
+				panel.add(BorderLayout.CENTER, path);
+				panel.add(BorderLayout.EAST, load);
 
 				component = panel;
 			} else {

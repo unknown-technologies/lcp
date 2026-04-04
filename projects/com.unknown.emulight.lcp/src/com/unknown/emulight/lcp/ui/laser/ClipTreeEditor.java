@@ -28,6 +28,7 @@ import com.unknown.emulight.lcp.laser.node.GroupNode;
 import com.unknown.emulight.lcp.laser.node.LineNode;
 import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.emulight.lcp.laser.node.PointNode;
+import com.unknown.emulight.lcp.laser.node.RasterImageNode;
 import com.unknown.emulight.lcp.laser.node.fx.StroboNode;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePlugin;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePluginRegistry;
@@ -119,6 +120,11 @@ public class ClipTreeEditor extends JPanel {
 						insert(path, new CircleNode());
 					});
 
+					JMenuItem addRasterImage = new JMenuItem("Add raster image");
+					addRasterImage.addActionListener(ev -> {
+						insert(path, new RasterImageNode());
+					});
+
 					ClipTreeNode node = (ClipTreeNode) path.getLastPathComponent();
 					JPopupMenu menu = new JPopupMenu();
 					if(!node.isLeaf()) {
@@ -132,6 +138,7 @@ public class ClipTreeEditor extends JPanel {
 						menu.add(addPoint);
 						menu.add(addLine);
 						menu.add(addCircle);
+						menu.add(addRasterImage);
 
 						JMenu fx = new JMenu("Effects");
 						JMenuItem addStrobo = new JMenuItem("Add strobo");
