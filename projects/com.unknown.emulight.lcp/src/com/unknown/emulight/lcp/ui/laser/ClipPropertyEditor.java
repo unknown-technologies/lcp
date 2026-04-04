@@ -3,7 +3,6 @@ package com.unknown.emulight.lcp.ui.laser;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -38,6 +37,7 @@ import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.emulight.lcp.laser.node.Property;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.ui.UIUtils;
+import com.unknown.emulight.lcp.ui.color.ColorBox;
 import com.unknown.math.g3d.Vec3;
 import com.unknown.util.ui.LabeledPairLayout;
 import com.unknown.util.ui.MessageBox;
@@ -228,18 +228,8 @@ public class ClipPropertyEditor extends JPanel {
 				spinnerG.setToolTipText("Green component (0.0 to 1.0)");
 				spinnerB.setToolTipText("Blue component (0.0 to 1.0)");
 
-				JComponent colorBox = new JComponent() {
-					@Override
-					protected void paintComponent(Graphics g) {
-						super.paintComponent(g);
-						double red = (double) spinnerR.getValue();
-						double green = (double) spinnerG.getValue();
-						double blue = (double) spinnerB.getValue();
-						Color3 color = new Color3(red, green, blue);
-						g.setColor(color.getColor());
-						g.fillRect(0, 0, getWidth(), getHeight());
-					}
-				};
+				ColorBox colorBox = new ColorBox();
+				colorBox.setColor(vec.getColor());
 				colorBox.setToolTipText("Click to open color chooser");
 				colorBox.setMinimumSize(new Dimension(22, 22));
 				colorBox.setPreferredSize(new Dimension(22, 22));
@@ -248,11 +238,11 @@ public class ClipPropertyEditor extends JPanel {
 					@Override
 					public void mouseClicked(MouseEvent e) {
 						Color color = UIUtils.showColorChooser(ClipPropertyEditor.this,
-								"Color chooser...", colorBox.getBackground(),
+								"Color chooser...", colorBox.getColor(),
 								project.getPalette(), getColors(node), project);
 						if(color != null) {
 							Color3 col = new Color3(color);
-							colorBox.setBackground(color);
+							colorBox.setColor(color);
 							spinnerR.setValue(col.getRed());
 							spinnerG.setValue(col.getGreen());
 							spinnerB.setValue(col.getBlue());
@@ -267,7 +257,7 @@ public class ClipPropertyEditor extends JPanel {
 						double b = (double) spinnerB.getValue();
 						Color3 color = new Color3(r, g, b);
 						p.setValue(time, color);
-						colorBox.setBackground(color.getColor());
+						colorBox.setColor(color.getColor());
 						callback();
 					}
 				};
