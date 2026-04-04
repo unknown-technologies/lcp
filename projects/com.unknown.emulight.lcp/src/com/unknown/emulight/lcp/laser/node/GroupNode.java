@@ -1,8 +1,8 @@
 package com.unknown.emulight.lcp.laser.node;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.math.g3d.Mtx44;
@@ -10,7 +10,7 @@ import com.unknown.math.g3d.Mtx44;
 public class GroupNode extends Node {
 	public static final String TYPE = "group";
 
-	private final List<Node> children = new ArrayList<>();
+	private final List<Node> children = new CopyOnWriteArrayList<>();
 
 	protected GroupNode(String type) {
 		super(type, false);
