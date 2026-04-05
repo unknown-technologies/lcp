@@ -318,10 +318,8 @@ public class ClipPropertyEditor extends JPanel {
 					FileNameExtensionFilter filter = new FileNameExtensionFilter("Images", "jpg",
 							"jpeg", "png", "gif");
 					chooser.setFileFilter(filter);
-					chooser.showOpenDialog(this);
-
-					File selected = chooser.getSelectedFile();
-					if(selected != null) {
+					if(chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+						File selected = chooser.getSelectedFile();
 						try {
 							CachedImage newimg = new CachedImage(selected);
 							p.setValue(time, newimg);
