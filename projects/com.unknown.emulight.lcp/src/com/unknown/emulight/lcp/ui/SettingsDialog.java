@@ -444,6 +444,8 @@ public class SettingsDialog extends JDialog {
 		save.addActionListener(e -> {
 			try {
 				sys.getConfig().write();
+				close();
+				dispose();
 			} catch(IOException ex) {
 				log.log(Levels.ERROR, "Failed to write config", ex);
 			}
