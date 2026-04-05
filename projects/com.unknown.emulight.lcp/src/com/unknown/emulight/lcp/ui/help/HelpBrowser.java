@@ -2,6 +2,7 @@ package com.unknown.emulight.lcp.ui.help;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.Font;
 import java.awt.Toolkit;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import javax.swing.AbstractAction;
+import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
@@ -26,6 +28,7 @@ import javax.swing.UIManager;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.text.html.StyleSheet;
+import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
 
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
@@ -47,13 +50,34 @@ public class HelpBrowser extends JDialog {
 	public HelpBrowser(JFrame parent) {
 		super(parent, "Help");
 
-		setIconImages(List.of(Icons.get(Icons.BOOK, 16).getImage(),
-				Icons.get(Icons.BOOK, 32).getImage()));
+		setIconImages(List.of(Icons.get(Icons.HELP_BOOK, 16).getImage(),
+				Icons.get(Icons.HELP_BOOK, 32).getImage(), Icons.get(Icons.HELP_BOOK, 48).getImage()));
 
 		setLayout(new BorderLayout());
 
+		ImageIcon bookIcon = Icons.get(Icons.BOOK, 16);
+		ImageIcon bookOpenIcon = Icons.get(Icons.BOOK_OPEN, 16);
+		ImageIcon pageIcon = Icons.get(Icons.HELP_SHEET, 16);
+
 		help = new Help();
 		tree = new JTree(help);
+		tree.setCellRenderer(new DefaultTreeCellRenderer() {
+			@Override
+			public Component getTreeCellRendererComponent(JTree t, Object value, boolean isSelected,
+					boolean expanded, boolean leaf, int row, boolean focus) {
+				super.getTreeCellRendererComponent(t, value, isSelected, expanded, leaf, row, focus);
+				if(!leaf) {
+					if(expanded) {
+						setIcon(bookOpenIcon);
+					} else {
+						setIcon(bookIcon);
+					}
+				} else {
+					setIcon(pageIcon);
+				}
+				return this;
+			}
+		});
 
 		Color background = UIManager.getColor("TextField.background");
 		String bgcolor = "#" + HexFormatter.tohex(background.getRGB() & 0xFFFFFF, 6);

@@ -8,9 +8,12 @@ import com.unknown.util.ResourceLoader;
 
 public class Icons {
 	public static final String BOOK = "book";
+	public static final String BOOK_OPEN = "book-open";
 	public static final String CHIP = "chip";
 	public static final String SETTINGS = "settings";
 	public static final String EMULIGHT = "emulight";
+	public static final String HELP_BOOK = "help-book";
+	public static final String HELP_SHEET = "help-sheet";
 
 	public static final ImageIcon get(String name, int size) {
 		return new ImageIcon(ResourceLoader.getResource(Icons.class, name + "-" + size + ".png"));
