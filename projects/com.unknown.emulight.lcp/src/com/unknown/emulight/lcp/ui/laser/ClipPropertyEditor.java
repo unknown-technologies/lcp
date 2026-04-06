@@ -390,6 +390,7 @@ public class ClipPropertyEditor extends JPanel {
 		}
 
 		props.revalidate();
+		revalidate();
 		repaint();
 	}
 
