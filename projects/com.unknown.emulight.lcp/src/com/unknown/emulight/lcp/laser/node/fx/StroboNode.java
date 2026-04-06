@@ -2,6 +2,7 @@ package com.unknown.emulight.lcp.laser.node.fx;
 
 import com.unknown.emulight.lcp.laser.node.GroupNode;
 import com.unknown.emulight.lcp.laser.node.Node;
+import com.unknown.emulight.lcp.laser.node.PhaseIntegrator;
 import com.unknown.emulight.lcp.laser.node.Property;
 import com.unknown.emulight.lcp.laser.node.StandardPropertyNames;
 import com.unknown.math.g3d.Mtx44;
@@ -10,7 +11,8 @@ public class StroboNode extends GroupNode {
 	public static final String TYPE = "strobo";
 
 	private final Property<Boolean> stroboEnable = new Property<>("stroboEnable", true);
-	private final Property<Double> stroboSpeed = new Property<>("stroboSpeed", 1.0, 0.0, 10000.0);
+	private final Property<Double> stroboSpeed = new Property<>("stroboSpeed", 1.0, 0.0, 100.0,
+			new PhaseIntegrator<>());
 	private final Property<Double> dutyCycle = new Property<>(StandardPropertyNames.DUTY_CYCLE, 0.5, 0.0, 1.0);
 
 	public StroboNode() {
@@ -49,11 +51,17 @@ public class StroboNode extends GroupNode {
 		double intensity = getBrightness(time);
 		boolean enabled = isStroboEnabled(time);
 		if(enabled) {
-			// TODO: make this smooth and make it work with animated speeds
 			int ppq = getClip().getProject().getPPQ();
-			double speed = getStroboSpeed(time);
-			double T = ppq / speed;
-			double phi = (time % T) / T;
+			double phi;
+			if(!stroboSpeed.isAutomation()) {
+				// use standard algorithm if automation is disabled
+				double speed = getStroboSpeed(time);
+				double T = ppq / speed;
+				phi = (time % T) / T;
+			} else {
+				// use phase integrator if automation is enabled
+				phi = stroboSpeed.getIntegrator().getPhase(time, ppq);
+			}
 			if(phi >= getDutyCycle(time)) {
 				intensity = 0;
 			}

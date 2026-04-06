@@ -20,6 +20,8 @@ public class Property<T> implements Cloneable {
 	private boolean automation = true;
 	private NavigableMap<Integer, T> values = new TreeMap<>();
 
+	private final PhaseIntegrator<T> integrator;
+
 	public Property(String name, Class<T> clazz) {
 		if(clazz == null) {
 			throw new IllegalArgumentException("clazz is null");
@@ -33,6 +35,7 @@ public class Property<T> implements Cloneable {
 		this.minimum = null;
 		this.maximum = null;
 		this.defaultValue = null;
+		this.integrator = null;
 	}
 
 	public Property(String name, Class<T> clazz, boolean isStatic) {
@@ -48,6 +51,7 @@ public class Property<T> implements Cloneable {
 		this.minimum = null;
 		this.maximum = null;
 		this.defaultValue = null;
+		this.integrator = null;
 	}
 
 	public Property(String name, T value) {
@@ -70,14 +74,23 @@ public class Property<T> implements Cloneable {
 		this.maximum = null;
 		this.defaultValue = value;
 		this.automation = automation;
+		this.integrator = null;
 	}
 
 	public Property(String name, T value, T minimum, T maximum) {
-		this(name, value, minimum, maximum, true);
+		this(name, value, minimum, maximum, true, null);
+	}
+
+	public Property(String name, T value, T minimum, T maximum, PhaseIntegrator<T> integrator) {
+		this(name, value, minimum, maximum, true, integrator);
+	}
+
+	public Property(String name, T value, T minimum, T maximum, boolean automation) {
+		this(name, value, minimum, maximum, automation, null);
 	}
 
 	@SuppressWarnings("unchecked")
-	public Property(String name, T value, T minimum, T maximum, boolean automation) {
+	public Property(String name, T value, T minimum, T maximum, boolean automation, PhaseIntegrator<T> integrator) {
 		if(value == null) {
 			throw new IllegalArgumentException("value is null");
 		}
@@ -96,6 +109,12 @@ public class Property<T> implements Cloneable {
 		this.maximum = maximum;
 		this.defaultValue = value;
 		this.automation = automation;
+		this.integrator = integrator;
+
+		if(integrator != null) {
+			integrator.setProperty(this);
+			integrator.recompute();
+		}
 	}
 
 	public String getName() {
@@ -145,11 +164,17 @@ public class Property<T> implements Cloneable {
 		} else {
 			values.put(time, value);
 		}
+		if(integrator != null) {
+			integrator.recompute();
+		}
 	}
 
 	public void unsetValue(int time) {
 		if(values.size() > 1) {
 			values.remove(time);
+			if(integrator != null) {
+				integrator.recompute();
+			}
 		}
 	}
 
@@ -188,6 +213,10 @@ public class Property<T> implements Cloneable {
 	public void clear() {
 		values.clear();
 		values.put(0, defaultValue);
+	}
+
+	public PhaseIntegrator<T> getIntegrator() {
+		return integrator;
 	}
 
 	public void copy(Property<T> other) {
@@ -308,6 +337,9 @@ public class Property<T> implements Cloneable {
 			} else {
 				throw new IOException("Unknown type " + type.getSimpleName());
 			}
+		}
+		if(integrator != null) {
+			integrator.recompute();
 		}
 	}
 }
