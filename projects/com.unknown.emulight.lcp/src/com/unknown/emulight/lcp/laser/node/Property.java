@@ -20,7 +20,7 @@ public class Property<T> implements Cloneable {
 	private boolean automation = true;
 	private NavigableMap<Integer, T> values = new TreeMap<>();
 
-	private final PhaseIntegrator<T> integrator;
+	private final PhaseIntegrator integrator;
 
 	public Property(String name, Class<T> clazz) {
 		if(clazz == null) {
@@ -78,19 +78,15 @@ public class Property<T> implements Cloneable {
 	}
 
 	public Property(String name, T value, T minimum, T maximum) {
-		this(name, value, minimum, maximum, true, null);
-	}
-
-	public Property(String name, T value, T minimum, T maximum, PhaseIntegrator<T> integrator) {
-		this(name, value, minimum, maximum, true, integrator);
+		this(name, value, minimum, maximum, true, false);
 	}
 
 	public Property(String name, T value, T minimum, T maximum, boolean automation) {
-		this(name, value, minimum, maximum, automation, null);
+		this(name, value, minimum, maximum, automation, false);
 	}
 
 	@SuppressWarnings("unchecked")
-	public Property(String name, T value, T minimum, T maximum, boolean automation, PhaseIntegrator<T> integrator) {
+	public Property(String name, T value, T minimum, T maximum, boolean automation, boolean useIntegrator) {
 		if(value == null) {
 			throw new IllegalArgumentException("value is null");
 		}
@@ -109,11 +105,11 @@ public class Property<T> implements Cloneable {
 		this.maximum = maximum;
 		this.defaultValue = value;
 		this.automation = automation;
-		this.integrator = integrator;
-
-		if(integrator != null) {
-			integrator.setProperty(this);
+		if(useIntegrator && type.equals(Double.class)) {
+			integrator = new PhaseIntegrator((Property<Double>) this);
 			integrator.recompute();
+		} else {
+			integrator = null;
 		}
 	}
 
@@ -215,7 +211,7 @@ public class Property<T> implements Cloneable {
 		values.put(0, defaultValue);
 	}
 
-	public PhaseIntegrator<T> getIntegrator() {
+	public PhaseIntegrator getIntegrator() {
 		return integrator;
 	}
 

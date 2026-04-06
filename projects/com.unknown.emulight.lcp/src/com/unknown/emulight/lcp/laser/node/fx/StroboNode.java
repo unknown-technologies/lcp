@@ -2,7 +2,6 @@ package com.unknown.emulight.lcp.laser.node.fx;
 
 import com.unknown.emulight.lcp.laser.node.GroupNode;
 import com.unknown.emulight.lcp.laser.node.Node;
-import com.unknown.emulight.lcp.laser.node.PhaseIntegrator;
 import com.unknown.emulight.lcp.laser.node.Property;
 import com.unknown.emulight.lcp.laser.node.StandardPropertyNames;
 import com.unknown.math.g3d.Mtx44;
@@ -11,8 +10,7 @@ public class StroboNode extends GroupNode {
 	public static final String TYPE = "strobo";
 
 	private final Property<Boolean> stroboEnable = new Property<>("stroboEnable", true);
-	private final Property<Double> stroboSpeed = new Property<>("stroboSpeed", 1.0, 0.0, 100.0,
-			new PhaseIntegrator<>());
+	private final Property<Double> stroboSpeed = new Property<>("stroboSpeed", 1.0, 0.0, 100.0, true, true);
 	private final Property<Double> dutyCycle = new Property<>(StandardPropertyNames.DUTY_CYCLE, 0.5, 0.0, 1.0);
 
 	public StroboNode() {

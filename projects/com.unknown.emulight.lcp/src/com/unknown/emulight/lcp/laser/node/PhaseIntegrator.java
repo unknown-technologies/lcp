@@ -4,36 +4,33 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
-public class PhaseIntegrator<T> {
-	private Property<T> property;
+public class PhaseIntegrator {
+	private final Property<Double> property;
 
 	private NavigableMap<Integer, Double> phaseAccumulator = new TreeMap<>();
 
-	public void setProperty(Property<T> property) {
+	public PhaseIntegrator(Property<Double> property) {
+		if(!property.getType().equals(Double.class)) {
+			throw new IllegalStateException("cannot use phase integrator for non-double property");
+		}
+
 		this.property = property;
 	}
 
 	public void recompute() {
 		phaseAccumulator.clear();
 
-		if(!property.getType().equals(Double.class)) {
-			throw new IllegalStateException("cannot use phase integrator for non-double property");
-		}
-
-		@SuppressWarnings("unchecked")
-		Property<Double> prop = (Property<Double>) property;
-
 		double phi = 0;
 
 		phaseAccumulator.put(0, phi);
 
-		if(prop.getCount() < 2) {
+		if(property.getCount() < 2) {
 			return;
 		}
 
 		int lastTime = 0;
 		double lastSpeed = 0;
-		for(Entry<Integer, Double> entry : prop.getValues().sequencedEntrySet()) {
+		for(Entry<Integer, Double> entry : property.getValues().sequencedEntrySet()) {
 			int time = entry.getKey();
 			double speed = entry.getValue();
 
@@ -53,13 +50,6 @@ public class PhaseIntegrator<T> {
 	}
 
 	public double getPhase(int time, int ppq) {
-		if(!property.getType().equals(Double.class)) {
-			throw new IllegalStateException("cannot use phase integrator for non-double property");
-		}
-
-		@SuppressWarnings("unchecked")
-		Property<Double> prop = (Property<Double>) property;
-
 		Entry<Integer, Double> entry = phaseAccumulator.floorEntry(time);
 		int lastTime = entry.getKey();
 		double phi = entry.getValue();
@@ -67,9 +57,9 @@ public class PhaseIntegrator<T> {
 			return (phi / ppq) % 1.0;
 		}
 
-		double speed0 = prop.getValue(entry.getKey());
+		double speed0 = property.getValue(entry.getKey());
 
-		NavigableMap<Integer, Double> values = prop.getValues();
+		NavigableMap<Integer, Double> values = property.getValues();
 		Integer next = values.ceilingKey(time);
 		if(next == null) {
 			int dt = time - lastTime;
