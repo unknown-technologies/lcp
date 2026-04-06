@@ -18,4 +18,6 @@ public class StandardPropertyNames {
 	public static final String END = "end";
 	public static final String CONNECTED = "connected";
 	public static final String REPETITION = "repetition";
+	public static final String CLIP = "clip";
+	public static final String DUTY_CYCLE = "dutyCycle";
 }

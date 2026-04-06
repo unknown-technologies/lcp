@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.Point3D;
+import com.unknown.emulight.lcp.laser.node.fx.MaskNode;
 import com.unknown.emulight.lcp.laser.node.fx.StroboNode;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePlugin;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePluginRegistry;
@@ -344,6 +345,9 @@ public abstract class Node implements Cloneable {
 			break;
 		case StroboNode.TYPE:
 			node = new StroboNode();
+			break;
+		case MaskNode.TYPE:
+			node = new MaskNode();
 			break;
 		case RasterImageNode.TYPE:
 			node = new RasterImageNode();

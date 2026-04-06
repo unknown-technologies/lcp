@@ -18,6 +18,7 @@ import com.unknown.emulight.lcp.laser.node.PointNode;
 import com.unknown.emulight.lcp.laser.node.Property;
 import com.unknown.emulight.lcp.laser.node.Shape;
 import com.unknown.emulight.lcp.laser.node.StandardPropertyNames;
+import com.unknown.emulight.lcp.laser.node.fx.MaskNode;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.math.g3d.Vec3;
 
@@ -110,6 +111,11 @@ public class ClipNodeEditor extends JComponent {
 			drawLine(g, (LineNode) n, pos, col, sel, en);
 		} else if(n instanceof CircleNode) {
 			drawCircle(g, (CircleNode) n, pos, col, sel, en);
+		} else if(n instanceof MaskNode) {
+			drawMask(g, (MaskNode) n, pos, sel, en);
+			for(Node no : n.getChildren()) {
+				render(g, no, pos, col, sel, en);
+			}
 		} else if(n instanceof GroupNode) {
 			for(Node no : n.getChildren()) {
 				render(g, no, pos, col, sel, en);
@@ -262,6 +268,36 @@ public class ClipNodeEditor extends JComponent {
 			Color3 color = circle.getColor(time);
 			Vec3 result = colorMtx.mult(color);
 			g.setColor(new Color((float) result.x, (float) result.y, (float) result.z));
+		}
+
+		g.drawPolyline(px, py, cnt);
+	}
+
+	private void drawMask(Graphics g, MaskNode mask, Mtx44 mtx, boolean selected, boolean enabled) {
+		double r = mask.getRadius(time);
+
+		int cnt = 50;
+		int max = cnt - 1;
+		int[] px = new int[cnt];
+		int[] py = new int[cnt];
+		for(int i = 0; i < cnt; i++) {
+			double phi = i / (double) max;
+			double x = Math.cos(phi * 2.0 * Math.PI) * r;
+			double y = Math.sin(phi * 2.0 * Math.PI) * r;
+
+			Vec3 p = mtx.mult(new Vec3(x, y, 0));
+			px[i] = (int) Math.round(p.x);
+			py[i] = (int) Math.round(p.y);
+		}
+
+		boolean en = enabled && mask.isEnabled(time);
+
+		if(selected) {
+			g.setColor(SELECTION_COLOR);
+		} else if(!en) {
+			g.setColor(Color.DARK_GRAY);
+		} else {
+			g.setColor(Color.GRAY);
 		}
 
 		g.drawPolyline(px, py, cnt);

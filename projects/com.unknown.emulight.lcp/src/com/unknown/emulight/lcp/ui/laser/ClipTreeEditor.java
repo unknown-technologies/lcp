@@ -29,6 +29,7 @@ import com.unknown.emulight.lcp.laser.node.LineNode;
 import com.unknown.emulight.lcp.laser.node.Node;
 import com.unknown.emulight.lcp.laser.node.PointNode;
 import com.unknown.emulight.lcp.laser.node.RasterImageNode;
+import com.unknown.emulight.lcp.laser.node.fx.MaskNode;
 import com.unknown.emulight.lcp.laser.node.fx.StroboNode;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePlugin;
 import com.unknown.emulight.lcp.laser.node.plugin.CustomNodePluginRegistry;
@@ -147,7 +148,14 @@ public class ClipTreeEditor extends JPanel {
 							insert(path, new StroboNode());
 						});
 
+						JMenuItem addMask = new JMenuItem("Add mask");
+						addMask.setMnemonic('S');
+						addMask.addActionListener(ev -> {
+							insert(path, new MaskNode());
+						});
+
 						fx.add(addStrobo);
+						fx.add(addMask);
 
 						menu.addSeparator();
 						menu.add(fx);

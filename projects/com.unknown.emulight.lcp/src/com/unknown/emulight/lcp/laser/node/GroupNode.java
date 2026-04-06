@@ -48,10 +48,22 @@ public class GroupNode extends Node {
 		node.setParent(null);
 	}
 
-	@Override
-	protected List<Shape> render(List<Shape> result, int time, Mtx44 positionTransform, Mtx44 colorTransform) {
-		Mtx44 positionMtx = positionTransform.concat(getTransformation(time));
-		Mtx44 colorMtx = colorTransform.concat(getColorTransformation(time));
+	protected List<Shape> render(List<Shape> result, int time, Mtx44 positionTransform, Mtx44 colorTransform,
+			boolean applyPositionTransform, boolean applyColorTransform) {
+		Mtx44 positionMtx;
+		Mtx44 colorMtx;
+
+		if(applyPositionTransform) {
+			positionMtx = positionTransform.concat(getTransformation(time));
+		} else {
+			positionMtx = positionTransform;
+		}
+
+		if(applyColorTransform) {
+			colorMtx = colorTransform.concat(getColorTransformation(time));
+		} else {
+			colorMtx = colorTransform;
+		}
 
 		for(Node node : children) {
 			if(node.isEnabled(time)) {
@@ -60,6 +72,11 @@ public class GroupNode extends Node {
 		}
 
 		return result;
+	}
+
+	@Override
+	protected List<Shape> render(List<Shape> result, int time, Mtx44 positionTransform, Mtx44 colorTransform) {
+		return render(result, time, positionTransform, colorTransform, true, true);
 	}
 
 	@Override
