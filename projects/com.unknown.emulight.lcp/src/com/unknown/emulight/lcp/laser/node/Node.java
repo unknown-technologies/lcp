@@ -31,6 +31,7 @@ public abstract class Node implements Cloneable {
 	private final Property<Vec3> translation = new Property<>(StandardPropertyNames.TRANSLATION, ZERO, MIN3D,
 			MAX3D);
 	private final Property<Vec3> scale = new Property<>(StandardPropertyNames.SCALE, ONE, ZERO, TWO);
+	private final Property<Double> size = new Property<>(StandardPropertyNames.SIZE, 1.0, 0.0, 2.0);
 	private final Property<Double> rotation = new Property<>(StandardPropertyNames.ROTATION, 0.0, 0.0, 360.0);
 
 	private final Property<Vec3> colorScale = new Property<>(StandardPropertyNames.COLOR_SCALE, ONE, ZERO, ONE);
@@ -79,6 +80,7 @@ public abstract class Node implements Cloneable {
 		addProperty(enabled);
 		addProperty(translation);
 		addProperty(scale);
+		addProperty(size);
 		addProperty(rotation);
 		addProperty(colorScale);
 		addProperty(brightness);
@@ -173,6 +175,14 @@ public abstract class Node implements Cloneable {
 		this.scale.setValue(time, scale);
 	}
 
+	public double getSize(int time) {
+		return size.getValue(time);
+	}
+
+	public void setSize(int time, double size) {
+		this.size.setValue(time, size);
+	}
+
 	public double getRotation(int time) {
 		return rotation.getValue(time);
 	}
@@ -182,11 +192,13 @@ public abstract class Node implements Cloneable {
 	}
 
 	public Mtx44 getTransformation(int time) {
-		return Mtx44.rotDegZ(getRotation(time)).transApply(getTranslation(time)).applyScale(getScale(time));
+		return Mtx44.rotDegZ(getRotation(time)).transApply(getTranslation(time))
+				.applyScale(getScale(time).scale(getSize(time)));
 	}
 
 	public Mtx44 getInverseTransformation(int time) {
-		Vec3 sc = getScale(time);
+		double sz = getSize(time);
+		Vec3 sc = getScale(time).scale(sz);
 		Vec3 tr = getTranslation(time);
 		return Mtx44.rotDegZ(-getRotation(time)).scaleApply(1.0 / sc.x, 1.0 / sc.y, 1.0 / sc.z).applyTrans(
 				-tr.x, -tr.y, -tr.z);
