@@ -217,21 +217,24 @@ public class SystemConfiguration implements AutoCloseable {
 		return Collections.unmodifiableCollection(eslMidiPortConfig.values());
 	}
 
-	public NetworkMidiPortConfig getNetworkMidiPort(String name) {
+	public NetworkMidiPortConfig getNetworkMidiPort(String name, boolean input) {
 		NetworkMidiPortConfig cfg = networkMidiPortConfig.get(name);
 		if(cfg == null) {
-			cfg = new NetworkMidiPortConfig(this, name);
+			cfg = new NetworkMidiPortConfig(this, name, input);
 			networkMidiPortConfig.put(name, cfg);
+		} else if(cfg.isInput() != input) {
+			throw new IllegalArgumentException(
+					"port " + name + " is not an " + (input ? "input" : "output"));
 		}
 		return cfg;
 	}
 
-	public NetworkMidiPortConfig addNetworkMidiPort(String name) {
+	public NetworkMidiPortConfig addNetworkMidiPort(String name, boolean input) {
 		NetworkMidiPortConfig cfg = networkMidiPortConfig.get(name);
 		if(cfg != null) {
 			throw new IllegalArgumentException("name already exists: " + name);
 		} else {
-			cfg = new NetworkMidiPortConfig(this, name);
+			cfg = new NetworkMidiPortConfig(this, name, input);
 			networkMidiPortConfig.put(name, cfg);
 			return cfg;
 		}
@@ -512,10 +515,14 @@ public class SystemConfiguration implements AutoCloseable {
 
 			Element port = new Element("network");
 			port.addAttribute("name", name);
-			port.addAttribute("type", "output");
+			port.addAttribute("type", cfg.isInput() ? "input" : "output");
 			port.addAttribute("active", Boolean.toString(cfg.isActive()));
-			port.addAttribute("address", cfg.getAddress());
 			port.addAttribute("port", Integer.toString(cfg.getPort()));
+			if(cfg.isInput()) {
+				port.addAttribute("all-bus", Boolean.toString(cfg.isAll()));
+			} else {
+				port.addAttribute("address", cfg.getAddress());
+			}
 
 			midi.addChild(port);
 		}
@@ -637,11 +644,21 @@ public class SystemConfiguration implements AutoCloseable {
 						boolean active = Boolean.parseBoolean(item.getAttribute("active"));
 						String address = item.getAttribute("address");
 						int port = Integer.parseInt(item.getAttribute("port"));
+						boolean input = item.getAttribute("type", "output").equals("input");
+						boolean all = Boolean
+								.parseBoolean(item.getAttribute("all-bus", "false"));
 
-						NetworkMidiPortConfig cfg = getNetworkMidiPort(name);
-						cfg.setActive(active);
-						cfg.setAddress(address);
-						cfg.setPort(port);
+						try {
+							NetworkMidiPortConfig cfg = getNetworkMidiPort(name, input);
+							if(cfg.isInput() == input) {
+								cfg.setActive(active);
+								cfg.setAddress(address);
+								cfg.setPort(port);
+								cfg.setAll(all);
+							}
+						} catch(IllegalArgumentException e) {
+							// mismatch between input and output; ignore this
+						}
 						break;
 					}
 					case "esl": {
@@ -806,12 +823,14 @@ public class SystemConfiguration implements AutoCloseable {
 	public static class NetworkMidiPortConfig extends MidiPortConfig {
 		private String address;
 		private int port;
+		private boolean input;
 
-		protected NetworkMidiPortConfig(SystemConfiguration cfg, String name) {
+		protected NetworkMidiPortConfig(SystemConfiguration cfg, String name, boolean input) {
 			super(cfg);
 			this.alias = name;
 			this.address = "localhost";
 			this.port = 5025;
+			this.input = input;
 		}
 
 		@Override
@@ -840,6 +859,14 @@ public class SystemConfiguration implements AutoCloseable {
 		public void setPort(int port) {
 			this.port = port;
 			cfg.fireMidiPortChangedEvent(this);
+		}
+
+		public boolean isInput() {
+			return input;
+		}
+
+		public boolean isOutput() {
+			return !input;
 		}
 
 		public void delete() {

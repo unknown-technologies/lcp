@@ -31,6 +31,7 @@ public class MidiRouter {
 	private MidiOutPort[] outputs;
 
 	private List<ESLMidiOut> eslOutPorts = new ArrayList<>();
+	private List<NetworkMidiIn> networkInPorts = new ArrayList<>();
 	private List<NetworkMidiOut> networkOutPorts = new ArrayList<>();
 
 	private List<MidiReceiver> allBusReceivers = new ArrayList<>();
@@ -93,8 +94,13 @@ public class MidiRouter {
 		}
 
 		for(NetworkMidiPortConfig cfg : conf.getNetworkMidiPorts()) {
-			NetworkMidiOut port = new NetworkMidiOut(cfg, this);
-			networkOutPorts.add(port);
+			if(cfg.isInput()) {
+				NetworkMidiIn port = new NetworkMidiIn(cfg, this);
+				networkInPorts.add(port);
+			} else {
+				NetworkMidiOut port = new NetworkMidiOut(cfg, this);
+				networkOutPorts.add(port);
+			}
 		}
 
 		for(ESLMidiPortConfig cfg : conf.getESLMidiPorts()) {
@@ -116,8 +122,8 @@ public class MidiRouter {
 	}
 
 	public NetworkMidiPortConfig getNetworkPortConfig(MidiPort port) {
-		if(port instanceof NetworkMidiOut) {
-			return conf.getNetworkMidiPort(port.getAlias());
+		if(port instanceof NetworkMidiIn || port instanceof NetworkMidiOut) {
+			return conf.getNetworkMidiPort(port.getAlias(), port instanceof NetworkMidiIn);
 		} else {
 			throw new IllegalArgumentException("not a network MIDI port");
 		}
@@ -135,9 +141,21 @@ public class MidiRouter {
 		}
 	}
 
+	public NetworkMidiIn addNetworkMidiInPort(String name) {
+		try {
+			NetworkMidiPortConfig cfg = conf.addNetworkMidiPort(name, true);
+			NetworkMidiIn port = new NetworkMidiIn(cfg, this);
+			networkInPorts.add(port);
+			return port;
+		} catch(IllegalArgumentException e) {
+			// name already exists
+			return null;
+		}
+	}
+
 	public NetworkMidiOut addNetworkMidiOutPort(String name) {
 		try {
-			NetworkMidiPortConfig cfg = conf.addNetworkMidiPort(name);
+			NetworkMidiPortConfig cfg = conf.addNetworkMidiPort(name, false);
 			NetworkMidiOut port = new NetworkMidiOut(cfg, this);
 			networkOutPorts.add(port);
 			return port;
@@ -152,13 +170,23 @@ public class MidiRouter {
 		getESLPortConfig(port).delete();
 	}
 
+	public void delete(NetworkMidiIn port) {
+		networkInPorts.remove(port);
+		getNetworkPortConfig(port).delete();
+	}
+
 	public void delete(NetworkMidiOut port) {
 		networkOutPorts.remove(port);
 		getNetworkPortConfig(port).delete();
 	}
 
 	public MidiInPort[] getInputs() {
-		return inputs;
+		MidiInPort[] ins = new MidiInPort[inputs.length + networkInPorts.size()];
+		System.arraycopy(inputs, 0, ins, 0, inputs.length);
+		for(int i = 0; i < networkInPorts.size(); i++) {
+			ins[inputs.length + i] = networkInPorts.get(i);
+		}
+		return ins;
 	}
 
 	public MidiOutPort[] getOutputs() {
@@ -217,6 +245,10 @@ public class MidiRouter {
 	}
 
 	public void send(int input, ShortMessage msg) {
+		send(inputs[input], msg);
+	}
+
+	public void send(MidiInPort input, ShortMessage msg) {
 		// ignore active sensing
 		if(msg.getStatus() == ShortMessage.ACTIVE_SENSING) {
 			return;
@@ -228,7 +260,7 @@ public class MidiRouter {
 				.mapToObj(x -> HexFormatter.tohex(x, 2))
 				.collect(Collectors.joining(" ")));
 
-		if(inputs[input].isAll()) {
+		if(input.isAll()) {
 			for(MidiReceiver receiver : allBusReceivers) {
 				receiver.receive(msg.getStatus(), msg.getData1(), msg.getData2());
 			}

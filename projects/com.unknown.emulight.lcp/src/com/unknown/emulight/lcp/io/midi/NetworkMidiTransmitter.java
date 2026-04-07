@@ -10,7 +10,6 @@ import java.util.logging.Logger;
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiMessage;
 import javax.sound.midi.Receiver;
-import javax.sound.midi.ShortMessage;
 import javax.sound.midi.SysexMessage;
 import javax.sound.midi.Transmitter;
 
@@ -22,26 +21,32 @@ public class NetworkMidiTransmitter implements Transmitter {
 
 	protected DatagramSocket socket;
 	private Thread thread;
-	private Thread activeSense;
 	private Receiver receiver;
 
-	private NetworkMidiTransmitter() {
-		thread = new Thread(this::rxloop);
-		activeSense = new Thread(this::activeSense);
-	}
-
 	public NetworkMidiTransmitter(int port) throws SocketException {
-		this();
-		socket = new DatagramSocket(port);
+		this(new DatagramSocket(port));
 	}
 
 	protected NetworkMidiTransmitter(DatagramSocket socket) {
-		this();
 		this.socket = socket;
+		thread = new Thread(this::rxloop);
+		thread.start();
 	}
 
 	@Override
 	public void close() {
+		if(thread != null) {
+			thread.interrupt();
+			if(thread.isAlive()) {
+				try {
+					thread.join();
+				} catch(InterruptedException e) {
+					// set the interrupted flag again
+					Thread.currentThread().interrupt();
+				}
+			}
+			thread = null;
+		}
 		if(receiver != null) {
 			receiver.close();
 			receiver = null;
@@ -60,37 +65,6 @@ public class NetworkMidiTransmitter implements Transmitter {
 	@Override
 	public void setReceiver(Receiver receiver) {
 		this.receiver = receiver;
-	}
-
-	public void start() {
-		thread.start();
-		activeSense.start();
-	}
-
-	public void stop() {
-		thread.interrupt();
-		activeSense.interrupt();
-	}
-
-	public void join() throws InterruptedException {
-		thread.join();
-		activeSense.join();
-	}
-
-	private void activeSense() {
-		while(!activeSense.isInterrupted() && socket != null) {
-			try {
-				if(receiver != null) {
-					ShortMessage msg = new ShortMessage(ShortMessage.ACTIVE_SENSING);
-					receiver.send(msg, -1);
-				}
-				Thread.sleep(300);
-			} catch(InterruptedException e) {
-				return;
-			} catch(Throwable t) {
-				log.log(Levels.ERROR, "ActiveSense thread failed: " + t.getMessage(), t);
-			}
-		}
 	}
 
 	private void rxloop() {

@@ -31,6 +31,7 @@ public abstract class MidiInPort extends MidiPort {
 
 	@Override
 	public void setActive(boolean active) {
+		boolean last = isActive();
 		super.setActive(active);
 
 		try {
@@ -41,6 +42,7 @@ public abstract class MidiInPort extends MidiPort {
 			}
 		} catch(MidiUnavailableException e) {
 			log.log(Levels.WARNING, "Failed to " + (active ? "open" : "close") + " MIDI device", e);
+			super.setActive(last);
 		}
 	}
 

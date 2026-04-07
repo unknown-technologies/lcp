@@ -52,6 +52,7 @@ import com.unknown.emulight.lcp.io.midi.ESLMidiOut;
 import com.unknown.emulight.lcp.io.midi.MidiInPort;
 import com.unknown.emulight.lcp.io.midi.MidiOutPort;
 import com.unknown.emulight.lcp.io.midi.MidiRouter;
+import com.unknown.emulight.lcp.io.midi.NetworkMidiIn;
 import com.unknown.emulight.lcp.io.midi.NetworkMidiOut;
 import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.Project;
@@ -154,7 +155,71 @@ public class SettingsDialog extends JDialog {
 
 		JPanel midiIn = new JPanel(new BorderLayout());
 		midiIn.setBorder(BorderFactory.createTitledBorder("MIDI Inputs"));
-		midiIn.add(BorderLayout.CENTER, new JScrollPane(new MixedTable(midiInModel = new MidiInModel())));
+		JTable midiInTable = new MixedTable(midiInModel = new MidiInModel());
+		JScrollPane midiInScroller = new JScrollPane(midiInTable);
+		midiIn.add(BorderLayout.CENTER, midiInScroller);
+
+		JPopupMenu udpMidiInPopup = new JPopupMenu();
+
+		JMenuItem udpMidiInAdd = new JMenuItem("Add");
+		udpMidiInAdd.addActionListener(e -> {
+			router.addNetworkMidiInPort("unnamed network port");
+			updateMidiInputs();
+		});
+
+		JMenuItem udpMidiInRemove = new JMenuItem("Remove");
+		udpMidiInRemove.addActionListener(e -> {
+			int row = midiInTable.getSelectedRow();
+			if(row == -1) {
+				return;
+			} else {
+				MidiInPort port = inputs[row];
+				if(port instanceof NetworkMidiIn) {
+					NetworkMidiIn netport = (NetworkMidiIn) port;
+					netport.delete();
+					updateMidiInputs();
+				}
+			}
+		});
+
+		udpMidiInPopup.add(udpMidiInAdd);
+		udpMidiInPopup.add(udpMidiInRemove);
+		midiInTable.setComponentPopupMenu(udpMidiInPopup);
+		midiInScroller.setComponentPopupMenu(udpMidiInPopup);
+		udpMidiInPopup.addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+				SwingUtilities.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						int row = midiInTable.rowAtPoint(SwingUtilities.convertPoint(
+								udpMidiInPopup, new Point(0, 0), midiInTable));
+						if(row != -1) {
+							midiInTable.setRowSelectionInterval(row, row);
+						}
+
+						row = midiInTable.getSelectedRow();
+						if(row != -1) {
+							boolean en = midiInModel
+									.getPort(row) instanceof NetworkMidiIn;
+							udpMidiInRemove.setEnabled(en);
+						} else {
+							udpMidiInRemove.setEnabled(false);
+						}
+					}
+				});
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+				// unused
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent e) {
+				// unused
+			}
+		});
 
 		JPanel midiOut = new JPanel(new BorderLayout());
 		midiOut.setBorder(BorderFactory.createTitledBorder("MIDI Outputs"));
@@ -529,6 +594,12 @@ public class SettingsDialog extends JDialog {
 		eslMidiInModel.update();
 	}
 
+	private void updateMidiInputs() {
+		MidiRouter midi = sys.getMidiRouter();
+		inputs = midi.getInputs();
+		midiInModel.update();
+	}
+
 	private void updateMidiOutputs() {
 		MidiRouter midi = sys.getMidiRouter();
 		outputs = midi.getOutputs();
@@ -571,7 +642,11 @@ public class SettingsDialog extends JDialog {
 
 		@Override
 		public boolean isCellEditable(int row, int col) {
-			return col > 2;
+			if(inputs[row] instanceof NetworkMidiIn) {
+				return col == 0 || col > 2;
+			} else {
+				return col > 2;
+			}
 		}
 
 		@Override
@@ -608,7 +683,23 @@ public class SettingsDialog extends JDialog {
 
 		@Override
 		public void setValueAt(Object value, int row, int col) {
-			if(col == 3) {
+			if(col == 0) {
+				MidiInPort input = inputs[row];
+				if(input instanceof NetworkMidiIn) {
+					NetworkMidiIn netin = (NetworkMidiIn) input;
+					String target = (String) value;
+					int port;
+					try {
+						port = Integer.parseInt(target);
+						if(port <= 0 || port > 65535) {
+							return;
+						}
+					} catch(NumberFormatException e) {
+						return;
+					}
+					netin.setPort(port);
+				}
+			} else if(col == 3) {
 				String alias = (String) value;
 				if(alias != null) {
 					alias = alias.trim();
@@ -622,6 +713,10 @@ public class SettingsDialog extends JDialog {
 			} else if(col == 5) {
 				inputs[row].setAll((boolean) value);
 			}
+		}
+
+		public MidiInPort getPort(int row) {
+			return inputs[row];
 		}
 
 		public void update() {
@@ -658,7 +753,7 @@ public class SettingsDialog extends JDialog {
 		@Override
 		public boolean isCellEditable(int row, int col) {
 			if(outputs[row] instanceof NetworkMidiOut) {
-				return col != 1;
+				return col == 0 || col > 2;
 			} else {
 				return col > 2;
 			}
