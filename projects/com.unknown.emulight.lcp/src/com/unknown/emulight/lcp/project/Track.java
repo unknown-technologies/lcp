@@ -35,25 +35,44 @@ public abstract class Track<T extends AbstractPart> {
 	public static final int LASER = 16;
 	public static final int DMX = 17;
 
+	public static final String NAME_AUDIO = "audio";
+	public static final String NAME_INSTRUMENT = "instrument";
+	public static final String NAME_MIDI = "midi";
+	public static final String NAME_SAMPLER = "sampler";
+	public static final String NAME_ARRANGER = "arranger";
+	public static final String NAME_CHORD = "chord";
+	public static final String NAME_FX = "fx";
+	public static final String NAME_FOLDER = "folder";
+	public static final String NAME_GROUP = "group";
+	public static final String NAME_MARKER = "marker";
+	public static final String NAME_RULER = "ruler";
+	public static final String NAME_SIGNATURE = "signature";
+	public static final String NAME_TEMPO = "tempo";
+	public static final String NAME_TRANSPOSE = "transpose";
+	public static final String NAME_VCA = "vca";
+	public static final String NAME_VIDEO = "video";
+	public static final String NAME_LASER = "laser";
+	public static final String NAME_DMX = "dmx";
+
 	public static final String[] TRACK_TYPES = {
-			/* 000 */ "audio",
-			/* 001 */ "instrument",
-			/* 002 */ "midi",
-			/* 003 */ "sampler",
-			/* 004 */ "arranger",
-			/* 005 */ "chord",
-			/* 006 */ "fx",
-			/* 007 */ "folder",
-			/* 008 */ "group",
-			/* 009 */ "marker",
-			/* 010 */ "ruler",
-			/* 011 */ "signature",
-			/* 012 */ "tempo",
-			/* 013 */ "transpose",
-			/* 014 */ "vca",
-			/* 015 */ "video",
-			/* 016 */ "laser",
-			/* 017 */ "dmx"
+			/* 000 */ NAME_AUDIO,
+			/* 001 */ NAME_INSTRUMENT,
+			/* 002 */ NAME_MIDI,
+			/* 003 */ NAME_SAMPLER,
+			/* 004 */ NAME_ARRANGER,
+			/* 005 */ NAME_CHORD,
+			/* 006 */ NAME_FX,
+			/* 007 */ NAME_FOLDER,
+			/* 008 */ NAME_GROUP,
+			/* 009 */ NAME_MARKER,
+			/* 010 */ NAME_RULER,
+			/* 011 */ NAME_SIGNATURE,
+			/* 012 */ NAME_TEMPO,
+			/* 013 */ NAME_TRANSPOSE,
+			/* 014 */ NAME_VCA,
+			/* 015 */ NAME_VIDEO,
+			/* 016 */ NAME_LASER,
+			/* 017 */ NAME_DMX
 	};
 
 	private static final Logger log = Trace.create(Track.class);

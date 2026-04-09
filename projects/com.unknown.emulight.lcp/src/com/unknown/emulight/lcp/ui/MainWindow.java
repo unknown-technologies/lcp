@@ -25,6 +25,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -49,6 +50,7 @@ import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.ui.help.HelpBrowser;
 import com.unknown.emulight.lcp.ui.laser.LaserDiscovery;
+import com.unknown.emulight.lcp.ui.live.LiveEditor;
 import com.unknown.emulight.lcp.ui.project.ProjectEditor;
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
 import com.unknown.net.shownet.Laser;
@@ -128,8 +130,21 @@ public class MainWindow extends JFrame {
 		}
 
 		ProjectEditor editor = new ProjectEditor(project);
+		LiveEditor live = new LiveEditor(project);
 
-		add(BorderLayout.CENTER, editor);
+		JTabbedPane tabs = new JTabbedPane();
+		tabs.addTab("Timeline", editor);
+		tabs.addTab("Live", live);
+		add(BorderLayout.CENTER, tabs);
+
+		tabs.addChangeListener(e -> {
+			int tab = tabs.getSelectedIndex();
+			if(tab == 1) {
+				project.setLiveLaserRenderer();
+			} else {
+				project.clearLaserRenderer();
+			}
+		});
 
 		status = new JLabel("READY");
 		discoveryStatus = new JLabel();

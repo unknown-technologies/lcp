@@ -23,7 +23,7 @@ public class LaserReference {
 
 	public LaserReference(EmulightSystem sys, String name) {
 		this.sys = sys;
-		this.cfg = null;
+		this.cfg = sys.getConfig().getLaser(name); // immediately try to resolve the name
 		this.name = name;
 	}
 
@@ -51,7 +51,11 @@ public class LaserReference {
 			return laser;
 		} else {
 			LaserProcessor processor = sys.getLaserProcessor();
-			InetAddress addr = processor.getLaserAddress(cfg.getId());
+			InterfaceId id = getInterfaceId();
+			if(id == null) {
+				return null;
+			}
+			InetAddress addr = processor.getLaserAddress(id);
 			if(addr != null) {
 				laser = processor.getLaser(addr);
 				assert laser == null || laser.getInterfaceId() == null ||
@@ -61,5 +65,20 @@ public class LaserReference {
 				return null;
 			}
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		return getName().hashCode();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if(o == null || !(o instanceof LaserReference)) {
+			return false;
+		}
+
+		LaserReference l = (LaserReference) o;
+		return l.getName().equals(getName());
 	}
 }

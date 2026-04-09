@@ -30,6 +30,7 @@ import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.LaserProcessor;
 import com.unknown.emulight.lcp.laser.LaserRenderer;
 import com.unknown.emulight.lcp.laser.LaserTrack;
+import com.unknown.emulight.lcp.live.CuePool;
 import com.unknown.emulight.lcp.project.PartPool.PartInfo;
 import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
@@ -77,6 +78,8 @@ public class Project {
 	private final Map<KeyStroke, Object> keyboardShortcuts = new HashMap<>();
 	private final Map<Object, Action> keyboardActions = new HashMap<>();
 
+	private final CuePool cues;
+
 	public Project(EmulightSystem system) {
 		this.system = system;
 
@@ -121,6 +124,8 @@ public class Project {
 		addTrack(signatureTrack = new SignatureTrack(this, "Signature"));
 
 		sequencer.setTempoTrack(tempoTrack);
+
+		cues = new CuePool(this);
 
 		clearLaserRenderer();
 	}
@@ -259,6 +264,10 @@ public class Project {
 		return sequencer;
 	}
 
+	public CuePool getCuePool() {
+		return cues;
+	}
+
 	public void play() {
 		sequencer.stop();
 
@@ -348,6 +357,12 @@ public class Project {
 
 	public void clearLaserRenderer() {
 		system.getLaserProcessor().setRenderer(this::renderLaser);
+	}
+
+	public void setLiveLaserRenderer() {
+		LaserProcessor processor = system.getLaserProcessor();
+		processor.setRenderer(null);
+		processor.resetAll();
 	}
 
 	private void renderLaser() {
@@ -470,6 +485,7 @@ public class Project {
 		}
 
 		tracks.clear();
+		cues.clear();
 
 		setName(xml.getAttribute("name"));
 		setPPQ(Integer.parseInt(xml.getAttribute("ppq")));
@@ -515,16 +531,16 @@ public class Project {
 				for(Element e : child.getChildren()) {
 					AbstractPart part;
 					switch(e.getAttribute("type")) {
-					case "tempo":
+					case Track.NAME_TEMPO:
 						part = new TempoPart();
 						break;
-					case "audio":
+					case Track.NAME_AUDIO:
 						part = new AudioPart();
 						break;
-					case "midi":
+					case Track.NAME_MIDI:
 						part = new MidiPart();
 						break;
-					case "laser":
+					case Track.NAME_LASER:
 						part = new LaserPart(this);
 						break;
 					default:
@@ -546,23 +562,27 @@ public class Project {
 				}
 				break;
 			}
+			case "cues": {
+				cues.read(child, parts);
+				break;
+			}
 			case "track": {
 				Track<?> track;
 
 				switch(child.getAttribute("type")) {
-				case "tempo":
+				case Track.NAME_TEMPO:
 					track = tempoTrack;
 					break;
-				case "signature":
+				case Track.NAME_SIGNATURE:
 					track = signatureTrack;
 					break;
-				case "audio":
+				case Track.NAME_AUDIO:
 					track = new AudioTrack(this, child.getAttribute("name"));
 					break;
-				case "midi":
+				case Track.NAME_MIDI:
 					track = new MidiTrack(this, child.getAttribute("name"));
 					break;
-				case "laser":
+				case Track.NAME_LASER:
 					track = new LaserTrack(this, child.getAttribute("name"),
 							child.getAttribute("laser"));
 					break;
@@ -607,6 +627,7 @@ public class Project {
 		xml.addChild(xmlpalette);
 
 		PartPool pool = new PartPool();
+		cues.addPartsToPool(pool);
 		for(Track<?> track : tracks) {
 			track.addPartsToPool(pool);
 		}
@@ -627,6 +648,8 @@ public class Project {
 			poolxml.addChild(partxml);
 		}
 		xml.addChild(poolxml);
+
+		xml.addChild(cues.write(pool));
 
 		for(Track<?> track : tracks) {
 			xml.addChild(track.write(pool));

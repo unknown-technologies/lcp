@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 
 import com.unknown.emulight.lcp.project.SystemConfiguration;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
+import com.unknown.math.g3d.Mtx44;
 import com.unknown.net.shownet.InterfaceId;
 import com.unknown.net.shownet.Laser;
 import com.unknown.net.shownet.LaserConnectionListener;
@@ -30,7 +31,6 @@ public class LaserProcessor {
 
 	private final Timer timer;
 	private final int rate;
-	private long startTime;
 
 	private final ConcurrentMap<InterfaceId, ClipRef> currentClip = new ConcurrentHashMap<>();
 
@@ -47,8 +47,6 @@ public class LaserProcessor {
 		this.rate = rate;
 
 		net = new ShowNET(true);
-
-		startTime = System.currentTimeMillis();
 
 		timer = new Timer(true);
 		TimerTask task = new TimerTask() {
@@ -216,17 +214,19 @@ public class LaserProcessor {
 		net.removeLaserConnectionListener(listener);
 	}
 
-	public long getStartTime() {
-		return startTime;
+	public void setCurrentClip(Laser laser, LaserPart clip, double bpm, int ppq, int length, boolean mirrorX,
+			boolean mirrorY) {
+		long now = System.nanoTime();
+		currentClip.put(laser.getInterfaceId(), new ClipRef(now, clip, bpm, ppq, length, mirrorX, mirrorY));
 	}
 
-	public void setStartTime() {
-		startTime = System.currentTimeMillis();
-	}
-
-	public void setCurrentClip(Laser laser, LaserPart clip) {
-		long now = System.currentTimeMillis();
-		currentClip.put(laser.getInterfaceId(), new ClipRef(now, clip));
+	public LaserPart getCurrentClip(Laser laser) {
+		ClipRef ref = currentClip.get(laser.getInterfaceId());
+		if(ref != null) {
+			return ref.clip;
+		} else {
+			return null;
+		}
 	}
 
 	public void clearCurrentClip(Laser laser) {
@@ -238,7 +238,8 @@ public class LaserProcessor {
 	}
 
 	private void process() {
-		long now = System.currentTimeMillis();
+		long now = System.nanoTime();
+		Mtx44 identity = new Mtx44();
 		for(Laser laser : getLasers()) {
 			if(!laser.isConnected()) {
 				continue;
@@ -246,18 +247,18 @@ public class LaserProcessor {
 			try {
 				ClipRef ref = currentClip.get(laser.getInterfaceId());
 				if(ref != null) {
+					Mtx44 posmtx = Mtx44.scale(ref.mirrorX ? -1.0 : 1.0, ref.mirrorY ? -1.0 : 1.0,
+							1.0);
 					LaserPart clip = ref.clip;
-					int t = (int) (now - ref.startTime);
-					if(t > clip.getLength()) {
-						if(clip.isLoop()) {
-							t %= clip.getLength();
-							laser.sendFrame(clip.render(t), clip.getSpeed());
-						} else {
-							currentClip.remove(laser.getInterfaceId());
-							laser.sendNop();
-						}
+					int t = ref.getTick(now);
+					if(clip.isLoop()) {
+						t %= clip.getLength();
+						laser.sendFrame(clip.render(t, posmtx, identity), clip.getSpeed());
+					} else if(ref.length != 0 && t >= ref.length) {
+						currentClip.remove(laser.getInterfaceId());
+						laser.sendFrame(List.of(new Point()), 1000);
 					} else {
-						laser.sendFrame(clip.render(t), clip.getSpeed());
+						laser.sendFrame(clip.render(t, posmtx, identity), clip.getSpeed());
 					}
 				} else {
 					laser.sendNop();
@@ -292,10 +293,26 @@ public class LaserProcessor {
 	private static class ClipRef {
 		public final long startTime;
 		public final LaserPart clip;
+		public final int length;
+		public final boolean mirrorX;
+		public final boolean mirrorY;
+		private final int ppq;
+		private final int microTempo;
 
-		public ClipRef(long startTime, LaserPart clip) {
+		public ClipRef(long startTime, LaserPart clip, double bpm, int ppq, int length, boolean mirrorX,
+				boolean mirrorY) {
 			this.startTime = startTime;
 			this.clip = clip;
+			this.ppq = ppq;
+			this.microTempo = (int) Math.round(60_000_000 / bpm);
+			this.length = length;
+			this.mirrorX = mirrorX;
+			this.mirrorY = mirrorY;
+		}
+
+		public int getTick(long time) {
+			long dtime = time - startTime;
+			return (int) (dtime * ppq / microTempo / 1000);
 		}
 	}
 }
