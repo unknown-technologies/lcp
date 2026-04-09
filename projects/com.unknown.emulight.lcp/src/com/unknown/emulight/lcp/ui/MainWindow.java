@@ -174,10 +174,13 @@ public class MainWindow extends JFrame {
 		fileMenuOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, MENU_MODIFIER));
 		fileMenuOpen.setMnemonic('O');
 		fileMenuOpen.addActionListener(e -> {
+			loadDialog.setLocationRelativeTo(this);
+			loadDialog.setAutoRequestFocus(true);
 			loadDialog.setVisible(true);
 			if(loadDialog.getFile() == null) {
 				return;
 			}
+			requestFocus();
 			String filename = loadDialog.getDirectory() + loadDialog.getFile();
 			try {
 				load(new File(filename));
@@ -192,7 +195,10 @@ public class MainWindow extends JFrame {
 		fileMenuSave.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, MENU_MODIFIER));
 		fileMenuSave.setMnemonic('S');
 		fileMenuSave.addActionListener(e -> {
+			saveDialog.setLocationRelativeTo(this);
+			saveDialog.setAutoRequestFocus(true);
 			saveDialog.setVisible(true);
+			requestFocus();
 			if(saveDialog.getFile() == null) {
 				return;
 			}
@@ -397,6 +403,7 @@ public class MainWindow extends JFrame {
 		});
 
 		ProjectListener listener = new ProjectListener() {
+			@Override
 			public void propertyChanged(String key) {
 				switch(key) {
 				case ProjectListener.NAME:
@@ -404,11 +411,18 @@ public class MainWindow extends JFrame {
 				}
 			}
 
+			@Override
 			public void trackAdded(Track<?> track) {
 				// nothing
 			}
 
+			@Override
 			public void trackRemoved(Track<?> track) {
+				// nothing
+			}
+
+			@Override
+			public void projectLoaded() {
 				// nothing
 			}
 		};

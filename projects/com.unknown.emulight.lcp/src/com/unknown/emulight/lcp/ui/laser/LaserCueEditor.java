@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -66,6 +67,12 @@ public class LaserCueEditor extends CueEditor implements ConfigChangeListener {
 		});
 		length.setToolTipText("Length of the cue in ticks. Zero means infinitely long.");
 
+		JCheckBox toggleTrigger = new JCheckBox();
+		toggleTrigger.setSelected(cue.isToggleTrigger());
+		toggleTrigger.addChangeListener(e -> cue.setToggleTrigger(toggleTrigger.isSelected()));
+		toggleTrigger.setToolTipText("When enabled, the MIDI trigger key toggles playback. When disabled, " +
+				"the MIDI trigger key always starts playback.");
+
 		ports = new LaserConfig[0];
 
 		JPanel controls = new JPanel(new LabeledPairLayout());
@@ -76,15 +83,14 @@ public class LaserCueEditor extends CueEditor implements ConfigChangeListener {
 		controls.add(LabeledPairLayout.COMPONENT, createColorBox());
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Length:"));
 		controls.add(LabeledPairLayout.COMPONENT, length);
+		controls.add(LabeledPairLayout.LABEL, new JLabel("Toggle Trigger:"));
+		controls.add(LabeledPairLayout.COMPONENT, toggleTrigger);
 
 		JTable laserTable = new MixedTable(model = new LaserModel());
 
 		JPanel buttons = new JPanel(new FlowLayout());
 		JButton close = new JButton("Close");
-		close.addActionListener(e -> {
-			dispose();
-			destroy();
-		});
+		close.addActionListener(e -> close());
 		buttons.add(close);
 
 		setLayout(new BorderLayout());
@@ -112,7 +118,7 @@ public class LaserCueEditor extends CueEditor implements ConfigChangeListener {
 	}
 
 	@Override
-	public void destroy() {
+	protected void destroy() {
 		// remove listeners
 		sys.getConfig().removeConfigChangeListener(this);
 	}

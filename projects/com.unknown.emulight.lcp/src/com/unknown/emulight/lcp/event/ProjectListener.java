@@ -11,4 +11,6 @@ public interface ProjectListener {
 	void trackAdded(Track<?> track);
 
 	void trackRemoved(Track<?> track);
+
+	void projectLoaded();
 }

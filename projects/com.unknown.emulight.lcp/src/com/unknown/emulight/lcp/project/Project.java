@@ -26,6 +26,7 @@ import com.unknown.emulight.lcp.audio.AudioData;
 import com.unknown.emulight.lcp.audio.AudioPart;
 import com.unknown.emulight.lcp.audio.AudioTrack;
 import com.unknown.emulight.lcp.event.ProjectListener;
+import com.unknown.emulight.lcp.io.midi.MidiReceiver;
 import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.laser.LaserProcessor;
 import com.unknown.emulight.lcp.laser.LaserRenderer;
@@ -63,6 +64,7 @@ public class Project {
 	private final List<ProjectListener> listeners = new ArrayList<>();
 
 	private final List<MidiTrack> allBusTracks = new ArrayList<>();
+	private final List<MidiReceiver> allBusReceivers = new ArrayList<>();
 
 	private final TempoTrack tempoTrack;
 	private final SignatureTrack signatureTrack;
@@ -253,11 +255,27 @@ public class Project {
 	}
 
 	public void addAllBusTrack(MidiTrack track) {
-		allBusTracks.add(track);
+		synchronized(allBusTracks) {
+			allBusTracks.add(track);
+		}
 	}
 
 	public void removeAllBusTrack(MidiTrack track) {
-		allBusTracks.remove(track);
+		synchronized(allBusTracks) {
+			allBusTracks.remove(track);
+		}
+	}
+
+	public void addAllBusReceiver(MidiReceiver receiver) {
+		synchronized(allBusReceivers) {
+			allBusReceivers.add(receiver);
+		}
+	}
+
+	public void removeAllBusReceiver(MidiReceiver receiver) {
+		synchronized(allBusReceivers) {
+			allBusReceivers.remove(receiver);
+		}
 	}
 
 	public Sequencer getSequencer() {
@@ -425,8 +443,15 @@ public class Project {
 	}
 
 	public void inputAllBus(int status, int data1, int data2) {
-		for(MidiTrack track : allBusTracks) {
-			track.inputAllBus(status, data1, data2);
+		synchronized(allBusTracks) {
+			for(MidiTrack track : allBusTracks) {
+				track.inputAllBus(status, data1, data2);
+			}
+		}
+		synchronized(allBusReceivers) {
+			for(MidiReceiver receiver : allBusReceivers) {
+				receiver.receive(status, data1, data2);
+			}
 		}
 	}
 
@@ -462,6 +487,16 @@ public class Project {
 		for(ProjectListener listener : listeners) {
 			try {
 				listener.trackRemoved(track);
+			} catch(Throwable t) {
+				log.log(Levels.ERROR, "Failed to execute project listener", t);
+			}
+		}
+	}
+
+	protected void fireProjectLoaded() {
+		for(ProjectListener listener : listeners) {
+			try {
+				listener.projectLoaded();
 			} catch(Throwable t) {
 				log.log(Levels.ERROR, "Failed to execute project listener", t);
 			}
@@ -598,6 +633,8 @@ public class Project {
 		}
 
 		getTempoTrack().recompute();
+
+		fireProjectLoaded();
 	}
 
 	public Element write() {

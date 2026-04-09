@@ -157,6 +157,11 @@ public class ProjectView extends JComponent {
 			}
 			repaint();
 		}
+
+		@Override
+		public void projectLoaded() {
+			// nothing
+		}
 	};
 
 	private final List<PartSelectionListener> selectionListeners = new ArrayList<>();

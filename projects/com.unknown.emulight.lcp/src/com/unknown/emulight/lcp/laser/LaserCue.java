@@ -38,6 +38,20 @@ public class LaserCue extends Cue<LaserPart> {
 	}
 
 	@Override
+	public boolean isPlaying() {
+		LaserProcessor processor = project.getSystem().getLaserProcessor();
+		for(LaserRef ref : lasers) {
+			Laser laser = ref.get();
+			if(laser != null) {
+				if(processor.getCurrentClip(laser) == part) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	@Override
 	public void play(double bpm) {
 		LaserProcessor processor = project.getSystem().getLaserProcessor();
 		for(LaserRef ref : lasers) {

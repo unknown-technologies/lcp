@@ -41,18 +41,21 @@ public abstract class CueEditor extends JDialog {
 		root.getActionMap().put(quit, new AbstractAction() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				dispose();
-				destroy();
+				close();
 			}
 		});
 
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent e) {
-				dispose();
-				destroy();
+				close();
 			}
 		});
+	}
+
+	protected void close() {
+		dispose();
+		destroy();
 	}
 
 	protected JComponent createColorBox() {
@@ -95,7 +98,7 @@ public abstract class CueEditor extends JDialog {
 		}
 	}
 
-	public void destroy() {
+	protected void destroy() {
 		// empty
 	}
 }

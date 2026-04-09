@@ -1,7 +1,9 @@
 package com.unknown.emulight.lcp.io.midi;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -35,6 +37,7 @@ public class MidiRouter {
 	private List<NetworkMidiOut> networkOutPorts = new ArrayList<>();
 
 	private List<MidiReceiver> allBusReceivers = new ArrayList<>();
+	private Map<MidiInPort, List<MidiReceiver>> receivers = new HashMap<>();
 
 	public MidiRouter(ESL esl, SystemConfiguration conf) {
 		this.esl = esl;
@@ -202,6 +205,16 @@ public class MidiRouter {
 		return eslOutPorts.toArray(new ESLMidiOut[eslOutPorts.size()]);
 	}
 
+	// TODO: implement ESL inputs
+	public MidiInPort[] getInputPorts() {
+		MidiInPort[] ins = new MidiInPort[inputs.length + networkInPorts.size()];
+		System.arraycopy(inputs, 0, ins, 0, inputs.length);
+		for(int i = 0; i < networkInPorts.size(); i++) {
+			ins[inputs.length + i] = networkInPorts.get(i);
+		}
+		return ins;
+	}
+
 	public MidiOutPort[] getOutputPorts() {
 		MidiOutPort[] outs = new MidiOutPort[outputs.length + networkOutPorts.size() + eslOutPorts.size()];
 		System.arraycopy(outputs, 0, outs, 0, outputs.length);
@@ -237,11 +250,42 @@ public class MidiRouter {
 	}
 
 	public void addAllBusReceiver(MidiReceiver receiver) {
-		allBusReceivers.add(receiver);
+		synchronized(allBusReceivers) {
+			allBusReceivers.add(receiver);
+		}
 	}
 
 	public void removeAllBusReceiver(MidiReceiver receiver) {
-		allBusReceivers.remove(receiver);
+		synchronized(allBusReceivers) {
+			allBusReceivers.remove(receiver);
+		}
+	}
+
+	public void addReceiver(MidiInPort port, MidiReceiver receiver) {
+		synchronized(receivers) {
+			List<MidiReceiver> portReceivers = receivers.get(port);
+			if(portReceivers == null) {
+				portReceivers = new ArrayList<>();
+				receivers.put(port, portReceivers);
+			}
+			synchronized(portReceivers) {
+				portReceivers.add(receiver);
+			}
+		}
+	}
+
+	public void removeReceiver(MidiPort port, MidiReceiver receiver) {
+		synchronized(receivers) {
+			List<MidiReceiver> portReceivers = receivers.get(port);
+			if(portReceivers != null) {
+				synchronized(portReceivers) {
+					portReceivers.remove(receiver);
+					if(portReceivers.isEmpty()) {
+						receivers.remove(port);
+					}
+				}
+			}
+		}
 	}
 
 	public void send(int input, ShortMessage msg) {
@@ -261,8 +305,23 @@ public class MidiRouter {
 				.collect(Collectors.joining(" ")));
 
 		if(input.isAll()) {
-			for(MidiReceiver receiver : allBusReceivers) {
-				receiver.receive(msg.getStatus(), msg.getData1(), msg.getData2());
+			synchronized(allBusReceivers) {
+				for(MidiReceiver receiver : allBusReceivers) {
+					receiver.receive(msg.getStatus(), msg.getData1(), msg.getData2());
+				}
+			}
+		}
+
+		// TODO: if a receiver is in the allBusReceivers, it should NOT receive the same message twice
+		List<MidiReceiver> portReceivers;
+		synchronized(receivers) {
+			portReceivers = receivers.get(input);
+		}
+		if(portReceivers != null) {
+			synchronized(portReceivers) {
+				for(MidiReceiver receiver : portReceivers) {
+					receiver.receive(msg.getStatus(), msg.getData1(), msg.getData2());
+				}
 			}
 		}
 	}

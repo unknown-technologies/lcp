@@ -229,10 +229,12 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 	private class PortModel extends AbstractListModel<String> implements ComboBoxModel<String> {
 		private Object item;
 
+		@Override
 		public int getSize() {
 			return ports.length;
 		}
 
+		@Override
 		public String getElementAt(int index) {
 			if(ports[index] == null) {
 				return "<none>";
@@ -241,10 +243,12 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 			}
 		}
 
+		@Override
 		public void setSelectedItem(Object item) {
 			this.item = item;
 		}
 
+		@Override
 		public Object getSelectedItem() {
 			return item;
 		}

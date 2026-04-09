@@ -12,10 +12,12 @@ import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
+import com.unknown.audio.analysis.MIDINames;
 import com.unknown.emulight.lcp.laser.LaserCue;
 import com.unknown.emulight.lcp.laser.LaserCue.LaserRef;
 import com.unknown.emulight.lcp.live.Cue;
 import com.unknown.emulight.lcp.live.CuePool;
+import com.unknown.emulight.lcp.live.TriggerKey;
 import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.emulight.lcp.ui.resources.icons.project.tracktype.TrackIcons;
 import com.unknown.util.ui.ADM3AFont;
@@ -29,8 +31,6 @@ public class CueList extends JComponent {
 
 	private final CuePool pool;
 
-	private double bpm = 120.0;
-
 	public CueList(CuePool pool) {
 		this.pool = pool;
 
@@ -43,11 +43,11 @@ public class CueList extends JComponent {
 	}
 
 	public void setBPM(double bpm) {
-		this.bpm = bpm;
+		pool.setBPM(bpm);
 	}
 
 	public double getBPM() {
-		return bpm;
+		return pool.getBPM();
 	}
 
 	@Override
@@ -98,6 +98,19 @@ public class CueList extends JComponent {
 				}
 			} catch(IOException e) {
 				// swallow
+			}
+
+			TriggerKey key = pool.getTriggerKey(cue);
+			if(key == null) {
+				String msg = "<no key>";
+				int x = px + TILE_SIZE - TILE_PADDING - msg.length() * ADM3AFont.WIDTH;
+				int y = py + TILE_PADDING + ADM3AFont.HEIGHT;
+				ADM3AFont.render(g, x, y, textColor, TRANSPARENT, msg);
+			} else {
+				String msg = MIDINames.getNoteName(key.getKey());
+				int x = px + TILE_SIZE - TILE_PADDING - msg.length() * ADM3AFont.WIDTH;
+				int y = py + TILE_PADDING + ADM3AFont.HEIGHT;
+				ADM3AFont.render(g, x, y, textColor, TRANSPARENT, msg);
 			}
 
 			int x = px + TILE_PADDING;
@@ -197,11 +210,11 @@ public class CueList extends JComponent {
 			}
 
 			if(e.getButton() == MouseEvent.BUTTON1) {
-				cue.play(bpm);
+				cue.play(getBPM());
 			} else if(e.getButton() == MouseEvent.BUTTON3) {
 				JMenuItem playCue = new JMenuItem("Play");
 				playCue.setMnemonic('P');
-				playCue.addActionListener(ev -> cue.play(bpm));
+				playCue.addActionListener(ev -> cue.play(getBPM()));
 
 				JMenuItem stopCue = new JMenuItem("Stop");
 				stopCue.setMnemonic('S');
@@ -230,6 +243,15 @@ public class CueList extends JComponent {
 					}
 				});
 
+				JMenuItem setTriggerKey = new JMenuItem("Set trigger key...");
+				setTriggerKey.setMnemonic('t');
+				setTriggerKey.addActionListener(ev -> {
+					CueTriggerLearnDialog dlg = new CueTriggerLearnDialog(pool, cue);
+					dlg.setLocationRelativeTo(CueList.this);
+					dlg.setVisible(true);
+					repaint();
+				});
+
 				JMenuItem removeCue = new JMenuItem("Remove");
 				removeCue.setMnemonic('R');
 				removeCue.addActionListener(ev -> {
@@ -243,6 +265,7 @@ public class CueList extends JComponent {
 				menu.addSeparator();
 				menu.add(setColor);
 				menu.add(cueProperties);
+				menu.add(setTriggerKey);
 				menu.addSeparator();
 				menu.add(removeCue);
 

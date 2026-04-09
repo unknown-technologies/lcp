@@ -42,6 +42,8 @@ public class LaserProcessor {
 
 	private long frameNumber = 0;
 
+	private boolean stroboState = false;
+
 	public LaserProcessor(SystemConfiguration config, int rate) throws IOException {
 		this.config = config;
 		this.rate = rate;
@@ -237,6 +239,18 @@ public class LaserProcessor {
 		return currentClip.containsKey(laser.getInterfaceId());
 	}
 
+	public void clearAllCurrentClips() {
+		currentClip.clear();
+	}
+
+	public void setStroboState(boolean on) {
+		stroboState = on;
+	}
+
+	public boolean getStroboState() {
+		return stroboState;
+	}
+
 	private void process() {
 		long now = System.nanoTime();
 		Mtx44 identity = new Mtx44();
@@ -261,7 +275,7 @@ public class LaserProcessor {
 						laser.sendFrame(clip.render(t, posmtx, identity), clip.getSpeed());
 					}
 				} else {
-					laser.sendNop();
+					laser.sendFrame(List.of(new Point()), 1000);
 				}
 			} catch(IOException e) {
 				log.log(Levels.ERROR, "Failed to communicate with laser " + laser.getAddress() + ": " +

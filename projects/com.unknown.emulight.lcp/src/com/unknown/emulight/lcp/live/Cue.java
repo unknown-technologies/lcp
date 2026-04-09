@@ -20,6 +20,7 @@ public abstract class Cue<T extends AbstractPart> {
 
 	private String name;
 	private int color;
+	private boolean toggleTrigger;
 
 	protected Cue(int type, Project project, T part) {
 		this.type = type;
@@ -84,6 +85,16 @@ public abstract class Cue<T extends AbstractPart> {
 		this.length = length;
 	}
 
+	public boolean isToggleTrigger() {
+		return toggleTrigger;
+	}
+
+	public void setToggleTrigger(boolean toggle) {
+		toggleTrigger = toggle;
+	}
+
+	public abstract boolean isPlaying();
+
 	public abstract void play(double bpm);
 
 	public abstract void stop();
@@ -93,9 +104,10 @@ public abstract class Cue<T extends AbstractPart> {
 			throw new IOException("not a cue");
 		}
 
-		length = Integer.parseInt(xml.getAttribute("length"));
-		color = Integer.parseInt(xml.getAttribute("color"));
+		length = Integer.parseInt(xml.getAttribute("length", "0"));
+		color = Integer.parseInt(xml.getAttribute("color", "0"));
 		name = xml.getAttribute("name");
+		toggleTrigger = Boolean.parseBoolean(xml.getAttribute("toggle-trigger", "false"));
 	}
 
 	public Element write(PartPool pool) {
@@ -105,6 +117,7 @@ public abstract class Cue<T extends AbstractPart> {
 		xml.addAttribute("part", Integer.toString(id));
 		xml.addAttribute("length", Integer.toString(length));
 		xml.addAttribute("color", Integer.toString(color));
+		xml.addAttribute("toggle-trigger", Boolean.toString(toggleTrigger));
 		if(name != null) {
 			xml.addAttribute("name", name);
 		}
