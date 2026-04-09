@@ -50,7 +50,11 @@ public class LaserCueEditor extends CueEditor implements ConfigChangeListener {
 		name.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyReleased(KeyEvent e) {
-				cue.setName(name.getText().trim());
+				String text = name.getText().trim();
+				if(text.length() == 0) {
+					text = null;
+				}
+				cue.setName(text);
 			}
 		});
 
