@@ -1,7 +1,8 @@
 package com.unknown.emulight.lcp.ui.laser;
 
 import java.awt.BorderLayout;
-import java.util.function.Consumer;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
@@ -10,6 +11,7 @@ import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
 import com.unknown.emulight.lcp.laser.LaserPart;
@@ -29,19 +31,17 @@ public class ClipEditor extends JPanel {
 
 	private ClipPropertyAutomationEditor automationEditor;
 
+	private JTextField name;
 	private JSpinner frameSpeed;
 	private JSpinner clipDuration;
 	private JCheckBox loop;
 
 	private long globalTime;
 
-	private final Consumer<Integer> positionCallback;
-
-	public ClipEditor(JFrame parent, PartContainer<LaserPart> container, Consumer<Integer> positionCallback) {
+	public ClipEditor(JFrame parent, PartContainer<LaserPart> container) {
 		super(new BorderLayout());
 
 		this.project = container.getTrack().getProject();
-		this.positionCallback = positionCallback;
 
 		automationEditor = new ClipPropertyAutomationEditor(parent, project, this::update);
 		automationEditor.setStartTime(container.getTime());
@@ -68,12 +68,24 @@ public class ClipEditor extends JPanel {
 		boolean isLoop = clip.getPart().isLoop();
 		int length = (int) (isLoop ? clip.getPart().getLength() : clip.getLength());
 		frameSpeed = new JSpinner(new SpinnerNumberModel(clip.getPart().getSpeed(), 440, 2000000, 1));
+		frameSpeed.setToolTipText("Scan speed in kpps. BE CAREFUL! Too high speeds with unsuitable graphic " +
+				"patterns can destroy your scanner!");
 		clipDuration = new JSpinner(
 				new SpinnerNumberModel(length, 1, Integer.MAX_VALUE, 1));
 		loop = new JCheckBox();
 		loop.setSelected(isLoop);
 
+		name = new JTextField(container.getPart().getName());
+		name.addKeyListener(new KeyAdapter() {
+			@Override
+			public void keyReleased(KeyEvent e) {
+				container.getPart().setName(name.getText().trim());
+			}
+		});
+
 		JPanel settings = new JPanel(new LabeledPairLayout());
+		settings.add(LabeledPairLayout.LABEL, new JLabel("Name:"));
+		settings.add(LabeledPairLayout.COMPONENT, name);
 		settings.add(LabeledPairLayout.LABEL, new JLabel("Speed:"));
 		settings.add(LabeledPairLayout.COMPONENT, frameSpeed);
 		settings.add(LabeledPairLayout.LABEL, new JLabel("Clip duration:"));
@@ -128,7 +140,6 @@ public class ClipEditor extends JPanel {
 	public void setTime(int time) {
 		nodeEditor.setTime(time);
 		propertyEditor.setTime(time);
-		positionCallback.accept(time);
 		automationEditor.updateView();
 	}
 
