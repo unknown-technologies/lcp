@@ -62,8 +62,12 @@ public class LiveEditor extends JPanel {
 		JButton transferButton = new JButton("Transfer from Tracks");
 		transferButton.addActionListener(e -> transferFromTracks());
 
+		JButton deleteAll = new JButton("Delete All");
+		deleteAll.addActionListener(e -> deleteAll());
+
 		JPanel buttons = new JPanel(new FlowLayout());
 		buttons.add(transferButton);
+		buttons.add(deleteAll);
 
 		add(BorderLayout.SOUTH, buttons);
 	}
@@ -116,6 +120,11 @@ public class LiveEditor extends JPanel {
 			}
 		});
 
+		cueList.repaint();
+	}
+
+	public void deleteAll() {
+		project.getCuePool().clear();
 		cueList.repaint();
 	}
 }
