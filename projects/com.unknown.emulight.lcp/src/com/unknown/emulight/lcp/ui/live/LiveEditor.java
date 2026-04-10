@@ -62,8 +62,6 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 
 	private List<Callback> updaters = new ArrayList<>();
 
-	private boolean bypassEvents = false;
-
 	public LiveEditor(Project project) {
 		this.project = project;
 
@@ -83,6 +81,7 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		bpm.addChangeListener(e -> {
 			double d = (double) bpm.getValue();
 			cueList.setBPM(d);
+			project.getSystem().getLaserProcessor().setBPM(d);
 		});
 
 		ports = new MidiInPort[0];
@@ -122,17 +121,10 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		strobo.setSelected(false);
 		Trigger stroboTrigger = cues.getTrigger(CuePool.TRIGGER_STROBO);
 		stroboTrigger.addTriggerListener(e -> {
-			bypassEvents = true;
-			try {
-				strobo.setSelected(stroboTrigger.getState());
-			} finally {
-				bypassEvents = false;
-			}
+			strobo.setSelected(stroboTrigger.getState());
 		});
-		strobo.addChangeListener(e -> {
-			if(!bypassEvents) {
-				stroboTrigger.setState(strobo.isSelected());
-			}
+		strobo.addActionListener(e -> {
+			stroboTrigger.setState(strobo.isSelected());
 		});
 		strobo.addMouseListener(createToggle("Strobo enable", CuePool.TRIGGER_STROBO));
 

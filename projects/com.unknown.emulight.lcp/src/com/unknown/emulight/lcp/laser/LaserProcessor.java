@@ -42,8 +42,11 @@ public class LaserProcessor {
 
 	private long frameNumber = 0;
 
+	private int microTempo;
 	private boolean stroboState = false;
 	private double stroboSpeed = 1.0;
+	private double stroboPhase = 0;
+	private long stroboTime = 0;
 
 	private Mtx44 colorTransform = new Mtx44();
 	private Mtx44 positionTransform = new Mtx44();
@@ -53,6 +56,8 @@ public class LaserProcessor {
 		this.rate = rate;
 
 		net = new ShowNET(true);
+
+		setBPM(120.0);
 
 		timer = new Timer(true);
 		TimerTask task = new TimerTask() {
@@ -247,7 +252,13 @@ public class LaserProcessor {
 		currentClip.clear();
 	}
 
+	public void setBPM(double bpm) {
+		microTempo = (int) Math.round(60_000_000 / bpm);
+	}
+
 	public void setStroboState(boolean on) {
+		stroboTime = System.nanoTime();
+		stroboPhase = 0;
 		stroboState = on;
 	}
 
@@ -263,6 +274,14 @@ public class LaserProcessor {
 		stroboSpeed = speed;
 	}
 
+	private double getStroboPhase(long time) {
+		long dtime = time - stroboTime;
+		stroboTime = time;
+		double dphase = dtime / (double) microTempo / 1000;
+		stroboPhase = (stroboPhase + dphase * stroboSpeed) % 1.0;
+		return stroboPhase;
+	}
+
 	public void setColorTransform(Mtx44 mtx) {
 		colorTransform = mtx;
 	}
@@ -275,6 +294,12 @@ public class LaserProcessor {
 		long now = System.nanoTime();
 		Mtx44 positionMtx = positionTransform;
 		Mtx44 colorMtx = colorTransform;
+		if(stroboState) {
+			double phase = getStroboPhase(now);
+			if(phase > 0.5) {
+				colorMtx = Mtx44.scale(0, 0, 0);
+			}
+		}
 		for(Laser laser : getLasers()) {
 			if(!laser.isConnected()) {
 				continue;
