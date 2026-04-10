@@ -1,16 +1,21 @@
 package com.unknown.emulight.lcp.live;
 
-import java.io.IOException;
-
-import com.unknown.xml.dom.Element;
-
 public class TriggerKey {
+	public static final int TYPE_NOTE = 0;
+	public static final int TYPE_CONTROLLER = 1;
+
 	private final int channel;
 	private final int key;
+	private final int type;
 
-	public TriggerKey(int channel, int key) {
+	public TriggerKey(int type, int channel, int key) {
+		this.type = type;
 		this.channel = channel;
 		this.key = key;
+	}
+
+	public int getType() {
+		return type;
 	}
 
 	public int getChannel() {
@@ -21,9 +26,31 @@ public class TriggerKey {
 		return key;
 	}
 
+	public String getTypeName() {
+		switch(type) {
+		case TYPE_NOTE:
+			return "note";
+		case TYPE_CONTROLLER:
+			return "cc";
+		default:
+			return "unknown";
+		}
+	}
+
+	public static int getType(String name) {
+		switch(name) {
+		case "note":
+			return TYPE_NOTE;
+		case "cc":
+			return TYPE_CONTROLLER;
+		default:
+			return 0;
+		}
+	}
+
 	@Override
 	public int hashCode() {
-		return channel ^ key;
+		return type ^ channel ^ key;
 	}
 
 	@Override
@@ -32,40 +59,11 @@ public class TriggerKey {
 			return false;
 		}
 		TriggerKey k = (TriggerKey) o;
-		return channel == k.channel && key == k.key;
+		return type == k.type && channel == k.channel && key == k.key;
 	}
 
 	@Override
 	public String toString() {
-		return "[ch=" + channel + ",key=" + key + "]";
-	}
-
-	public static TriggerKey read(Element xml) throws IOException {
-		if(!xml.name.equals("trigger-key")) {
-			throw new IOException("not a trigger-key");
-		}
-
-		int channel;
-		try {
-			channel = Integer.parseInt(xml.getAttribute("channel"));
-		} catch(NumberFormatException | NullPointerException e) {
-			throw new IOException("invalid channel");
-		}
-
-		int key;
-		try {
-			key = Integer.parseInt(xml.getAttribute("key"));
-		} catch(NumberFormatException | NullPointerException e) {
-			throw new IOException("invalid key");
-		}
-
-		return new TriggerKey(channel, key);
-	}
-
-	public Element write() {
-		Element xml = new Element("trigger-key");
-		xml.addAttribute("channel", Integer.toString(channel));
-		xml.addAttribute("key", Integer.toString(key));
-		return xml;
+		return "[ch=" + channel + ",key=" + key + ",type=" + type + "]";
 	}
 }

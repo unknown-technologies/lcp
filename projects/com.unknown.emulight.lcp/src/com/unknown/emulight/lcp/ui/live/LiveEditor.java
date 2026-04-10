@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -19,9 +20,12 @@ import javax.swing.ComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JSlider;
 import javax.swing.JSpinner;
+import javax.swing.JToggleButton;
 import javax.swing.SpinnerNumberModel;
 
 import com.unknown.emulight.lcp.event.ConfigChangeListener;
@@ -33,6 +37,8 @@ import com.unknown.emulight.lcp.laser.LaserReference;
 import com.unknown.emulight.lcp.laser.LaserTrack;
 import com.unknown.emulight.lcp.live.Cue;
 import com.unknown.emulight.lcp.live.CuePool;
+import com.unknown.emulight.lcp.live.Target;
+import com.unknown.emulight.lcp.live.Trigger;
 import com.unknown.emulight.lcp.project.AbstractPart;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
@@ -51,9 +57,12 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 	private MidiInPort[] ports;
 
 	private JSpinner bpm;
-	private JComboBox<String> port;
+	private JComboBox<String> controllerPort;
+	private JComboBox<String> triggerPort;
 
 	private List<Callback> updaters = new ArrayList<>();
+
+	private boolean bypassEvents = false;
 
 	public LiveEditor(Project project) {
 		this.project = project;
@@ -77,13 +86,23 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		});
 
 		ports = new MidiInPort[0];
-		port = new JComboBox<>(new PortModel());
-		port.addItemListener(e -> {
-			int idx = port.getSelectedIndex();
+
+		controllerPort = new JComboBox<>(new PortModel());
+		controllerPort.addItemListener(e -> {
+			int idx = controllerPort.getSelectedIndex();
 			if(idx == -1) {
 				return;
 			}
 			cues.setControllerPort(ports[idx]);
+		});
+
+		triggerPort = new JComboBox<>(new PortModel());
+		triggerPort.addItemListener(e -> {
+			int idx = triggerPort.getSelectedIndex();
+			if(idx == -1) {
+				return;
+			}
+			cues.setTriggerPort(ports[idx]);
 		});
 
 		refreshMidiPorts();
@@ -95,38 +114,52 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		deleteAll.addActionListener(e -> deleteAll());
 
 		JButton stopAll = new JButton("Stop All");
-		stopAll.addActionListener(e -> project.getCuePool().stopAll());
+		Trigger stopTrigger = cues.getTrigger(CuePool.TRIGGER_ALL_STOP);
+		stopAll.addActionListener(e -> stopTrigger.trigger());
+		stopAll.addMouseListener(createToggle("Stop all cues", CuePool.TRIGGER_ALL_STOP));
+
+		JToggleButton strobo = new JToggleButton("Strobo");
+		strobo.setSelected(false);
+		Trigger stroboTrigger = cues.getTrigger(CuePool.TRIGGER_STROBO);
+		stroboTrigger.addTriggerListener(e -> {
+			bypassEvents = true;
+			try {
+				strobo.setSelected(stroboTrigger.getState());
+			} finally {
+				bypassEvents = false;
+			}
+		});
+		strobo.addChangeListener(e -> {
+			if(!bypassEvents) {
+				stroboTrigger.setState(strobo.isSelected());
+			}
+		});
+		strobo.addMouseListener(createToggle("Strobo enable", CuePool.TRIGGER_STROBO));
 
 		JPanel options = new JPanel(new FlowLayout(FlowLayout.CENTER));
 		options.add(transferButton);
 		options.add(deleteAll);
 		options.add(new JLabel("Controller Port:"));
-		options.add(port);
+		options.add(controllerPort);
+		options.add(new JLabel("Trigger Port:"));
+		options.add(triggerPort);
 		options.add(new JLabel("BPM:"));
 		options.add(bpm);
+		options.add(strobo);
 		options.add(stopAll);
 		add(BorderLayout.NORTH, options);
 
 		// faders
-		CuePool pool = project.getCuePool();
-
 		JPanel controls = new JPanel(new FlowLayout());
-		controls.add(createFader("Bright", "Brightness", () -> pool.getGlobalBrightness(),
-				x -> pool.setGlobalBrightness(x), () -> 1.0));
-		controls.add(createFader("Red", () -> pool.getGlobalRed(),
-				x -> pool.setGlobalRed(x), () -> 1.0));
-		controls.add(createFader("Green", () -> pool.getGlobalGreen(),
-				x -> pool.setGlobalGreen(x), () -> 1.0));
-		controls.add(createFader("Blue", () -> pool.getGlobalBlue(),
-				x -> pool.setGlobalBlue(x), () -> 1.0));
-		controls.add(createFader("Size", () -> pool.getGlobalSize(),
-				x -> pool.setGlobalSize(x), () -> 1.0));
-		controls.add(createFader("Rot", "Rotation", () -> pool.getGlobalRotation() / 360.0,
-				x -> pool.setGlobalRotation(x * 360.0), () -> 0.0));
-		controls.add(createFader("X", "Translation X", () -> (pool.getGlobalTranslationX() + 1.0) / 2.0,
-				x -> pool.setGlobalTranslationX(x * 2.0 - 1.0), () -> 0.5));
-		controls.add(createFader("Y", "Translation Y", () -> (pool.getGlobalTranslationY() + 1.0) / 2.0,
-				x -> pool.setGlobalTranslationY(x * 2.0 - 1.0), () -> 0.5));
+		controls.add(createFader("Bright", "Brightness", CuePool.TARGET_BRIGHTNESS));
+		controls.add(createFader("Red", CuePool.TARGET_RED));
+		controls.add(createFader("Green", CuePool.TARGET_GREEN));
+		controls.add(createFader("Blue", CuePool.TARGET_BLUE));
+		controls.add(createFader("Size", CuePool.TARGET_SIZE));
+		controls.add(createFader("Rot", "Rotation", CuePool.TARGET_ROTATION));
+		controls.add(createFader("X", "Translation X", CuePool.TARGET_TRANSLATION_X));
+		controls.add(createFader("Y", "Translation Y", CuePool.TARGET_TRANSLATION_Y));
+		controls.add(createFader("Strobo", "Strobo Speed", CuePool.TARGET_STROBO_SPEED));
 
 		add(BorderLayout.SOUTH, controls);
 
@@ -161,23 +194,89 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		void callback();
 	}
 
-	@FunctionalInterface
-	private interface GetValue {
-		double get();
+	private JPanel createFader(String name, String targetName) {
+		return createFader(name, name, targetName);
 	}
 
-	@FunctionalInterface
-	private interface SetValue {
-		void set(double value);
+	private MouseListener createToggle(String name, String targetName) {
+		CuePool pool = project.getCuePool();
+		Trigger target = pool.getTrigger(targetName);
+
+		return new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if(e.getButton() == MouseEvent.BUTTON3) {
+					JMenuItem mapToggle = new JMenuItem("Map toggle...");
+					mapToggle.setMnemonic('M');
+					mapToggle.addActionListener(ev -> {
+						ToggleLearnDialog dlg = new ToggleLearnDialog(pool, target, name);
+						dlg.setLocationRelativeTo(LiveEditor.this);
+						dlg.setVisible(true);
+						repaint();
+					});
+
+					JMenuItem unmapController = new JMenuItem("Unmap controller toggle...");
+					unmapController.setMnemonic('c');
+					unmapController.addActionListener(ev -> {
+						pool.unmapControllerToggle(target);
+					});
+					unmapController.setEnabled(pool.getControllerToggle(target) != null);
+
+					JMenuItem unmapTrigger = new JMenuItem("Unmap trigger toggle...");
+					unmapTrigger.setMnemonic('t');
+					unmapTrigger.addActionListener(ev -> {
+						pool.unmapTriggerToggle(target);
+					});
+					unmapTrigger.setEnabled(pool.getTriggerToggle(target) != null);
+
+					JPopupMenu menu = new JPopupMenu();
+					menu.add(mapToggle);
+					menu.addSeparator();
+					menu.add(unmapController);
+					menu.add(unmapTrigger);
+
+					menu.show(e.getComponent(), e.getX(), e.getY());
+				}
+			}
+		};
 	}
 
-	private JPanel createFader(String name, GetValue get, SetValue set, GetValue def) {
-		return createFader(name, name, get, set, def);
-	}
+	private JPanel createFader(String shortName, String fullName, String targetName) {
+		CuePool pool = project.getCuePool();
+		Target target = pool.getTarget(targetName);
 
-	private JPanel createFader(String name, String tooltip, GetValue get, SetValue set, GetValue def) {
+		MouseListener mouse = new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if(e.getButton() == MouseEvent.BUTTON3) {
+					JMenuItem mapController = new JMenuItem("Map controller...");
+					mapController.setMnemonic('M');
+					mapController.addActionListener(ev -> {
+						ControllerLearnDialog dlg = new ControllerLearnDialog(pool, target,
+								fullName);
+						dlg.setLocationRelativeTo(LiveEditor.this);
+						dlg.setVisible(true);
+						repaint();
+					});
+
+					JMenuItem unmapController = new JMenuItem("Unmap controller...");
+					unmapController.setMnemonic('U');
+					unmapController.addActionListener(ev -> {
+						pool.unmapController(target);
+					});
+					unmapController.setEnabled(pool.getController(target) != null);
+
+					JPopupMenu menu = new JPopupMenu();
+					menu.add(mapController);
+					menu.add(unmapController);
+
+					menu.show(e.getComponent(), e.getX(), e.getY());
+				}
+			}
+		};
+
 		JSlider fader = new JSlider(JSlider.VERTICAL, 0, 127,
-				(int) Math.round(get.get() * 127.0));
+				(int) Math.round(target.getValue() * 127.0));
 		JSpinner numericFader = new JSpinner(new SpinnerNumberModel(fader.getValue(), 0, 127, 1));
 
 		fader.addChangeListener(e -> {
@@ -186,19 +285,19 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 			if(spinner != value) {
 				numericFader.setValue(value);
 			}
-			set.set(value / 127.0);
+			target.setValue(value / 127.0);
 		});
 
 		fader.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
 				if(e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2) {
-					int value = (int) Math.round(def.get() * 127.0);
-					numericFader.setValue(value);
+					target.setValue(target.getDefault());
 					e.consume();
 				}
 			}
 		});
+		fader.addMouseListener(mouse);
 
 		numericFader.addChangeListener(e -> {
 			int value = ((SpinnerNumberModel) numericFader.getModel()).getNumber().intValue();
@@ -208,9 +307,14 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 			}
 		});
 
+		target.addTargetListener(e -> {
+			int value = (int) Math.round(target.getValue() * 127.0);
+			numericFader.setValue(value);
+		});
+
 		JPanel faderControls = new JPanel();
-		faderControls.setBorder(UIUtils.border(name));
-		faderControls.setToolTipText(tooltip);
+		faderControls.setBorder(UIUtils.border(shortName));
+		faderControls.setToolTipText(fullName);
 		faderControls.setLayout(new BoxLayout(faderControls, BoxLayout.Y_AXIS));
 		faderControls.add(fader);
 
@@ -219,8 +323,10 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		numericFader.setMaximumSize(numericFader.getPreferredSize());
 		faderControls.add(numericFaderPanel);
 
+		faderControls.addMouseListener(mouse);
+
 		updaters.add(() -> {
-			int value = (int) Math.round(get.get() * 127.0);
+			int value = (int) Math.round(target.getValue() * 127.0);
 			numericFader.setValue(value);
 		});
 
@@ -300,6 +406,7 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		ports[1] = cues.getAllBusPort();
 		System.arraycopy(midiPorts, 0, ports, 2, midiPorts.length);
 
+		// controller port
 		int selectedPort = -1;
 		for(int i = 0; i < ports.length; i++) {
 			if(ports[i] == cues.getControllerPort()) {
@@ -308,12 +415,24 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 			}
 		}
 
-		port.setSelectedIndex(selectedPort);
+		controllerPort.setSelectedIndex(selectedPort);
+
+		// trigger port
+		selectedPort = -1;
+		for(int i = 0; i < ports.length; i++) {
+			if(ports[i] == cues.getTriggerPort()) {
+				selectedPort = i;
+				break;
+			}
+		}
+
+		triggerPort.setSelectedIndex(selectedPort);
 	}
 
 	private void reload() {
 		CuePool cues = project.getCuePool();
 
+		// controller port
 		int selectedPort = -1;
 		for(int i = 0; i < ports.length; i++) {
 			if(ports[i] == cues.getControllerPort()) {
@@ -322,7 +441,18 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 			}
 		}
 
-		port.setSelectedIndex(selectedPort);
+		controllerPort.setSelectedIndex(selectedPort);
+
+		// trigger port
+		selectedPort = -1;
+		for(int i = 0; i < ports.length; i++) {
+			if(ports[i] == cues.getTriggerPort()) {
+				selectedPort = i;
+				break;
+			}
+		}
+
+		triggerPort.setSelectedIndex(selectedPort);
 
 		bpm.setValue(cues.getBPM());
 

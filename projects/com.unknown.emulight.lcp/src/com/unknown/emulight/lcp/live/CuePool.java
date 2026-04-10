@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.sound.midi.MidiDevice.Info;
 import javax.sound.midi.MidiUnavailableException;
@@ -23,20 +25,31 @@ import com.unknown.emulight.lcp.project.Track;
 import com.unknown.math.g3d.Mtx44;
 import com.unknown.xml.dom.Element;
 
-public class CuePool implements MidiReceiver {
+public class CuePool {
 	private final Project project;
 	private final List<Cue<?>> cues = new ArrayList<>();
 	private final CueMap map = new CueMap();
 
 	private MidiInPort controllerPort;
+	private MidiInPort triggerPort;
 	private final MidiInPort allBusPort;
 
-	private MidiLearner midiLearner;
+	private MidiLearner controllerLearner;
+	private MidiLearner triggerLearner;
+
+	private final MidiReceiver controllerReceiver = this::receiveController;
+	private final MidiReceiver triggerReceiver = this::receiveTrigger;
+
+	private final Map<Controller, Target> controllers = new ConcurrentHashMap<>();
+	private final Map<Target, Controller> controllersLookup = new ConcurrentHashMap<>();
+
+	private final Map<TriggerKey, Trigger> controllerToggles = new ConcurrentHashMap<>();
+	private final Map<Trigger, TriggerKey> controllerTogglesLookup = new ConcurrentHashMap<>();
+
+	private final Map<TriggerKey, Trigger> triggerToggles = new ConcurrentHashMap<>();
+	private final Map<Trigger, TriggerKey> triggerTogglesLookup = new ConcurrentHashMap<>();
 
 	private double bpm = 120.0;
-
-	private TriggerKey globalStroboKey;
-	private TriggerKey stopAllKey;
 
 	private double globalBrightness = 1.0;
 	private double globalRed = 1.0;
@@ -46,6 +59,23 @@ public class CuePool implements MidiReceiver {
 	private double globalRotation = 0.0;
 	private double globalTranslationX = 0.0;
 	private double globalTranslationY = 0.0;
+	private double globalStroboSpeed = 1.0;
+
+	private final Map<String, Target> targets = new HashMap<>();
+	private final Map<String, Trigger> triggers = new HashMap<>();
+
+	public static final String TARGET_BRIGHTNESS = "brightness";
+	public static final String TARGET_RED = "red";
+	public static final String TARGET_GREEN = "green";
+	public static final String TARGET_BLUE = "blue";
+	public static final String TARGET_SIZE = "size";
+	public static final String TARGET_ROTATION = "rotation";
+	public static final String TARGET_TRANSLATION_X = "translation-x";
+	public static final String TARGET_TRANSLATION_Y = "translation-y";
+	public static final String TARGET_STROBO_SPEED = "strobo-speed";
+
+	public static final String TRIGGER_ALL_STOP = "all-stop";
+	public static final String TRIGGER_STROBO = "strobo-active";
 
 	public CuePool(Project project) {
 		this.project = project;
@@ -72,6 +102,166 @@ public class CuePool implements MidiReceiver {
 				return "All-Bus";
 			}
 		};
+
+		targets.put(TARGET_BRIGHTNESS, new Target(TARGET_BRIGHTNESS) {
+			@Override
+			public double getDefault() {
+				return 1.0;
+			}
+
+			@Override
+			protected double get() {
+				return getGlobalBrightness();
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalBrightness(value);
+			}
+		});
+		targets.put(TARGET_RED, new Target(TARGET_RED) {
+			@Override
+			public double getDefault() {
+				return 1.0;
+			}
+
+			@Override
+			protected double get() {
+				return getGlobalRed();
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalRed(value);
+			}
+		});
+		targets.put(TARGET_GREEN, new Target(TARGET_GREEN) {
+			@Override
+			public double getDefault() {
+				return 1.0;
+			}
+
+			@Override
+			protected double get() {
+				return getGlobalGreen();
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalGreen(value);
+			}
+		});
+		targets.put(TARGET_BLUE, new Target(TARGET_BLUE) {
+			@Override
+			public double getDefault() {
+				return 1.0;
+			}
+
+			@Override
+			protected double get() {
+				return getGlobalBlue();
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalBlue(value);
+			}
+		});
+		targets.put(TARGET_SIZE, new Target(TARGET_SIZE) {
+			@Override
+			public double getDefault() {
+				return 1.0;
+			}
+
+			@Override
+			protected double get() {
+				return getGlobalSize();
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalSize(value);
+			}
+		});
+		targets.put(TARGET_ROTATION, new Target(TARGET_ROTATION) {
+			@Override
+			public double getDefault() {
+				return 0.0;
+			}
+
+			@Override
+			protected double get() {
+				return getGlobalRotation() / 360.0;
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalRotation(value * 360.0);
+			}
+		});
+		targets.put(TARGET_TRANSLATION_X, new Target(TARGET_TRANSLATION_X) {
+			@Override
+			public double getDefault() {
+				return 0.5;
+			}
+
+			@Override
+			protected double get() {
+				return (getGlobalTranslationX() + 1.0) / 2.0;
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalTranslationX(value * 2.0 - 1.0);
+			}
+		});
+		targets.put(TARGET_TRANSLATION_Y, new Target(TARGET_TRANSLATION_Y) {
+			@Override
+			public double getDefault() {
+				return 0.5;
+			}
+
+			@Override
+			protected double get() {
+				return (getGlobalTranslationY() + 1.0) / 2.0;
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalTranslationY(value * 2.0 - 1.0);
+			}
+		});
+		targets.put(TARGET_STROBO_SPEED, new Target(TARGET_STROBO_SPEED) {
+			@Override
+			public double getDefault() {
+				return 1.0 / 10.0;
+			}
+
+			@Override
+			protected double get() {
+				return getGlobalStroboSpeed() / 10.0;
+			}
+
+			@Override
+			protected void set(double value) {
+				setGlobalStroboSpeed(value * 10.0);
+			}
+		});
+
+		triggers.put(TRIGGER_ALL_STOP, new Trigger(TRIGGER_ALL_STOP) {
+			@Override
+			public void set(boolean state) {
+				if(state) {
+					stopAll();
+				}
+			}
+		});
+		triggers.put(TRIGGER_STROBO, new Trigger(TRIGGER_STROBO) {
+			@Override
+			public void set(boolean state) {
+				setStroboState(state);
+			}
+		});
 	}
 
 	public Project getProject() {
@@ -124,69 +314,134 @@ public class CuePool implements MidiReceiver {
 		map.clear();
 	}
 
+	private void clearAll() {
+		clear();
+		controllers.clear();
+		controllersLookup.clear();
+		controllerToggles.clear();
+		controllerTogglesLookup.clear();
+		triggerToggles.clear();
+		triggerTogglesLookup.clear();
+	}
+
 	public MidiInPort getControllerPort() {
 		return controllerPort;
 	}
 
 	public void setControllerPort(MidiInPort in) {
 		if(controllerPort == allBusPort) {
-			project.removeAllBusReceiver(this);
+			project.removeAllBusReceiver(controllerReceiver);
 		} else if(controllerPort != null) {
-			project.getSystem().getMidiRouter().removeReceiver(controllerPort, this);
+			project.getSystem().getMidiRouter().removeReceiver(controllerPort, controllerReceiver);
 		}
 
 		if(in == allBusPort) {
-			project.addAllBusReceiver(this);
+			project.addAllBusReceiver(controllerReceiver);
 		} else if(in != null) {
-			project.getSystem().getMidiRouter().addReceiver(in, this);
+			project.getSystem().getMidiRouter().addReceiver(in, controllerReceiver);
 		}
 
 		controllerPort = in;
 	}
 
-	public void setMidiLearn(MidiLearner learner) {
-		midiLearner = learner;
+	public MidiInPort getTriggerPort() {
+		return triggerPort;
 	}
 
-	public void clearMidiLearn() {
-		midiLearner = null;
+	public void setTriggerPort(MidiInPort in) {
+		if(triggerPort == allBusPort) {
+			project.removeAllBusReceiver(triggerReceiver);
+		} else if(triggerPort != null) {
+			project.getSystem().getMidiRouter().removeReceiver(triggerPort, triggerReceiver);
+		}
+
+		if(in == allBusPort) {
+			project.addAllBusReceiver(triggerReceiver);
+		} else if(in != null) {
+			project.getSystem().getMidiRouter().addReceiver(in, triggerReceiver);
+		}
+
+		triggerPort = in;
 	}
 
-	@Override
-	public void receive(int status, int data1, int data2) {
+	public void setMidiTriggerLearn(MidiLearner learner) {
+		triggerLearner = learner;
+	}
+
+	public void clearMidiTriggerLearn() {
+		triggerLearner = null;
+	}
+
+	public void setMidiControllerLearn(MidiLearner learner) {
+		controllerLearner = learner;
+	}
+
+	public void clearMidiControllerLearn() {
+		controllerLearner = null;
+	}
+
+	private static void learn(MidiLearner learner, int status, int data1) {
 		int channel = status & 0x0F;
 
-		MidiLearner learner = midiLearner;
+		switch((byte) (status & 0xF0)) {
+		case MIDIEvent.NOTE_ON:
+			learner.noteOn(channel, data1);
+			break;
+		case MIDIEvent.NOTE_OFF:
+			learner.noteOff(channel, data1);
+			break;
+		case MIDIEvent.CTRL_CHANGE:
+			learner.controller(channel, data1);
+			break;
+		case MIDIEvent.PROG_CHANGE:
+			learner.program(channel, data1);
+			break;
+		case MIDIEvent.PITCH_BEND:
+			learner.bend(channel);
+			break;
+		}
+	}
+
+	public void receiveTrigger(int status, int data1, @SuppressWarnings("unused") int data2) {
+		int channel = status & 0x0F;
+
+		MidiLearner learner = triggerLearner;
 		if(learner != null) {
-			switch((byte) (status & 0xF0)) {
-			case MIDIEvent.NOTE_ON:
-				learner.noteOn(channel, data1);
-				break;
-			case MIDIEvent.NOTE_OFF:
-				learner.noteOff(channel, data1);
-				break;
-			case MIDIEvent.CTRL_CHANGE:
-				learner.controller(channel, data1);
-				break;
-			case MIDIEvent.PROG_CHANGE:
-				learner.program(channel, data1);
-				break;
-			case MIDIEvent.PITCH_BEND:
-				learner.bend(channel);
-				break;
-			}
+			learn(learner, status, data1);
 			return;
 		}
 
 		switch((byte) (status & 0xF0)) {
 		case MIDIEvent.NOTE_ON:
-			noteOn(channel, data1);
+			triggerNoteOn(channel, data1);
 			break;
 		case MIDIEvent.NOTE_OFF:
-			noteOff(channel, data1);
+			triggerNoteOff(channel, data1);
 			break;
 		case MIDIEvent.CTRL_CHANGE:
-			controller(channel, data1, data2);
+			triggerCC(channel, data1, data2);
+			break;
+		}
+	}
+
+	public void receiveController(int status, int data1, int data2) {
+		int channel = status & 0x0F;
+
+		MidiLearner learner = controllerLearner;
+		if(learner != null) {
+			learn(learner, status, data1);
+			return;
+		}
+
+		switch((byte) (status & 0xF0)) {
+		case MIDIEvent.NOTE_ON:
+			controllerNoteOn(channel, data1);
+			break;
+		case MIDIEvent.NOTE_OFF:
+			controllerNoteOff(channel, data1);
+			break;
+		case MIDIEvent.CTRL_CHANGE:
+			controllerCC(channel, data1, data2);
 			break;
 		}
 	}
@@ -199,8 +454,8 @@ public class CuePool implements MidiReceiver {
 		this.bpm = bpm;
 	}
 
-	private void noteOn(int channel, int key) {
-		TriggerKey triggerKey = new TriggerKey(channel, key);
+	private void triggerNoteOn(int channel, int key) {
+		TriggerKey triggerKey = new TriggerKey(TriggerKey.TYPE_NOTE, channel, key);
 		Cue<?> cue = map.getCue(triggerKey);
 		if(cue != null) {
 			if(cue.isToggleTrigger() && cue.isPlaying()) {
@@ -210,25 +465,60 @@ public class CuePool implements MidiReceiver {
 			}
 		}
 
-		if(triggerKey.equals(globalStroboKey)) {
-			setStroboState(true);
-		}
-
-		if(triggerKey.equals(stopAllKey)) {
-			stopAll();
+		Trigger trigger = triggerToggles.get(triggerKey);
+		if(trigger != null) {
+			trigger.setState(true);
 		}
 	}
 
-	private void noteOff(int channel, int key) {
-		TriggerKey triggerKey = new TriggerKey(channel, key);
+	private void triggerNoteOff(int channel, int key) {
+		TriggerKey triggerKey = new TriggerKey(TriggerKey.TYPE_NOTE, channel, key);
 
-		if(triggerKey.equals(globalStroboKey)) {
-			setStroboState(true);
+		Trigger trigger = triggerToggles.get(triggerKey);
+		if(trigger != null) {
+			trigger.setState(false);
 		}
 	}
 
-	private void controller(int channel, int controller, int value) {
-		// TODO
+	private void triggerCC(int channel, int controller, int value) {
+		TriggerKey triggerKey = new TriggerKey(TriggerKey.TYPE_CONTROLLER, channel, controller);
+
+		Trigger trigger = triggerToggles.get(triggerKey);
+		if(trigger != null) {
+			trigger.setState(value > 64);
+		}
+	}
+
+	private void controllerNoteOn(int channel, int key) {
+		TriggerKey triggerKey = new TriggerKey(TriggerKey.TYPE_NOTE, channel, key);
+
+		Trigger trigger = controllerToggles.get(triggerKey);
+		if(trigger != null) {
+			trigger.setState(true);
+		}
+	}
+
+	private void controllerNoteOff(int channel, int key) {
+		TriggerKey triggerKey = new TriggerKey(TriggerKey.TYPE_NOTE, channel, key);
+
+		Trigger trigger = controllerToggles.get(triggerKey);
+		if(trigger != null) {
+			trigger.setState(false);
+		}
+	}
+
+	private void controllerCC(int channel, int controller, int value) {
+		Target target = controllers.get(new Controller(channel, controller));
+		if(target != null) {
+			target.setValue(value / 127.0);
+		}
+
+		TriggerKey triggerKey = new TriggerKey(TriggerKey.TYPE_CONTROLLER, channel, controller);
+
+		Trigger trigger = controllerToggles.get(triggerKey);
+		if(trigger != null) {
+			trigger.setState(value > 64);
+		}
 	}
 
 	private void setStroboState(boolean on) {
@@ -239,6 +529,95 @@ public class CuePool implements MidiReceiver {
 	public void stopAll() {
 		LaserProcessor processor = project.getSystem().getLaserProcessor();
 		processor.clearAllCurrentClips();
+	}
+
+	public Target getTarget(String name) {
+		return targets.get(name);
+	}
+
+	public Trigger getTrigger(String name) {
+		return triggers.get(name);
+	}
+
+	public Controller getController(Target target) {
+		return controllersLookup.get(target);
+	}
+
+	public TriggerKey getControllerToggle(Trigger target) {
+		return controllerTogglesLookup.get(target);
+	}
+
+	public TriggerKey getTriggerToggle(Trigger target) {
+		return triggerTogglesLookup.get(target);
+	}
+
+	public void mapController(Controller controller, Target target) {
+		// remove old mapping
+		Controller oldController = controllersLookup.remove(target);
+		if(oldController != null) {
+			controllers.remove(oldController);
+		}
+
+		// add new mapping
+		controllers.put(controller, target);
+		controllersLookup.put(target, controller);
+	}
+
+	public void unmapController(Target target) {
+		Controller controller = controllersLookup.remove(target);
+		if(controller != null) {
+			controllers.remove(controller);
+		}
+	}
+
+	public boolean isControllerAssigned(Controller controller) {
+		return controllers.containsKey(controller);
+	}
+
+	public void mapControllerToggle(TriggerKey key, Trigger trigger) {
+		// remove old mapping
+		TriggerKey oldKey = controllerTogglesLookup.remove(trigger);
+		if(oldKey != null) {
+			controllerToggles.remove(oldKey);
+		}
+
+		// add new mapping
+		controllerToggles.put(key, trigger);
+		controllerTogglesLookup.put(trigger, key);
+	}
+
+	public void unmapControllerToggle(Trigger trigger) {
+		TriggerKey key = controllerTogglesLookup.remove(trigger);
+		if(key != null) {
+			controllerToggles.remove(key);
+		}
+	}
+
+	public boolean isControllerToggleAssigned(TriggerKey key) {
+		return controllerToggles.containsKey(key);
+	}
+
+	public void mapTriggerToggle(TriggerKey key, Trigger trigger) {
+		// remove old mapping
+		TriggerKey oldKey = triggerTogglesLookup.remove(trigger);
+		if(oldKey != null) {
+			triggerToggles.remove(oldKey);
+		}
+
+		// add new mapping
+		triggerToggles.put(key, trigger);
+		triggerTogglesLookup.put(trigger, key);
+	}
+
+	public void unmapTriggerToggle(Trigger trigger) {
+		TriggerKey key = triggerTogglesLookup.remove(trigger);
+		if(key != null) {
+			triggerToggles.remove(key);
+		}
+	}
+
+	public boolean isTriggerToggleAssigned(TriggerKey key) {
+		return triggerToggles.containsKey(key);
 	}
 
 	public double getGlobalBrightness() {
@@ -313,6 +692,16 @@ public class CuePool implements MidiReceiver {
 		recomputeTransform();
 	}
 
+	public double getGlobalStroboSpeed() {
+		return globalStroboSpeed;
+	}
+
+	public void setGlobalStroboSpeed(double speed) {
+		globalStroboSpeed = speed;
+		LaserProcessor laser = project.getSystem().getLaserProcessor();
+		laser.setStroboSpeed(speed);
+	}
+
 	private void recomputeColor() {
 		Mtx44 mtx = Mtx44.scale(globalBrightness * globalRed, globalBrightness * globalGreen,
 				globalBrightness * globalBlue);
@@ -338,7 +727,7 @@ public class CuePool implements MidiReceiver {
 			throw new IOException("not a cue pool");
 		}
 
-		clear();
+		clearAll();
 
 		if(xml.getAttribute("controller-port") != null) {
 			String portName = xml.getAttribute("controller-port");
@@ -349,6 +738,21 @@ public class CuePool implements MidiReceiver {
 				for(MidiInPort in : ports) {
 					if(in.getDisplayName() != null && in.getDisplayName().equals(portName)) {
 						setControllerPort(in);
+						break;
+					}
+				}
+			}
+		}
+
+		if(xml.getAttribute("trigger-port") != null) {
+			String portName = xml.getAttribute("trigger-port");
+			if(portName.equals("<all-bus>")) {
+				setTriggerPort(allBusPort);
+			} else {
+				MidiInPort[] ports = project.getSystem().getMidiRouter().getInputPorts();
+				for(MidiInPort in : ports) {
+					if(in.getDisplayName() != null && in.getDisplayName().equals(portName)) {
+						setTriggerPort(in);
 						break;
 					}
 				}
@@ -395,6 +799,36 @@ public class CuePool implements MidiReceiver {
 				globalTranslationY = Double.parseDouble(e.getAttribute("translation-y", "0.0"));
 				recomputeTransform();
 				break;
+			case "controller": {
+				int channel = Integer.parseInt(e.getAttribute("channel", "0"));
+				int cc = Integer.parseInt(e.getAttribute("cc", "1"));
+				Target target = getTarget(e.getAttribute("target"));
+				if(target == null) {
+					throw new IOException("unknown target: " + e.getAttribute("target"));
+				}
+				mapController(new Controller(channel, cc), target);
+				break;
+			}
+			case "toggle": {
+				int type = TriggerKey.getType(e.getAttribute("event", "note"));
+				int channel = Integer.parseInt(e.getAttribute("channel", "0"));
+				int key = Integer.parseInt(e.getAttribute("key", "0"));
+				Trigger target = getTrigger(e.getAttribute("target"));
+				if(target == null) {
+					throw new IOException("unknown target: " + e.getAttribute("target"));
+				}
+				switch(e.getAttribute("type", "controller")) {
+				case "controller":
+					mapControllerToggle(new TriggerKey(type, channel, key), target);
+					break;
+				case "trigger":
+					mapTriggerToggle(new TriggerKey(type, channel, key), target);
+					break;
+				default:
+					throw new IOException("unknown type: " + e.getAttribute("type"));
+				}
+				break;
+			}
 			}
 		}
 	}
@@ -406,6 +840,12 @@ public class CuePool implements MidiReceiver {
 			xml.addAttribute("controller-port", "<all-bus>");
 		} else if(controllerPort != null) {
 			xml.addAttribute("controller-port", controllerPort.getDisplayName());
+		}
+
+		if(triggerPort == allBusPort) {
+			xml.addAttribute("trigger-port", "<all-bus>");
+		} else if(triggerPort != null) {
+			xml.addAttribute("trigger-port", triggerPort.getDisplayName());
 		}
 
 		xml.addAttribute("bpm", Double.toString(bpm));
@@ -423,6 +863,42 @@ public class CuePool implements MidiReceiver {
 		colortransform.addAttribute("green", Double.toString(globalGreen));
 		colortransform.addAttribute("blue", Double.toString(globalBlue));
 		xml.addChild(colortransform);
+
+		for(Entry<Controller, Target> entry : controllers.entrySet()) {
+			Controller ctl = entry.getKey();
+			Target target = entry.getValue();
+			Element controller = new Element("controller");
+			controller.addAttribute("channel", Integer.toString(ctl.getChannel()));
+			controller.addAttribute("cc", Integer.toString(ctl.getController()));
+			controller.addAttribute("target", target.getName());
+			xml.addChild(controller);
+		}
+
+		for(Entry<TriggerKey, Trigger> entry : controllerToggles.entrySet()) {
+			TriggerKey key = entry.getKey();
+			Trigger trigger = entry.getValue();
+
+			Element toggle = new Element("toggle");
+			toggle.addAttribute("event", key.getTypeName());
+			toggle.addAttribute("channel", Integer.toString(key.getChannel()));
+			toggle.addAttribute("key", Integer.toString(key.getKey()));
+			toggle.addAttribute("target", trigger.getName());
+			toggle.addAttribute("type", "controller");
+			xml.addChild(toggle);
+		}
+
+		for(Entry<TriggerKey, Trigger> entry : triggerToggles.entrySet()) {
+			TriggerKey key = entry.getKey();
+			Trigger trigger = entry.getValue();
+
+			Element toggle = new Element("toggle");
+			toggle.addAttribute("event", key.getTypeName());
+			toggle.addAttribute("channel", Integer.toString(key.getChannel()));
+			toggle.addAttribute("key", Integer.toString(key.getKey()));
+			toggle.addAttribute("target", trigger.getName());
+			toggle.addAttribute("type", "trigger");
+			xml.addChild(toggle);
+		}
 
 		int id = 0;
 		Map<Cue<?>, Integer> ids = new HashMap<>();

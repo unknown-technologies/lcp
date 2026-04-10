@@ -73,7 +73,7 @@ public class CueTriggerLearnDialog extends JDialog implements MidiLearner {
 		add(BorderLayout.CENTER, info);
 		add(BorderLayout.SOUTH, buttons);
 
-		pool.setMidiLearn(this);
+		pool.setMidiTriggerLearn(this);
 
 		JComponent root = getRootPane();
 		KeyStroke escKey = KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0);
@@ -104,7 +104,7 @@ public class CueTriggerLearnDialog extends JDialog implements MidiLearner {
 	}
 
 	private void destroy() {
-		pool.clearMidiLearn();
+		pool.clearMidiTriggerLearn();
 	}
 
 	private void showKeyInfo(TriggerKey key) {
@@ -113,12 +113,28 @@ public class CueTriggerLearnDialog extends JDialog implements MidiLearner {
 			keyInfo.setText("-");
 		} else {
 			channelInfo.setText(Integer.toString(key.getChannel() + 1));
-			keyInfo.setText(MIDINames.getNoteName(key.getKey()));
+			if(key.getType() == TriggerKey.TYPE_NOTE) {
+				keyInfo.setText(MIDINames.getNoteName(key.getKey()));
+			} else {
+				keyInfo.setText(Integer.toString(key.getKey()));
+			}
 		}
 	}
 
 	private void setKey(int channel, int key) {
-		TriggerKey trigger = new TriggerKey(channel, key);
+		TriggerKey trigger = new TriggerKey(TriggerKey.TYPE_NOTE, channel, key);
+		pool.clearTriggerKey(cue);
+		if(pool.isTriggerKeyAssigned(trigger)) {
+			channelInfo.setText("- (conflict)");
+			keyInfo.setText("- (conflict)");
+		} else {
+			pool.setTriggerKey(cue, trigger);
+			showKeyInfo(trigger);
+		}
+	}
+
+	private void setCC(int channel, int cc) {
+		TriggerKey trigger = new TriggerKey(TriggerKey.TYPE_CONTROLLER, channel, cc);
 		pool.clearTriggerKey(cue);
 		if(pool.isTriggerKeyAssigned(trigger)) {
 			channelInfo.setText("- (conflict)");
@@ -146,7 +162,7 @@ public class CueTriggerLearnDialog extends JDialog implements MidiLearner {
 
 	@Override
 	public void controller(int channel, int controller) {
-		// nothing
+		setCC(channel, controller);
 	}
 
 	@Override

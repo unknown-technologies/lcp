@@ -43,6 +43,7 @@ public class LaserProcessor {
 	private long frameNumber = 0;
 
 	private boolean stroboState = false;
+	private double stroboSpeed = 1.0;
 
 	private Mtx44 colorTransform = new Mtx44();
 	private Mtx44 positionTransform = new Mtx44();
@@ -252,6 +253,14 @@ public class LaserProcessor {
 
 	public boolean getStroboState() {
 		return stroboState;
+	}
+
+	public double getStroboSpeed() {
+		return stroboSpeed;
+	}
+
+	public void setStroboSpeed(double speed) {
+		stroboSpeed = speed;
 	}
 
 	public void setColorTransform(Mtx44 mtx) {

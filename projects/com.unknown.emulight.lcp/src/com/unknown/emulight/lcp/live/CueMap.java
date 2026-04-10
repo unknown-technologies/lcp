@@ -68,6 +68,8 @@ public class CueMap {
 					throw new IOException("invalid cue id");
 				}
 
+				int type = TriggerKey.getType(e.getAttribute("type", "note"));
+
 				int channel;
 				try {
 					channel = Integer.parseInt(e.getAttribute("channel"));
@@ -88,7 +90,7 @@ public class CueMap {
 				}
 
 				try {
-					setTrigger(new TriggerKey(channel, key), cue);
+					setTrigger(new TriggerKey(type, channel, key), cue);
 				} catch(IllegalArgumentException ex) {
 					throw new IOException(ex.getMessage());
 				}
@@ -105,6 +107,7 @@ public class CueMap {
 
 			Element trigger = new Element("trigger");
 			trigger.addAttribute("cue", Integer.toString(id));
+			trigger.addAttribute("type", key.getTypeName());
 			trigger.addAttribute("channel", Integer.toString(key.getChannel()));
 			trigger.addAttribute("key", Integer.toString(key.getKey()));
 			xml.addChild(trigger);
