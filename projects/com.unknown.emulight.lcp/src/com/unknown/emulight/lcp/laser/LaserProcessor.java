@@ -44,6 +44,9 @@ public class LaserProcessor {
 
 	private boolean stroboState = false;
 
+	private Mtx44 colorTransform = new Mtx44();
+	private Mtx44 positionTransform = new Mtx44();
+
 	public LaserProcessor(SystemConfiguration config, int rate) throws IOException {
 		this.config = config;
 		this.rate = rate;
@@ -251,9 +254,18 @@ public class LaserProcessor {
 		return stroboState;
 	}
 
+	public void setColorTransform(Mtx44 mtx) {
+		colorTransform = mtx;
+	}
+
+	public void setPositionTransform(Mtx44 mtx) {
+		positionTransform = mtx;
+	}
+
 	private void process() {
 		long now = System.nanoTime();
-		Mtx44 identity = new Mtx44();
+		Mtx44 positionMtx = positionTransform;
+		Mtx44 colorMtx = colorTransform;
 		for(Laser laser : getLasers()) {
 			if(!laser.isConnected()) {
 				continue;
@@ -261,18 +273,18 @@ public class LaserProcessor {
 			try {
 				ClipRef ref = currentClip.get(laser.getInterfaceId());
 				if(ref != null) {
-					Mtx44 posmtx = Mtx44.scale(ref.mirrorX ? -1.0 : 1.0, ref.mirrorY ? -1.0 : 1.0,
-							1.0);
+					Mtx44 posmtx = positionMtx.scaleApply(ref.mirrorX ? -1.0 : 1.0,
+							ref.mirrorY ? -1.0 : 1.0, 1.0);
 					LaserPart clip = ref.clip;
 					int t = ref.getTick(now);
 					if(clip.isLoop()) {
 						t %= clip.getLength();
-						laser.sendFrame(clip.render(t, posmtx, identity), clip.getSpeed());
+						laser.sendFrame(clip.render(t, posmtx, colorMtx), clip.getSpeed());
 					} else if(ref.length != 0 && t >= ref.length) {
 						currentClip.remove(laser.getInterfaceId());
 						laser.sendFrame(List.of(new Point()), 1000);
 					} else {
-						laser.sendFrame(clip.render(t, posmtx, identity), clip.getSpeed());
+						laser.sendFrame(clip.render(t, posmtx, colorMtx), clip.getSpeed());
 					}
 				} else {
 					laser.sendFrame(List.of(new Point()), 1000);

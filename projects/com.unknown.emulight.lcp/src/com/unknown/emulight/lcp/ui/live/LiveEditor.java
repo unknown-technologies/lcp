@@ -3,6 +3,8 @@ package com.unknown.emulight.lcp.ui.live;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -12,11 +14,13 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.swing.AbstractListModel;
+import javax.swing.BoxLayout;
 import javax.swing.ComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSlider;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 
@@ -35,6 +39,7 @@ import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.emulight.lcp.project.Track;
+import com.unknown.emulight.lcp.ui.UIUtils;
 
 @SuppressWarnings("serial")
 public class LiveEditor extends JPanel implements ConfigChangeListener {
@@ -47,6 +52,8 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 
 	private JSpinner bpm;
 	private JComboBox<String> port;
+
+	private List<Callback> updaters = new ArrayList<>();
 
 	public LiveEditor(Project project) {
 		this.project = project;
@@ -100,6 +107,29 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		options.add(stopAll);
 		add(BorderLayout.NORTH, options);
 
+		// faders
+		CuePool pool = project.getCuePool();
+
+		JPanel controls = new JPanel(new FlowLayout());
+		controls.add(createFader("Bright", "Brightness", () -> pool.getGlobalBrightness(),
+				x -> pool.setGlobalBrightness(x), () -> 1.0));
+		controls.add(createFader("Red", () -> pool.getGlobalRed(),
+				x -> pool.setGlobalRed(x), () -> 1.0));
+		controls.add(createFader("Green", () -> pool.getGlobalGreen(),
+				x -> pool.setGlobalGreen(x), () -> 1.0));
+		controls.add(createFader("Blue", () -> pool.getGlobalBlue(),
+				x -> pool.setGlobalBlue(x), () -> 1.0));
+		controls.add(createFader("Size", () -> pool.getGlobalSize(),
+				x -> pool.setGlobalSize(x), () -> 1.0));
+		controls.add(createFader("Rot", "Rotation", () -> pool.getGlobalRotation() / 360.0,
+				x -> pool.setGlobalRotation(x * 360.0), () -> 0.0));
+		controls.add(createFader("X", "Translation X", () -> (pool.getGlobalTranslationX() + 1.0) / 2.0,
+				x -> pool.setGlobalTranslationX(x * 2.0 - 1.0), () -> 0.5));
+		controls.add(createFader("Y", "Translation Y", () -> (pool.getGlobalTranslationY() + 1.0) / 2.0,
+				x -> pool.setGlobalTranslationY(x * 2.0 - 1.0), () -> 0.5));
+
+		add(BorderLayout.SOUTH, controls);
+
 		project.getSystem().getConfig().addConfigChangeListener(this);
 
 		ProjectListener projectListener = new ProjectListener() {
@@ -124,6 +154,77 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 			}
 		};
 		project.addProjectListener(projectListener);
+	}
+
+	@FunctionalInterface
+	private interface Callback {
+		void callback();
+	}
+
+	@FunctionalInterface
+	private interface GetValue {
+		double get();
+	}
+
+	@FunctionalInterface
+	private interface SetValue {
+		void set(double value);
+	}
+
+	private JPanel createFader(String name, GetValue get, SetValue set, GetValue def) {
+		return createFader(name, name, get, set, def);
+	}
+
+	private JPanel createFader(String name, String tooltip, GetValue get, SetValue set, GetValue def) {
+		JSlider fader = new JSlider(JSlider.VERTICAL, 0, 127,
+				(int) Math.round(get.get() * 127.0));
+		JSpinner numericFader = new JSpinner(new SpinnerNumberModel(fader.getValue(), 0, 127, 1));
+
+		fader.addChangeListener(e -> {
+			int value = fader.getValue();
+			int spinner = ((SpinnerNumberModel) numericFader.getModel()).getNumber().intValue();
+			if(spinner != value) {
+				numericFader.setValue(value);
+			}
+			set.set(value / 127.0);
+		});
+
+		fader.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if(e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2) {
+					int value = (int) Math.round(def.get() * 127.0);
+					numericFader.setValue(value);
+					e.consume();
+				}
+			}
+		});
+
+		numericFader.addChangeListener(e -> {
+			int value = ((SpinnerNumberModel) numericFader.getModel()).getNumber().intValue();
+			int slider = fader.getValue();
+			if(slider != value) {
+				fader.setValue(value);
+			}
+		});
+
+		JPanel faderControls = new JPanel();
+		faderControls.setBorder(UIUtils.border(name));
+		faderControls.setToolTipText(tooltip);
+		faderControls.setLayout(new BoxLayout(faderControls, BoxLayout.Y_AXIS));
+		faderControls.add(fader);
+
+		JPanel numericFaderPanel = new JPanel(new FlowLayout());
+		numericFaderPanel.add(numericFader);
+		numericFader.setMaximumSize(numericFader.getPreferredSize());
+		faderControls.add(numericFaderPanel);
+
+		updaters.add(() -> {
+			int value = (int) Math.round(get.get() * 127.0);
+			numericFader.setValue(value);
+		});
+
+		return faderControls;
 	}
 
 	public void transferFromTracks() {
@@ -224,6 +325,10 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 		port.setSelectedIndex(selectedPort);
 
 		bpm.setValue(cues.getBPM());
+
+		for(Callback updater : updaters) {
+			updater.callback();
+		}
 
 		cueList.repaint();
 	}

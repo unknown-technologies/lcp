@@ -20,6 +20,7 @@ import com.unknown.emulight.lcp.project.AbstractPart;
 import com.unknown.emulight.lcp.project.PartPool;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.Track;
+import com.unknown.math.g3d.Mtx44;
 import com.unknown.xml.dom.Element;
 
 public class CuePool implements MidiReceiver {
@@ -36,6 +37,15 @@ public class CuePool implements MidiReceiver {
 
 	private TriggerKey globalStroboKey;
 	private TriggerKey stopAllKey;
+
+	private double globalBrightness = 1.0;
+	private double globalRed = 1.0;
+	private double globalGreen = 1.0;
+	private double globalBlue = 1.0;
+	private double globalSize = 1.0;
+	private double globalRotation = 0.0;
+	private double globalTranslationX = 0.0;
+	private double globalTranslationY = 0.0;
 
 	public CuePool(Project project) {
 		this.project = project;
@@ -128,7 +138,7 @@ public class CuePool implements MidiReceiver {
 		if(in == allBusPort) {
 			project.addAllBusReceiver(this);
 		} else if(in != null) {
-			project.getSystem().getMidiRouter().addReceiver(controllerPort, this);
+			project.getSystem().getMidiRouter().addReceiver(in, this);
 		}
 
 		controllerPort = in;
@@ -231,6 +241,92 @@ public class CuePool implements MidiReceiver {
 		processor.clearAllCurrentClips();
 	}
 
+	public double getGlobalBrightness() {
+		return globalBrightness;
+	}
+
+	public void setGlobalBrightness(double brightness) {
+		globalBrightness = brightness;
+		recomputeColor();
+	}
+
+	public double getGlobalRed() {
+		return globalRed;
+	}
+
+	public double getGlobalGreen() {
+		return globalGreen;
+	}
+
+	public double getGlobalBlue() {
+		return globalBlue;
+	}
+
+	public void setGlobalRed(double red) {
+		globalRed = red;
+		recomputeColor();
+	}
+
+	public void setGlobalGreen(double green) {
+		globalGreen = green;
+		recomputeColor();
+	}
+
+	public void setGlobalBlue(double blue) {
+		globalBlue = blue;
+		recomputeColor();
+	}
+
+	public double getGlobalSize() {
+		return globalSize;
+	}
+
+	public void setGlobalSize(double size) {
+		globalSize = size;
+		recomputeTransform();
+	}
+
+	public double getGlobalRotation() {
+		return globalRotation;
+	}
+
+	public void setGlobalRotation(double rotation) {
+		globalRotation = rotation;
+		recomputeTransform();
+	}
+
+	public double getGlobalTranslationX() {
+		return globalTranslationX;
+	}
+
+	public void setGlobalTranslationX(double translationX) {
+		globalTranslationX = translationX;
+		recomputeTransform();
+	}
+
+	public double getGlobalTranslationY() {
+		return globalTranslationY;
+	}
+
+	public void setGlobalTranslationY(double translationY) {
+		globalTranslationY = translationY;
+		recomputeTransform();
+	}
+
+	private void recomputeColor() {
+		Mtx44 mtx = Mtx44.scale(globalBrightness * globalRed, globalBrightness * globalGreen,
+				globalBrightness * globalBlue);
+		LaserProcessor laser = project.getSystem().getLaserProcessor();
+		laser.setColorTransform(mtx);
+	}
+
+	private void recomputeTransform() {
+		Mtx44 mtx = Mtx44.rotDegZ(globalRotation).transApply(globalTranslationX, globalTranslationY, 0)
+				.applyScale(globalSize, globalSize, globalSize);
+		LaserProcessor laser = project.getSystem().getLaserProcessor();
+		laser.setPositionTransform(mtx);
+	}
+
 	public void addPartsToPool(PartPool pool) {
 		for(Cue<?> cue : cues) {
 			pool.add(cue.getPart(), cue.getType());
@@ -263,7 +359,8 @@ public class CuePool implements MidiReceiver {
 
 		Map<Integer, Cue<?>> ids = new HashMap<>();
 		for(Element e : xml.getChildren()) {
-			if(e.name.equals("cue")) {
+			switch(e.name) {
+			case "cue": {
 				Cue<?> cue = null;
 				AbstractPart part = parts.get(Integer.parseInt(e.getAttribute("part")));
 				switch(e.getAttribute("type")) {
@@ -278,9 +375,26 @@ public class CuePool implements MidiReceiver {
 					addCue(cue);
 					ids.put(id, cue);
 				}
-			} else if(e.name.equals("cue-map")) {
+				break;
+			}
+			case "cue-map":
 				map.clear();
 				map.read(e, ids);
+				break;
+			case "color-transform":
+				globalBrightness = Double.parseDouble(e.getAttribute("brightness", "1.0"));
+				globalRed = Double.parseDouble(e.getAttribute("red", "1.0"));
+				globalGreen = Double.parseDouble(e.getAttribute("green", "1.0"));
+				globalBlue = Double.parseDouble(e.getAttribute("blue", "1.0"));
+				recomputeColor();
+				break;
+			case "position-transform":
+				globalRotation = Double.parseDouble(e.getAttribute("rotation", "0.0"));
+				globalSize = Double.parseDouble(e.getAttribute("size", "1.0"));
+				globalTranslationX = Double.parseDouble(e.getAttribute("translation-x", "0.0"));
+				globalTranslationY = Double.parseDouble(e.getAttribute("translation-y", "0.0"));
+				recomputeTransform();
+				break;
 			}
 		}
 	}
@@ -295,6 +409,20 @@ public class CuePool implements MidiReceiver {
 		}
 
 		xml.addAttribute("bpm", Double.toString(bpm));
+
+		Element postransform = new Element("position-transform");
+		postransform.addAttribute("rotation", Double.toString(globalRotation));
+		postransform.addAttribute("size", Double.toString(globalSize));
+		postransform.addAttribute("translation-x", Double.toString(globalTranslationX));
+		postransform.addAttribute("translation-y", Double.toString(globalTranslationY));
+		xml.addChild(postransform);
+
+		Element colortransform = new Element("color-transform");
+		colortransform.addAttribute("brightness", Double.toString(globalBrightness));
+		colortransform.addAttribute("red", Double.toString(globalRed));
+		colortransform.addAttribute("green", Double.toString(globalGreen));
+		colortransform.addAttribute("blue", Double.toString(globalBlue));
+		xml.addChild(colortransform);
 
 		int id = 0;
 		Map<Cue<?>, Integer> ids = new HashMap<>();
