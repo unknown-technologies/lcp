@@ -273,6 +273,28 @@ public class LaserDiscovery extends JDialog implements LaserDiscoveryListener {
 		manualControls.add(LabeledPairLayout.COMPONENT, sliderGreen);
 		manualControls.add(LabeledPairLayout.LABEL, new JLabel("Blue:"));
 		manualControls.add(LabeledPairLayout.COMPONENT, sliderBlue);
+
+		byte[] dmx = new byte[512];
+		for(int i = 0; i < 8; i++) {
+			JSlider sliderDmx = new JSlider(0, 0xFF, 0);
+			manualControls.add(LabeledPairLayout.LABEL, new JLabel("DMX Channel " + (i + 1) + ":"));
+			manualControls.add(LabeledPairLayout.COMPONENT, sliderDmx);
+
+			int ch = i;
+			sliderDmx.addChangeListener(e -> {
+				dmx[ch] = (byte) sliderDmx.getValue();
+
+				int idx = laserList.getSelectedIndex();
+				if(idx >= 0 && idx <= laserModel.getSize()) {
+					Laser laser = laserModel.getLaser(idx);
+					try {
+						laser.sendDMX(dmx);
+					} catch(IOException ex) {
+						log.log(Levels.WARNING, "Failed to send DMX: " + ex.getMessage(), ex);
+					}
+				}
+			});
+		}
 		manualControl.setRightComponent(manualControls);
 
 		ChangeListener manualChange = e -> {
