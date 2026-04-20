@@ -153,6 +153,10 @@ public class LaserProcessor {
 		this.renderer = renderer;
 	}
 
+	public LaserRenderer getRenderer() {
+		return renderer;
+	}
+
 	public long getFrameNumber() {
 		return frameNumber;
 	}

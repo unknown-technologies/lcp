@@ -9,7 +9,7 @@ suite = {
     "suites" : [
       {
         "name" : "common",
-        "version" : "fde76876b497221671bf014cf10d233c07691e2b",
+        "version" : "d1aa965d4724647ea9b7ed370249081692ec8551",
         "urls" : [
           { "url" : "https://github.com/unknown-technologies/common", "kind" : "git" }
         ]

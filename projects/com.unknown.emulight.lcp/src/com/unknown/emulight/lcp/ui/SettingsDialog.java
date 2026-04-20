@@ -40,6 +40,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
+import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -58,6 +59,8 @@ import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LookAndFeel;
+import com.unknown.emulight.lcp.ui.laser.LaserControlDialog;
+import com.unknown.emulight.lcp.ui.laser.LaserInfoDialog;
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
 import com.unknown.net.shownet.InterfaceId;
 import com.unknown.net.shownet.Laser;
@@ -156,6 +159,7 @@ public class SettingsDialog extends JDialog {
 		JPanel midiIn = new JPanel(new BorderLayout());
 		midiIn.setBorder(BorderFactory.createTitledBorder("MIDI Inputs"));
 		JTable midiInTable = new MixedTable(midiInModel = new MidiInModel());
+		midiInTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		JScrollPane midiInScroller = new JScrollPane(midiInTable);
 		midiIn.add(BorderLayout.CENTER, midiInScroller);
 
@@ -224,6 +228,7 @@ public class SettingsDialog extends JDialog {
 		JPanel midiOut = new JPanel(new BorderLayout());
 		midiOut.setBorder(BorderFactory.createTitledBorder("MIDI Outputs"));
 		JTable midiOutTable = new MixedTable(midiOutModel = new MidiOutModel());
+		midiOutTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		JScrollPane midiOutScroller = new JScrollPane(midiOutTable);
 		midiOut.add(BorderLayout.CENTER, midiOutScroller);
 
@@ -299,12 +304,14 @@ public class SettingsDialog extends JDialog {
 
 		JPanel eslMidiIn = new JPanel(new BorderLayout());
 		eslMidiIn.setBorder(BorderFactory.createTitledBorder("ESL MIDI Inputs"));
-		eslMidiIn.add(BorderLayout.CENTER,
-				new JScrollPane(new MixedTable(eslMidiInModel = new ESLMidiInModel())));
+		JTable eslMidiInTable = new MixedTable(eslMidiInModel = new ESLMidiInModel());
+		eslMidiInTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		eslMidiIn.add(BorderLayout.CENTER, new JScrollPane(eslMidiInTable));
 
 		JPanel eslMidiOut = new JPanel(new BorderLayout());
 		eslMidiOut.setBorder(BorderFactory.createTitledBorder("ESL MIDI Outputs"));
 		JTable eslMidiOutTable = new MixedTable(eslMidiOutModel = new ESLMidiOutModel());
+		eslMidiOutTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		JScrollPane eslMidiOutScroller = new JScrollPane(eslMidiOutTable);
 		eslMidiOut.add(BorderLayout.CENTER, eslMidiOutScroller);
 
@@ -426,7 +433,8 @@ public class SettingsDialog extends JDialog {
 
 		// LASER TAB
 		JPanel laser = new JPanel(new BorderLayout());
-		JTable lasers = new MixedTable(laserModel = new LaserModel());
+		JTable laserTable = new MixedTable(laserModel = new LaserModel());
+		laserTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		JButton laserDiscoveryButton = new JButton("Laser addresses...");
 		laserDiscoveryButton.setToolTipText("Define additional addresses for lasers which cannot be " +
 				"found via discovery. This is useful for lasers in remote subnets.");
@@ -437,8 +445,93 @@ public class SettingsDialog extends JDialog {
 		});
 		JPanel laserButtons = new JPanel(new FlowLayout());
 		laserButtons.add(laserDiscoveryButton);
-		laser.add(BorderLayout.CENTER, new JScrollPane(lasers));
+		laser.add(BorderLayout.CENTER, new JScrollPane(laserTable));
 		laser.add(BorderLayout.SOUTH, laserButtons);
+
+		JPopupMenu laserPopup = new JPopupMenu();
+
+		JMenuItem laserInfo = new JMenuItem("Info...");
+		laserInfo.addActionListener(e -> {
+			int row = laserTable.getSelectedRow();
+			if(row == -1) {
+				return;
+			} else {
+				LaserData info = laserModel.getLaser(row);
+				LaserInfoDialog dlg = new LaserInfoDialog(this, sys, info.id);
+				dlg.setLocationRelativeTo(this);
+				dlg.setVisible(true);
+			}
+		});
+
+		JMenuItem laserControl = new JMenuItem("Manual control...");
+		laserControl.addActionListener(e -> {
+			int row = laserTable.getSelectedRow();
+			if(row == -1) {
+				return;
+			} else {
+				LaserData info = laserModel.getLaser(row);
+				LaserControlDialog dlg = new LaserControlDialog(this, sys, info.id);
+				dlg.setLocationRelativeTo(this);
+				dlg.setVisible(true);
+			}
+		});
+
+		JMenuItem laserRemove = new JMenuItem("Remove");
+		laserRemove.addActionListener(e -> {
+			int row = laserTable.getSelectedRow();
+			if(row == -1) {
+				return;
+			} else {
+				LaserData info = laserModel.getLaser(row);
+				if(info.address == null) {
+					info.cfg.delete();
+					laserModel.update();
+				}
+			}
+		});
+
+		laserPopup.add(laserInfo);
+		laserPopup.add(laserControl);
+		laserPopup.addSeparator();
+		laserPopup.add(laserRemove);
+		laserTable.setComponentPopupMenu(laserPopup);
+		laserPopup.addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+				SwingUtilities.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						int row = laserTable.rowAtPoint(SwingUtilities.convertPoint(
+								laserPopup, new Point(0, 0), laserTable));
+						if(row != -1) {
+							laserTable.setRowSelectionInterval(row, row);
+						}
+
+						row = laserTable.getSelectedRow();
+						if(row != -1) {
+							LaserData info = laserModel.getLaser(row);
+							laserInfo.setEnabled(true);
+							laserControl.setEnabled(info.address != null);
+							laserRemove.setEnabled(info.address == null);
+						} else {
+							laserInfo.setEnabled(false);
+							laserControl.setEnabled(false);
+							laserRemove.setEnabled(false);
+						}
+					}
+				});
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+				// unused
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent e) {
+				// unused
+			}
+		});
 
 		// INTERFACE TAB
 		JPanel ui = new JPanel(new LabeledPairLayout());
@@ -1078,6 +1171,10 @@ public class SettingsDialog extends JDialog {
 					fireTableDataChanged();
 				}
 			}
+		}
+
+		public LaserData getLaser(int idx) {
+			return lasers.get(idx);
 		}
 
 		@Override
