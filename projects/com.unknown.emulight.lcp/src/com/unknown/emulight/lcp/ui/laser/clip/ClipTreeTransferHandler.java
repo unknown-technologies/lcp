@@ -19,13 +19,13 @@ import com.unknown.util.log.Trace;
 public class ClipTreeTransferHandler extends TransferHandler {
 	private static final Logger log = Trace.create(ClipTreeTransferHandler.class);
 
-	private DataFlavor nodesFlavor;
-	private DataFlavor[] flavors = new DataFlavor[1];
+	private final DataFlavor nodesFlavor;
+	private final DataFlavor[] flavors;
 
 	public ClipTreeTransferHandler() {
-		String mimeType = DataFlavor.javaJVMLocalObjectMimeType;
+		String mimeType = DataFlavor.javaJVMLocalObjectMimeType + ";class=\"" + Node[].class.getName() + "\"";
 		nodesFlavor = new DataFlavor(mimeType, "Node");
-		flavors[0] = nodesFlavor;
+		flavors = new DataFlavor[] { nodesFlavor };
 	}
 
 	@Override
