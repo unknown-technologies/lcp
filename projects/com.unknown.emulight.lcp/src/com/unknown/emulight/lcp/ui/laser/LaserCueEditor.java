@@ -26,6 +26,7 @@ import com.unknown.emulight.lcp.laser.LaserCue;
 import com.unknown.emulight.lcp.laser.LaserCue.LaserRef;
 import com.unknown.emulight.lcp.laser.LaserReference;
 import com.unknown.emulight.lcp.project.EmulightSystem;
+import com.unknown.emulight.lcp.project.SystemConfiguration.DMXPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.emulight.lcp.ui.UIUtils;
@@ -134,7 +135,12 @@ public class LaserCueEditor extends CueEditor implements ConfigChangeListener {
 	}
 
 	@Override
-	public void midiPortChanged(MidiPortConfig p) {
+	public void midiPortChanged(MidiPortConfig port) {
+		// nothing
+	}
+
+	@Override
+	public void dmxPortChanged(DMXPortConfig port) {
 		// nothing
 	}
 

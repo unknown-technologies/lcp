@@ -44,6 +44,7 @@ import com.unknown.emulight.lcp.audio.AudioData;
 import com.unknown.emulight.lcp.audio.AudioPart;
 import com.unknown.emulight.lcp.audio.AudioPeakMap;
 import com.unknown.emulight.lcp.audio.AudioTrack;
+import com.unknown.emulight.lcp.dmx.DMXTrack;
 import com.unknown.emulight.lcp.event.ProjectListener;
 import com.unknown.emulight.lcp.event.SequencerListener;
 import com.unknown.emulight.lcp.event.TrackListener;
@@ -1665,21 +1666,31 @@ public class ProjectView extends JComponent {
 				// right mouse, show context menu
 				JMenu addTrack = new JMenu("Add Track");
 				addTrack.setMnemonic('A');
+
 				JMenuItem addAudioTrack = new JMenuItem("Audio");
 				addAudioTrack.addActionListener(
 						ev -> project.addTrack(new AudioTrack(project, "Untitled")));
 				addAudioTrack.setMnemonic('A');
-				addTrack.add(addAudioTrack);
+
 				JMenuItem addMidiTrack = new JMenuItem("MIDI");
 				addMidiTrack.addActionListener(
 						ev -> project.addTrack(new MidiTrack(project, "Untitled")));
 				addMidiTrack.setMnemonic('M');
-				addTrack.add(addMidiTrack);
-				addTrack.addSeparator();
+
 				JMenuItem addLaserTrack = new JMenuItem("Laser");
 				addLaserTrack.addActionListener(
 						ev -> project.addTrack(new LaserTrack(project, "Untitled")));
 				addLaserTrack.setMnemonic('L');
+
+				JMenuItem addDMXTrack = new JMenuItem("DMX");
+				addDMXTrack.addActionListener(
+						ev -> project.addTrack(new DMXTrack(project, "Untitled")));
+				addDMXTrack.setMnemonic('D');
+
+				addTrack.add(addAudioTrack);
+				addTrack.add(addMidiTrack);
+				addTrack.addSeparator();
+				addTrack.add(addDMXTrack);
 				addTrack.add(addLaserTrack);
 
 				JMenuItem duplicateTrack = new JMenuItem("Duplicate Track");

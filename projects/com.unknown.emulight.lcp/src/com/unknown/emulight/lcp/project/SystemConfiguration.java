@@ -53,6 +53,8 @@ public class SystemConfiguration implements AutoCloseable {
 	private Map<String, ESLMidiPortConfig> eslMidiPortConfig = new HashMap<>();
 	private Map<String, NetworkMidiPortConfig> networkMidiPortConfig = new HashMap<>();
 
+	private Map<String, DMXPortConfig> dmxPortConfig = new HashMap<>();
+
 	private Map<String, Boolean> alwaysOnTop = new HashMap<>();
 
 	private Set<LaserAddress> laserAddresses = new HashSet<>();
@@ -244,6 +246,38 @@ public class SystemConfiguration implements AutoCloseable {
 		return Collections.unmodifiableCollection(networkMidiPortConfig.values());
 	}
 
+	public DMXPortConfig getDMXPort(String name) {
+		return dmxPortConfig.get(name);
+	}
+
+	public DMXPortConfig addDMXPort(String name, String hostname, InetAddress address) {
+		DMXPortConfig cfg = dmxPortConfig.get(name);
+		if(cfg != null) {
+			throw new IllegalArgumentException("name already exists: " + name);
+		} else {
+			if(lasers.containsKey(name)) {
+				throw new IllegalArgumentException("laser with given name already exists: " + name);
+			}
+			cfg = new DMXPortConfig(this, name, hostname, address);
+			dmxPortConfig.put(name, cfg);
+			return cfg;
+		}
+	}
+
+	public DMXPortConfig addDMXPort(String name, String hostname) {
+		try {
+			InetAddress address = InetAddress.getByName(hostname);
+			return addDMXPort(name, hostname, address);
+		} catch(UnknownHostException e) {
+			log.info("Failed to resolve hostname " + hostname);
+			return addDMXPort(name, hostname, null);
+		}
+	}
+
+	public Collection<DMXPortConfig> getDMXPorts() {
+		return Collections.unmodifiableCollection(dmxPortConfig.values());
+	}
+
 	public LaserConfig getLaser(String name) {
 		return lasers.get(name);
 	}
@@ -380,6 +414,34 @@ public class SystemConfiguration implements AutoCloseable {
 		return true;
 	}
 
+	protected boolean rename(DMXPortConfig port, String name) {
+		// check for empty name
+		if(name == null || name.length() == 0) {
+			return false;
+		}
+
+		// check if nothing was renamed
+		if(port.getName().equals(name)) {
+			return true;
+		}
+
+		// check for name collisions
+		if(dmxPortConfig.containsKey(name)) {
+			return false;
+		}
+
+		// check for name collision with lasers
+		if(lasers.containsKey(name)) {
+			return false;
+		}
+
+		// update DMX port map
+		dmxPortConfig.remove(port.getName());
+		dmxPortConfig.put(name, port);
+
+		return true;
+	}
+
 	protected boolean rename(LaserConfig laser, String name) {
 		// check for empty name
 		if(name == null || name.length() == 0) {
@@ -413,6 +475,11 @@ public class SystemConfiguration implements AutoCloseable {
 		networkMidiPortConfig.remove(port.getAlias());
 	}
 
+	protected void delete(DMXPortConfig port) {
+		port.setActive(false); // this triggers a change event
+		dmxPortConfig.remove(port.getName());
+	}
+
 	protected void delete(LaserConfig laser) {
 		laser.setActive(false); // this triggers a change event
 		lasers.remove(laser.getName());
@@ -440,6 +507,16 @@ public class SystemConfiguration implements AutoCloseable {
 		for(ConfigChangeListener l : listeners) {
 			try {
 				l.midiPortChanged(port);
+			} catch(Throwable t) {
+				log.log(Levels.ERROR, "Failed to process config change listener", t);
+			}
+		}
+	}
+
+	protected void fireDMXPortChangedEvent(DMXPortConfig port) {
+		for(ConfigChangeListener l : listeners) {
+			try {
+				l.dmxPortChanged(port);
 			} catch(Throwable t) {
 				log.log(Levels.ERROR, "Failed to process config change listener", t);
 			}
@@ -540,6 +617,21 @@ public class SystemConfiguration implements AutoCloseable {
 			midi.addChild(port);
 		}
 		xml.addChild(midi);
+
+		Element dmx = new Element("dmx");
+		for(Entry<String, DMXPortConfig> entry : dmxPortConfig.entrySet()) {
+			String name = entry.getKey();
+			DMXPortConfig cfg = entry.getValue();
+
+			Element port = new Element("artnet");
+			port.addAttribute("name", name);
+			port.addAttribute("hostname", cfg.getHostname());
+			port.addAttribute("universe", Integer.toString(cfg.getUniverse()));
+			port.addAttribute("active", Boolean.toString(cfg.isActive()));
+
+			dmx.addChild(port);
+		}
+		xml.addChild(dmx);
 
 		Element laser = new Element("laser");
 		for(LaserAddress addr : laserAddresses) {
@@ -689,6 +781,23 @@ public class SystemConfiguration implements AutoCloseable {
 						boolean active = Boolean.parseBoolean(item.getAttribute("active"));
 
 						LaserConfig cfg = addLaser(name, id);
+						cfg.setActive(active);
+						break;
+					}
+					}
+				}
+				break;
+			case "dmx":
+				for(Element item : node.getChildren()) {
+					switch(item.name) {
+					case "artnet": {
+						String name = item.getAttribute("name");
+						String hostname = item.getAttribute("hostname");
+						int universe = Integer.parseInt(item.getAttribute("universe", "0"));
+						boolean active = Boolean
+								.parseBoolean(item.getAttribute("active", "false"));
+						DMXPortConfig cfg = addDMXPort(name, hostname);
+						cfg.setUniverse(universe);
 						cfg.setActive(active);
 						break;
 					}
@@ -867,6 +976,67 @@ public class SystemConfiguration implements AutoCloseable {
 
 		public boolean isOutput() {
 			return !input;
+		}
+
+		public void delete() {
+			cfg.delete(this);
+		}
+	}
+
+	public static class DMXPortConfig {
+		protected final SystemConfiguration cfg;
+
+		public final String hostname;
+		public final InetAddress address;
+
+		protected boolean active;
+		protected String name;
+		protected int universe;
+
+		protected DMXPortConfig(SystemConfiguration cfg, String name, String hostname, InetAddress address) {
+			this.cfg = cfg;
+			this.name = name;
+			this.hostname = hostname;
+			this.address = address;
+		}
+
+		public String getHostname() {
+			return hostname;
+		}
+
+		public InetAddress getAddress() {
+			return address;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			if(cfg.rename(this, name)) {
+				this.name = name;
+				cfg.fireDMXPortChangedEvent(this);
+			} else {
+				throw new IllegalArgumentException("invalid name");
+			}
+		}
+
+		public boolean isActive() {
+			return active;
+		}
+
+		public void setActive(boolean active) {
+			this.active = active;
+			cfg.fireDMXPortChangedEvent(this);
+		}
+
+		public int getUniverse() {
+			return universe;
+		}
+
+		public void setUniverse(int universe) {
+			this.universe = universe;
+			cfg.fireDMXPortChangedEvent(this);
 		}
 
 		public void delete() {

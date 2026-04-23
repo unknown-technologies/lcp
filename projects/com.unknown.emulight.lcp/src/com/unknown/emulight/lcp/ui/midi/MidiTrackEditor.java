@@ -24,6 +24,7 @@ import com.unknown.emulight.lcp.event.ConfigChangeListener;
 import com.unknown.emulight.lcp.event.TrackListener;
 import com.unknown.emulight.lcp.io.midi.MidiOutPort;
 import com.unknown.emulight.lcp.project.EmulightSystem;
+import com.unknown.emulight.lcp.project.SystemConfiguration.DMXPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
@@ -209,6 +210,11 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 	@Override
 	public void midiPortChanged(MidiPortConfig p) {
 		refreshMidiPorts();
+	}
+
+	@Override
+	public void dmxPortChanged(DMXPortConfig p) {
+		// nothing
 	}
 
 	@Override

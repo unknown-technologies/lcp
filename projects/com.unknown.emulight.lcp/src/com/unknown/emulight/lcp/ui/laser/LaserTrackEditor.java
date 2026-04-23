@@ -27,6 +27,7 @@ import com.unknown.emulight.lcp.event.TrackListener;
 import com.unknown.emulight.lcp.laser.LaserReference;
 import com.unknown.emulight.lcp.laser.LaserTrack;
 import com.unknown.emulight.lcp.project.EmulightSystem;
+import com.unknown.emulight.lcp.project.SystemConfiguration.DMXPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.emulight.lcp.ui.UIUtils;
@@ -209,6 +210,11 @@ public class LaserTrackEditor extends TrackEditor implements TrackListener, Conf
 
 	@Override
 	public void midiPortChanged(MidiPortConfig p) {
+		// nothing
+	}
+
+	@Override
+	public void dmxPortChanged(DMXPortConfig p) {
 		// nothing
 	}
 

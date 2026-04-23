@@ -42,6 +42,7 @@ import com.unknown.emulight.lcp.live.Trigger;
 import com.unknown.emulight.lcp.project.AbstractPart;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
+import com.unknown.emulight.lcp.project.SystemConfiguration.DMXPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.MidiPortConfig;
 import com.unknown.emulight.lcp.project.Track;
@@ -468,6 +469,11 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 	@Override
 	public void midiPortChanged(MidiPortConfig p) {
 		refreshMidiPorts();
+	}
+
+	@Override
+	public void dmxPortChanged(DMXPortConfig p) {
+		// nothing
 	}
 
 	private class PortModel extends AbstractListModel<String> implements ComboBoxModel<String> {

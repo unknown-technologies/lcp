@@ -12,6 +12,7 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +32,7 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRootPane;
@@ -57,6 +59,7 @@ import com.unknown.emulight.lcp.io.midi.NetworkMidiIn;
 import com.unknown.emulight.lcp.io.midi.NetworkMidiOut;
 import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.project.Project;
+import com.unknown.emulight.lcp.project.SystemConfiguration.DMXPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LookAndFeel;
 import com.unknown.emulight.lcp.ui.laser.LaserControlDialog;
@@ -92,6 +95,8 @@ public class SettingsDialog extends JDialog {
 	private ESLMidiOutModel eslMidiOutModel;
 
 	private LaserModel laserModel;
+
+	private DMXModel dmxModel;
 
 	private final ESL esl;
 	private final MidiRouter router;
@@ -533,6 +538,80 @@ public class SettingsDialog extends JDialog {
 			}
 		});
 
+		// DMX TAB
+		JPanel dmx = new JPanel(new BorderLayout());
+
+		JTable dmxTable = new MixedTable(dmxModel = new DMXModel());
+		dmxTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		JScrollPane dmxScroller = new JScrollPane(dmxTable);
+		dmx.add(BorderLayout.CENTER, dmxScroller);
+
+		JPopupMenu dmxPopup = new JPopupMenu();
+
+		JMenuItem dmxAdd = new JMenuItem("Add");
+		dmxAdd.addActionListener(e -> {
+			String hostname = JOptionPane.showInputDialog(this, "ArtNet node address:",
+					"Add ArtNet Node...", JOptionPane.OK_CANCEL_OPTION | JOptionPane.PLAIN_MESSAGE);
+			if(hostname != null) {
+				hostname = hostname.trim();
+				if(hostname.length() > 0) {
+					try {
+						InetAddress addr = InetAddress.getByName(hostname);
+						sys.getConfig().addDMXPort("unnamed DMX port", hostname, addr);
+						dmxModel.update();
+					} catch(UnknownHostException ex) {
+						JOptionPane.showMessageDialog(this, "Host not found", "Error",
+								JOptionPane.OK_OPTION | JOptionPane.ERROR_MESSAGE);
+					}
+				}
+			}
+		});
+
+		JMenuItem dmxRemove = new JMenuItem("Remove");
+		dmxRemove.addActionListener(e -> {
+			int row = dmxTable.getSelectedRow();
+			if(row == -1) {
+				return;
+			} else {
+				DMXPortConfig port = dmxModel.get(row);
+				port.delete();
+				dmxModel.update();
+			}
+		});
+
+		dmxPopup.add(dmxAdd);
+		dmxPopup.add(dmxRemove);
+		dmxTable.setComponentPopupMenu(dmxPopup);
+		dmxScroller.setComponentPopupMenu(dmxPopup);
+		dmxPopup.addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+				SwingUtilities.invokeLater(new Runnable() {
+					@Override
+					public void run() {
+						int row = dmxTable.rowAtPoint(SwingUtilities.convertPoint(
+								dmxPopup, new Point(0, 0), dmxTable));
+						if(row != -1) {
+							dmxTable.setRowSelectionInterval(row, row);
+						}
+
+						row = dmxTable.getSelectedRow();
+						dmxRemove.setEnabled(row != -1);
+					}
+				});
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+				// unused
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent e) {
+				// unused
+			}
+		});
+
 		// INTERFACE TAB
 		JPanel ui = new JPanel(new LabeledPairLayout());
 
@@ -566,7 +645,7 @@ public class SettingsDialog extends JDialog {
 		laf.addItemListener(e -> {
 			int idx = laf.getSelectedIndex();
 			if(idx >= 0 && idx < lafs.length) {
-				sys.getConfig().setLookAndFeel(lafs[idx]);
+				SwingUtilities.invokeLater(() -> sys.getConfig().setLookAndFeel(lafs[idx]));
 			}
 		});
 
@@ -590,6 +669,7 @@ public class SettingsDialog extends JDialog {
 		tabs.addTab("ESL MIDI", eslMidi);
 		tabs.addTab("Audio", audio);
 		tabs.addTab("Laser", laser);
+		tabs.addTab("DMX", dmx);
 		tabs.addTab("Interface", ui);
 
 		JButton close = new JButton("Close");
@@ -1296,6 +1376,98 @@ public class SettingsDialog extends JDialog {
 
 		public void updateStatus() {
 			fireTableDataChanged();
+		}
+	}
+
+	private class DMXModel extends ExtendedTableModel {
+		private List<DMXPortConfig> ports = new ArrayList<>();
+
+		private DMXModel() {
+			update();
+		}
+
+		public void update() {
+			ports.clear();
+			ports.addAll(sys.getConfig().getDMXPorts());
+			ports.sort((a, b) -> a.getHostname().compareTo(b.getHostname()));
+			fireTableDataChanged();
+		}
+
+		public DMXPortConfig get(int index) {
+			return ports.get(index);
+		}
+
+		@Override
+		public int getColumnAlignment(int col) {
+			return SwingConstants.LEFT;
+		}
+
+		@Override
+		public String getColumnName(int col) {
+			switch(col) {
+			case 0:
+				return "Hostname";
+			case 1:
+				return "Universe";
+			case 2:
+				return "Name";
+			case 3:
+				return "Active";
+			default:
+				return null;
+			}
+		}
+
+		@Override
+		public boolean isCellEditable(int row, int col) {
+			return col > 0;
+		}
+
+		@Override
+		public int getColumnCount() {
+			return 4;
+		}
+
+		@Override
+		public int getRowCount() {
+			return ports.size();
+		}
+
+		@Override
+		public Object getValueAt(int row, int col) {
+			DMXPortConfig cfg = ports.get(row);
+			switch(col) {
+			case 0:
+				return cfg.getHostname();
+			case 1:
+				return cfg.getUniverse();
+			case 2:
+				return cfg.getName();
+			case 3:
+				return cfg.isActive();
+			default:
+				return null;
+			}
+		}
+
+		@Override
+		public void setValueAt(Object value, int row, int col) {
+			DMXPortConfig cfg = ports.get(row);
+			switch(col) {
+			case 1:
+				cfg.setUniverse((int) value);
+				break;
+			case 2:
+				try {
+					cfg.setName((String) value);
+				} catch(IllegalArgumentException e) {
+					// swallow
+				}
+				break;
+			case 3:
+				cfg.setActive((boolean) value);
+				break;
+			}
 		}
 	}
 }

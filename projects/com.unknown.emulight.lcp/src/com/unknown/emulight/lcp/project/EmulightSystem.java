@@ -13,6 +13,7 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
 import com.unknown.emulight.lcp.audio.AudioProcessor;
+import com.unknown.emulight.lcp.dmx.LightProcessor;
 import com.unknown.emulight.lcp.event.ConfigChangeListener;
 import com.unknown.emulight.lcp.io.esl.ESL;
 import com.unknown.emulight.lcp.io.esl.ESLInterface;
@@ -20,6 +21,7 @@ import com.unknown.emulight.lcp.io.esl.SerialInterface;
 import com.unknown.emulight.lcp.io.midi.MidiRouter;
 import com.unknown.emulight.lcp.laser.LaserProcessor;
 import com.unknown.emulight.lcp.laser.LaserReference;
+import com.unknown.emulight.lcp.project.SystemConfiguration.DMXPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserAddress;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LookAndFeel;
@@ -33,6 +35,7 @@ public class EmulightSystem {
 	private SystemConfiguration config = new SystemConfiguration();
 
 	private final LaserProcessor laser;
+	private final LightProcessor light;
 	private final AudioProcessor audio;
 	private final MidiRouter midi;
 	private final ESL esl;
@@ -42,6 +45,7 @@ public class EmulightSystem {
 
 	public EmulightSystem() throws IOException {
 		laser = new LaserProcessor(config, 100);
+		light = new LightProcessor(this, config, 40);
 		audio = new AudioProcessor(config.getSampleRate());
 		String line = config.getSerialLine();
 		phy = new SerialInterface(line);
@@ -96,6 +100,11 @@ public class EmulightSystem {
 			}
 
 			@Override
+			public void dmxPortChanged(DMXPortConfig port) {
+				// empty
+			}
+
+			@Override
 			public void laserChanged(LaserConfig cfg) {
 				// empty
 			}
@@ -116,6 +125,10 @@ public class EmulightSystem {
 			return null;
 		}
 		return new LaserReference(this, cfg);
+	}
+
+	public LightProcessor getLightProcessor() {
+		return light;
 	}
 
 	public AudioProcessor getAudioProcessor() {
