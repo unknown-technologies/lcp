@@ -1,6 +1,7 @@
 package com.unknown.emulight.lcp.laser;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.util.HashSet;
 import java.util.List;
@@ -55,7 +56,13 @@ public class LaserProcessor {
 		this.config = config;
 		this.rate = rate;
 
-		net = new ShowNET(true);
+		ShowNET n;
+		try {
+			n = new ShowNET(true);
+		} catch(BindException e) {
+			n = new ShowNET(false);
+		}
+		net = n;
 
 		setBPM(120.0);
 
@@ -172,11 +179,15 @@ public class LaserProcessor {
 	}
 
 	public void addDiscoveryAddress(InetAddress address) {
-		net.addDiscoveryAddress(address);
+		if(net.hasDiscovery()) {
+			net.addDiscoveryAddress(address);
+		}
 	}
 
 	public void removeDiscoveryAddress(InetAddress address) {
-		net.removeDiscoveryAddress(address);
+		if(net.hasDiscovery()) {
+			net.removeDiscoveryAddress(address);
+		}
 	}
 
 	public Set<InetAddress> getDiscoveryAddresses() {
