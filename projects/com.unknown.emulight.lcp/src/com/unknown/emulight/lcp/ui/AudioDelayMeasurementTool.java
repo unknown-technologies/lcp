@@ -32,6 +32,10 @@ public class AudioDelayMeasurementTool {
 		project.setLaserRenderer(this::render);
 
 		data = new AudioData();
+		update();
+	}
+
+	public void update() {
 		int sampleRate = project.getSystem().getAudioProcessor().getSampleRate();
 		int length = sampleRate / 100;
 		int freq = 1000;

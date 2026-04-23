@@ -384,6 +384,7 @@ public class SettingsDialog extends JDialog {
 		sampleRate.addItemListener(e -> {
 			int value = (int) sampleRate.getSelectedItem();
 			sys.getConfig().setSampleRate(value);
+			audioDelayMeasurement.update();
 		});
 		sampleRate.setSelectedItem(sys.getConfig().getSampleRate());
 
