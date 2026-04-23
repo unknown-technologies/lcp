@@ -7,8 +7,9 @@ import java.awt.image.ImageObserver;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import javax.swing.JMenuItem;
+import javax.swing.ButtonGroup;
 import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.ui.resources.icons.project.trackcontrols.TrackControlIcons;
@@ -28,14 +29,19 @@ public class TrackControlChannel extends TrackControl {
 		super(parent);
 		this.track = track;
 
+		ButtonGroup channelGroup = new ButtonGroup();
+
 		menu = new JPopupMenu();
-		JMenuItem any = new JMenuItem("Any");
+		JRadioButtonMenuItem any = new JRadioButtonMenuItem("Any", track.getChannel() == MidiTrack.ANY);
 		any.addActionListener(e -> setChannel(MidiTrack.ANY));
+		channelGroup.add(any);
 		menu.add(any);
 
 		for(int i = 0; i < 16; i++) {
-			JMenuItem item = new JMenuItem(Integer.toString(i + 1));
+			JRadioButtonMenuItem item = new JRadioButtonMenuItem(Integer.toString(i + 1),
+					track.getChannel() == i);
 			int ch = i;
+			channelGroup.add(any);
 			item.addActionListener(e -> setChannel(ch));
 			menu.add(item);
 		}
