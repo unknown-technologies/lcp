@@ -49,7 +49,6 @@ import com.unknown.emulight.lcp.project.Track;
 import com.unknown.emulight.lcp.sequencer.MidiPart;
 import com.unknown.emulight.lcp.sequencer.MidiTrack;
 import com.unknown.emulight.lcp.ui.help.HelpBrowser;
-import com.unknown.emulight.lcp.ui.laser.LaserDiscovery;
 import com.unknown.emulight.lcp.ui.live.LiveEditor;
 import com.unknown.emulight.lcp.ui.project.ProjectEditor;
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
@@ -162,14 +161,6 @@ public class MainWindow extends JFrame {
 		JMenu fileMenu = new JMenu("File");
 		fileMenu.setMnemonic('F');
 
-		JMenuItem fileMenuListLasers = new JMenuItem("Laser Discovery...");
-		fileMenuListLasers.setMnemonic('L');
-		fileMenuListLasers.addActionListener(e -> {
-			LaserDiscovery discovery = new LaserDiscovery(MainWindow.this, processor);
-			discovery.setLocationRelativeTo(this);
-			discovery.setVisible(true);
-		});
-
 		JMenuItem fileMenuOpen = new JMenuItem("Open...");
 		fileMenuOpen.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, MENU_MODIFIER));
 		fileMenuOpen.setMnemonic('O');
@@ -260,8 +251,6 @@ public class MainWindow extends JFrame {
 			System.exit(0);
 		});
 
-		fileMenu.add(fileMenuListLasers);
-		fileMenu.addSeparator();
 		fileMenu.add(fileMenuOpen);
 		fileMenu.add(fileMenuSave);
 		fileMenu.addSeparator();
