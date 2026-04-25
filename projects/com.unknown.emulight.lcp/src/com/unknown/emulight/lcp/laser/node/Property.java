@@ -113,6 +113,24 @@ public class Property<T> implements Cloneable {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
+	private Property(Property<T> prop) {
+		this.name = prop.name;
+		this.type = prop.type;
+		this.isStatic = prop.isStatic;
+		this.minimum = prop.minimum;
+		this.maximum = prop.maximum;
+		this.defaultValue = prop.defaultValue;
+		this.automation = prop.automation;
+		if(prop.integrator != null) {
+			integrator = new PhaseIntegrator((Property<Double>) this);
+			integrator.recompute();
+		} else {
+			this.integrator = null;
+		}
+		values.putAll(prop.values);
+	}
+
 	public String getName() {
 		return name;
 	}
@@ -222,9 +240,7 @@ public class Property<T> implements Cloneable {
 
 	@Override
 	public Property<T> clone() {
-		Property<T> prop = new Property<>(name, type, isStatic);
-		prop.values.putAll(values);
-		return prop;
+		return new Property<>(this);
 	}
 
 	public Element write() {
