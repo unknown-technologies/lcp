@@ -3,6 +3,7 @@ package com.unknown.emulight.lcp.project;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 public class PartPool {
 	private final Map<AbstractPart, PartInfo> uniqueParts = new HashMap<>();
@@ -19,7 +20,11 @@ public class PartPool {
 	}
 
 	public int getId(AbstractPart part) {
-		return uniqueParts.get(part).id;
+		PartInfo info = uniqueParts.get(part);
+		if(info == null) {
+			throw new NoSuchElementException("part not found");
+		}
+		return info.id;
 	}
 
 	public AbstractPart get(int id) {
