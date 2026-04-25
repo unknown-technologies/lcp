@@ -2,6 +2,7 @@ package com.unknown.emulight.lcp.event;
 
 public interface TrackListener {
 	final static String NAME = "name";
+	final static String COLOR = "color";
 	final static String CHANNEL = "channel";
 	final static String PORT = "port";
 	final static String PART = "part";

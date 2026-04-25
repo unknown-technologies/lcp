@@ -145,7 +145,7 @@ public abstract class Track<T extends AbstractPart> {
 	public void setColor(int color) {
 		int oldColor = this.color;
 		this.color = color;
-		fireEvent(TrackListener.NAME, oldColor, color);
+		fireEvent(TrackListener.COLOR, oldColor, color);
 	}
 
 	public int getType() {
