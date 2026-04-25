@@ -200,8 +200,10 @@ public abstract class Node implements Cloneable {
 		double sz = getSize(time);
 		Vec3 sc = getScale(time).scale(sz);
 		Vec3 tr = getTranslation(time);
-		return Mtx44.rotDegZ(-getRotation(time)).scaleApply(1.0 / sc.x, 1.0 / sc.y, 1.0 / sc.z).applyTrans(
-				-tr.x, -tr.y, -tr.z);
+		double scX = sc.x == 0.0 ? 1.0 : (1.0 / sc.x);
+		double scY = sc.y == 0.0 ? 1.0 : (1.0 / sc.y);
+		double scZ = sc.z == 0.0 ? 1.0 : (1.0 / sc.z);
+		return Mtx44.rotDegZ(-getRotation(time)).scaleApply(scX, scY, scZ).applyTrans(-tr.x, -tr.y, -tr.z);
 	}
 
 	public Vec3 getColorScale(int time) {
