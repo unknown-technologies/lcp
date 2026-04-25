@@ -39,18 +39,20 @@ public class LaserProcessor {
 
 	private final Timer connectTimer;
 
-	private LaserRenderer renderer;
+	private volatile LaserRenderer renderer;
 
-	private long frameNumber = 0;
+	private volatile long frameNumber = 0;
 
-	private int microTempo;
-	private boolean stroboState = false;
-	private double stroboSpeed = 1.0;
-	private double stroboPhase = 0;
-	private long stroboTime = 0;
+	private volatile int microTempo;
+	private volatile boolean stroboState = false;
+	private volatile double stroboSpeed = 1.0;
+	private volatile double stroboPhase = 0;
+	private volatile long stroboTime = 0;
 
-	private Mtx44 colorTransform = new Mtx44();
-	private Mtx44 positionTransform = new Mtx44();
+	private final Object stroboLock = new Object();
+
+	private volatile Mtx44 colorTransform = new Mtx44();
+	private volatile Mtx44 positionTransform = new Mtx44();
 
 	public LaserProcessor(SystemConfiguration config, int rate) throws IOException {
 		this.config = config;
@@ -272,29 +274,39 @@ public class LaserProcessor {
 	}
 
 	public void setStroboState(boolean on) {
-		stroboTime = System.nanoTime();
-		stroboPhase = 0;
-		stroboState = on;
+		synchronized(stroboLock) {
+			stroboTime = System.nanoTime();
+			stroboPhase = 0;
+			stroboState = on;
+		}
 	}
 
 	public boolean getStroboState() {
-		return stroboState;
+		synchronized(stroboLock) {
+			return stroboState;
+		}
 	}
 
 	public double getStroboSpeed() {
-		return stroboSpeed;
+		synchronized(stroboLock) {
+			return stroboSpeed;
+		}
 	}
 
 	public void setStroboSpeed(double speed) {
-		stroboSpeed = speed;
+		synchronized(stroboLock) {
+			stroboSpeed = speed;
+		}
 	}
 
 	private double getStroboPhase(long time) {
-		long dtime = time - stroboTime;
-		stroboTime = time;
-		double dphase = dtime / (double) microTempo / 1000;
-		stroboPhase = (stroboPhase + dphase * stroboSpeed) % 1.0;
-		return stroboPhase;
+		synchronized(stroboLock) {
+			long dtime = time - stroboTime;
+			stroboTime = time;
+			double dphase = dtime / (double) microTempo / 1000;
+			stroboPhase = (stroboPhase + dphase * stroboSpeed) % 1.0;
+			return stroboPhase;
+		}
 	}
 
 	public void setColorTransform(Mtx44 mtx) {
@@ -350,6 +362,7 @@ public class LaserProcessor {
 	}
 
 	public void shutdown() {
+		connectTimer.cancel();
 		timer.cancel();
 		for(Laser laser : getLasers()) {
 			try {
