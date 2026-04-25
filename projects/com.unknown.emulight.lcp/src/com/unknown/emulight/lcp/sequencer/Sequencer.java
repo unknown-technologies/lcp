@@ -77,6 +77,9 @@ public class Sequencer {
 		tempoCheckpoints = new ArrayList<>();
 
 		// compute tempo checkpoints
+
+		// NOTE: this ONLY works correctly if there are no tempo changes
+		// before tick=0 on the tempo track
 		ppq = tempoTrack.getProject().getPPQ();
 		TempoCheckpoint last = new TempoCheckpoint(0, 0, microTempo);
 		tempoCheckpoints.add(last);
@@ -184,10 +187,11 @@ public class Sequencer {
 	private void process() {
 		int index = 0;
 		tempoIndex = 0;
-		tempoCheckpoint = tempoCheckpoints.get(0);
-		// skip to start tick
+		tempoCheckpoint = tempoCheckpoints.get(0); // this is guaranteed to have tick=0, nanotime=0
+
+		// skip to start tick: tempo checkpoints
 		for(TempoCheckpoint checkpoint : tempoCheckpoints) {
-			if(checkpoint.getTick() < startTick) {
+			if(checkpoint.getTick() <= startTick) {
 				tempoCheckpoint = checkpoint;
 				tempoIndex++;
 			} else {
@@ -195,7 +199,15 @@ public class Sequencer {
 				break;
 			}
 		}
+
+		// Careful here: if the first tempo checkpoint on the track is
+		// AFTER the start tick, the NEXT tempo checkpoint is that first
+		// checkpoint. The current tempoIndex in this case is -1, such
+		// that process() goes to that checkpoint once it is reached.
+
 		microTempo = tempoCheckpoint.getMicroTempo();
+
+		// skip to start tick: events
 		while(index < events.size()) {
 			TimedEvent<?> evt = events.get(index);
 			if(evt.getTime() < startTick) {
@@ -204,7 +216,10 @@ public class Sequencer {
 				break;
 			}
 		}
+
+		// compute start time
 		time = System.nanoTime() - getTime(startTick);
+
 		playing = true;
 		try {
 			while(index < events.size()) {
