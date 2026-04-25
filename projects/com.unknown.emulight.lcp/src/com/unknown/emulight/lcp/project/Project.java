@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
 import javax.swing.AbstractAction;
@@ -59,7 +60,7 @@ public class Project {
 	private final Sequencer sequencer = new Sequencer();
 
 	private final List<Track<?>> tracks = new ArrayList<>();
-	private final List<LaserTrack> laserTracks = new ArrayList<>();
+	private final List<LaserTrack> laserTracks = new CopyOnWriteArrayList<>();
 
 	private final List<ProjectListener> listeners = new ArrayList<>();
 
