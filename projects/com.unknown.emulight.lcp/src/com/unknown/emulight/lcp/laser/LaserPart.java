@@ -135,7 +135,7 @@ public class LaserPart extends AbstractPart {
 		try {
 			speed = Integer.parseInt(xml.getAttribute("speed"));
 		} catch(NumberFormatException e) {
-			throw new IOException("invalid duration: " + xml.getAttribute("duration"), e);
+			throw new IOException("invalid speed: " + xml.getAttribute("speed"), e);
 		}
 
 		loop = Boolean.parseBoolean(xml.getAttribute("loop"));
@@ -155,7 +155,11 @@ public class LaserPart extends AbstractPart {
 			}
 		}
 
-		root = newRoot;
+		if(newRoot != null) {
+			root = newRoot;
+		} else {
+			throw new IOException("no root node defined");
+		}
 	}
 
 	@Override
