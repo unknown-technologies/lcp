@@ -237,7 +237,7 @@ public abstract class Node implements Cloneable {
 	public Mtx44 getFullColorTransform(int time) {
 		Mtx44 result = new Mtx44();
 		for(Node node = this; node != null; node = node.getParent()) {
-			result = node.getTransformation(time).concat(result);
+			result = node.getColorTransformation(time).concat(result);
 		}
 
 		return result;
