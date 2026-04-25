@@ -271,6 +271,10 @@ public class Sequencer {
 	}
 
 	public void play() {
+		if(tracks == null) {
+			return;
+		}
+
 		if(player != null) {
 			stop();
 		}
@@ -299,7 +303,8 @@ public class Sequencer {
 		try {
 			player.join();
 		} catch(InterruptedException e) {
-			// swallow .. bad, but still
+			// restore interrupted flag
+			Thread.currentThread().interrupt();
 		}
 
 		for(MidiTrack track : tracks) {
