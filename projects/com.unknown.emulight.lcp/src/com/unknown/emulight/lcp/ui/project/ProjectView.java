@@ -69,6 +69,7 @@ import com.unknown.emulight.lcp.ui.audio.AudioPartEditorDialog;
 import com.unknown.emulight.lcp.ui.event.GridChangeListener;
 import com.unknown.emulight.lcp.ui.event.PartSelectionListener;
 import com.unknown.emulight.lcp.ui.laser.LaserPartEditorDialog;
+import com.unknown.emulight.lcp.ui.live.LivePartTransfer;
 import com.unknown.emulight.lcp.ui.midi.MidiPartEditorDialog;
 import com.unknown.emulight.lcp.ui.midi.TempoPartEditorDialog;
 import com.unknown.emulight.lcp.ui.resources.icons.project.tracktype.TrackIcons;
@@ -1655,6 +1656,8 @@ public class ProjectView extends JComponent {
 				}
 			} else if(e.getButton() == MouseEvent.BUTTON3) {
 				boolean clickedOnTrack = updateSelection(px, py, false);
+				boolean operateOnParts = !selection.isEmpty() &&
+						(px > CONTENT_X && px <= getWidth() - BORDER);
 
 				// can this track be deleted?
 				boolean permanentTrack = false;
@@ -1704,6 +1707,25 @@ public class ProjectView extends JComponent {
 				removeTrack.setEnabled(clickedOnTrack && !permanentTrack);
 				removeTrack.addActionListener(ev -> project.removeTrack(project.getTrack(selected)));
 
+				JMenu partMenu = new JMenu("Part");
+				partMenu.setMnemonic('P');
+				partMenu.setEnabled(operateOnParts);
+
+				JMenuItem addToCueList = new JMenuItem("Add to cue list");
+				addToCueList.setMnemonic('c');
+				boolean canTransfer = false;
+				for(PartContainer<?> part : selection) {
+					if(LivePartTransfer.canTransfer(part)) {
+						canTransfer = true;
+						break;
+					}
+				}
+				addToCueList.setEnabled(canTransfer);
+				addToCueList
+						.addActionListener(ex -> LivePartTransfer.addParts(project, selection));
+
+				partMenu.add(addToCueList);
+
 				ButtonGroup divisionGroup = new ButtonGroup();
 
 				JRadioButtonMenuItem div1 = new JRadioButtonMenuItem("Division: 1", division == 1);
@@ -1748,6 +1770,8 @@ public class ProjectView extends JComponent {
 				menu.add(addTrack);
 				menu.add(duplicateTrack);
 				menu.add(removeTrack);
+				menu.addSeparator();
+				menu.add(partMenu);
 				menu.addSeparator();
 				menu.add(divisionMenu);
 

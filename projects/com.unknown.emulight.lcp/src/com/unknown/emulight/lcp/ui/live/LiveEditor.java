@@ -8,11 +8,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.swing.AbstractListModel;
 import javax.swing.BoxLayout;
@@ -31,16 +27,9 @@ import javax.swing.SpinnerNumberModel;
 import com.unknown.emulight.lcp.event.ConfigChangeListener;
 import com.unknown.emulight.lcp.event.ProjectListener;
 import com.unknown.emulight.lcp.io.midi.MidiInPort;
-import com.unknown.emulight.lcp.laser.LaserCue;
-import com.unknown.emulight.lcp.laser.LaserPart;
-import com.unknown.emulight.lcp.laser.LaserReference;
-import com.unknown.emulight.lcp.laser.LaserTrack;
-import com.unknown.emulight.lcp.live.Cue;
 import com.unknown.emulight.lcp.live.CuePool;
 import com.unknown.emulight.lcp.live.Target;
 import com.unknown.emulight.lcp.live.Trigger;
-import com.unknown.emulight.lcp.project.AbstractPart;
-import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.project.SystemConfiguration.DMXPortConfig;
 import com.unknown.emulight.lcp.project.SystemConfiguration.LaserConfig;
@@ -327,53 +316,7 @@ public class LiveEditor extends JPanel implements ConfigChangeListener {
 	}
 
 	public void transferFromTracks() {
-		Set<AbstractPart> uniqueParts = new HashSet<>();
-		Map<AbstractPart, List<PartContainer<?>>> map = new HashMap<>();
-		for(Track<?> track : project.getTracks()) {
-			for(PartContainer<?> container : track.getParts()) {
-				uniqueParts.add(container.getPart());
-				List<PartContainer<?>> containers = map.get(container.getPart());
-				if(containers == null) {
-					containers = new ArrayList<>();
-					map.put(container.getPart(), containers);
-				}
-				containers.add(container);
-			}
-		}
-
-		CuePool pool = project.getCuePool();
-		Set<AbstractPart> existingParts = new HashSet<>();
-		for(Cue<?> cue : pool.getCues()) {
-			existingParts.add(cue.getPart());
-		}
-
-		// TODO: update this later, once more part types become available
-		uniqueParts.stream().filter(part -> !existingParts.contains(part)).forEach(part -> {
-			if(part instanceof LaserPart) {
-				LaserPart laserPart = (LaserPart) part;
-				List<PartContainer<?>> containers = map.get(laserPart);
-				int color = containers.get(0).getTrack().getColor();
-
-				LaserCue cue = new LaserCue(project, laserPart);
-				cue.setColor(color);
-				long maxlen = 0;
-				for(PartContainer<?> container : containers) {
-					long len = container.getLength();
-					if(len > maxlen) {
-						maxlen = len;
-					}
-
-					LaserReference laser = ((LaserTrack) container.getTrack()).getLaserReference();
-					if(laser != null) {
-						cue.addLaser(laser);
-					}
-				}
-				cue.setLength((int) maxlen);
-
-				pool.addCue(cue);
-			}
-		});
-
+		LivePartTransfer.transferFromTracks(project);
 		cueList.repaint();
 	}
 
