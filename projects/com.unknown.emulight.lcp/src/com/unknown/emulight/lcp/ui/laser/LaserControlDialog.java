@@ -178,9 +178,12 @@ public class LaserControlDialog extends JDialog implements LaserRenderer {
 
 		oldRenderer = processor.getRenderer();
 		processor.setRenderer(this);
+		sys.getLightProcessor().setBypass(true);
 	}
 
 	private void close() {
+		sys.getLightProcessor().setBypass(false);
+
 		LaserProcessor processor = sys.getLaserProcessor();
 
 		// clear DMX

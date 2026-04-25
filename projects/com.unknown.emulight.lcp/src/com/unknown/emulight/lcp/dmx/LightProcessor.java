@@ -28,6 +28,8 @@ public class LightProcessor {
 
 	private final ArtNetTransmitter artnet;
 
+	private volatile boolean bypass = false;
+
 	private Set<DMXOutPort> dmxPorts = new HashSet<>();
 
 	public LightProcessor(EmulightSystem sys, SystemConfiguration config, int rate) throws IOException {
@@ -145,7 +147,14 @@ public class LightProcessor {
 		return Collections.unmodifiableSet(dmxPorts);
 	}
 
+	public void setBypass(boolean bypass) {
+		this.bypass = bypass;
+	}
+
 	private void process() {
+		if(bypass) {
+			return;
+		}
 		synchronized(dmxPorts) {
 			for(DMXOutPort port : dmxPorts) {
 				byte[] dmx = new byte[512];
