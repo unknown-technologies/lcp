@@ -234,7 +234,7 @@ public class Project {
 		Track<?> newTrack = track.clone();
 		addTrack(newTrack);
 
-		return track;
+		return newTrack;
 	}
 
 	@SuppressWarnings("unchecked")
