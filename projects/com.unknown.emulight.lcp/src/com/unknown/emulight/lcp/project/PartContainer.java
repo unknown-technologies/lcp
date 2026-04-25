@@ -1,5 +1,7 @@
 package com.unknown.emulight.lcp.project;
 
+import java.io.IOException;
+
 import com.unknown.xml.dom.Element;
 
 public class PartContainer<T extends AbstractPart> {
@@ -122,9 +124,17 @@ public class PartContainer<T extends AbstractPart> {
 		return track;
 	}
 
-	public void read(Element xml) {
-		trimStart = Long.parseLong(xml.getAttribute("trimStart"));
-		length = Long.parseLong(xml.getAttribute("length"));
+	public void read(Element xml) throws IOException {
+		try {
+			trimStart = Long.parseLong(xml.getAttribute("trimStart", "0"));
+		} catch(NumberFormatException e) {
+			throw new IOException("invalid trimStart");
+		}
+		try {
+			length = Long.parseLong(xml.getAttribute("length"));
+		} catch(NumberFormatException e) {
+			throw new IOException("invalid length");
+		}
 	}
 
 	public void write(Element xml) {
