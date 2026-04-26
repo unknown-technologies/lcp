@@ -31,6 +31,8 @@ import com.unknown.util.ui.CopyableLabel;
 public class BeatTapperDialog extends JDialog {
 	private static final int MENU_MODIFIER = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
 
+	private static final int MAX_MEASUREMENTS = 30;
+
 	private final CopyableLabel label;
 
 	private long lastTime = -1;
@@ -112,7 +114,7 @@ public class BeatTapperDialog extends JDialog {
 			setBPM(0);
 		} else {
 			times.add(dt);
-			if(times.size() > 10) {
+			if(times.size() > MAX_MEASUREMENTS) {
 				times.removeFirst();
 			}
 
