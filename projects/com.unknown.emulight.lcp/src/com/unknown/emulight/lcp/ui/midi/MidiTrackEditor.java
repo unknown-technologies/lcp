@@ -139,7 +139,7 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Program:"));
 		controls.add(LabeledPairLayout.COMPONENT, program);
 		controls.add(LabeledPairLayout.LABEL, new JLabel("Color:"));
-		controls.add(LabeledPairLayout.COMPONENT, createColorBox());
+		controls.add(LabeledPairLayout.COMPONENT, getTrackColorBox());
 
 		JPanel volumeControls = new JPanel();
 		volumeControls.setBorder(UIUtils.border("Volume"));
@@ -228,6 +228,9 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 			break;
 		case TrackListener.CHANNEL:
 			channel.setSelectedIndex(track.getChannel() == MidiTrack.ANY ? 0 : track.getChannel() + 1);
+			break;
+		case TrackListener.COLOR:
+			getTrackColorBox().repaint();
 			break;
 		}
 	}

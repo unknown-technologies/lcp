@@ -1,4 +1,4 @@
-package com.unknown.emulight.lcp.ui.audio;
+package com.unknown.emulight.lcp.ui.dmx;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
@@ -14,7 +14,7 @@ import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
-import com.unknown.emulight.lcp.audio.AudioTrack;
+import com.unknown.emulight.lcp.dmx.DMXTrack;
 import com.unknown.emulight.lcp.event.TrackListener;
 import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.ui.UIUtils;
@@ -22,15 +22,15 @@ import com.unknown.emulight.lcp.ui.project.TrackEditor;
 import com.unknown.util.ui.LabeledPairLayout;
 
 @SuppressWarnings("serial")
-public class AudioTrackEditor extends TrackEditor implements TrackListener {
-	private final AudioTrack track;
+public class DMXTrackEditor extends TrackEditor implements TrackListener {
+	private final DMXTrack track;
 	private final JTextField name;
 	private final JSlider volume;
 	private final JSpinner numericVolume;
 
 	private boolean bypassEvents = false;
 
-	public AudioTrackEditor(EmulightSystem sys, AudioTrack track) {
+	public DMXTrackEditor(EmulightSystem sys, DMXTrack track) {
 		super(sys, track);
 		this.track = track;
 
@@ -49,31 +49,23 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 			}
 		});
 
-		double trackVolumeLog = track.getVolume() == 0 ? -70 : 20 * Math.log(track.getVolume()) / Math.log(10);
-		if(trackVolumeLog < -70) {
-			trackVolumeLog = -70;
-		} else if(trackVolumeLog > 6.02) {
-			trackVolumeLog = 6.02;
-		}
-		volume = new JSlider(JSlider.VERTICAL, -7000, 602, (int) Math.round(trackVolumeLog * 100));
-		numericVolume = new JSpinner(new SpinnerNumberModel(trackVolumeLog, -70.0, 6.02, 0.1));
+		volume = new JSlider(JSlider.VERTICAL, 0, 255, (int) Math.round(track.getVolume() * 255.0));
+		numericVolume = new JSpinner(new SpinnerNumberModel(volume.getValue(), 0, 255, 1));
 
 		volume.addChangeListener(e -> {
 			int value = volume.getValue();
-			double db = value / 100.0;
 			int spinner = ((SpinnerNumberModel) numericVolume.getModel()).getNumber().intValue();
 			if(spinner != value) {
-				numericVolume.setValue(db);
+				numericVolume.setValue(value);
 			}
-			double linear = Math.pow(10, db / 20);
-			track.setVolume(linear);
+			track.setVolume(value / 255.0);
 		});
 
 		numericVolume.addChangeListener(e -> {
-			double value = ((SpinnerNumberModel) numericVolume.getModel()).getNumber().doubleValue();
+			int value = ((SpinnerNumberModel) numericVolume.getModel()).getNumber().intValue();
 			int slider = volume.getValue();
 			if(slider != value) {
-				volume.setValue((int) Math.round(value * 100));
+				volume.setValue(value);
 			}
 		});
 
@@ -85,7 +77,7 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 		controls.add(LabeledPairLayout.COMPONENT, getTrackColorBox());
 
 		JPanel volumeControls = new JPanel();
-		volumeControls.setBorder(UIUtils.border("Volume"));
+		volumeControls.setBorder(UIUtils.border("Brightness"));
 		volumeControls.setLayout(new BoxLayout(volumeControls, BoxLayout.Y_AXIS));
 		volumeControls.add(volume);
 
