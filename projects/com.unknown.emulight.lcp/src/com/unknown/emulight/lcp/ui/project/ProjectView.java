@@ -6,6 +6,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.FocusEvent.Cause;
 import java.awt.event.KeyEvent;
@@ -108,6 +109,9 @@ public class ProjectView extends JComponent {
 
 	private static final Color BEAT_GRID_TEXT = new Color(0xFFFFFF);
 
+	private static final Color SELECTION_BORDER = new Color(0xE0E0E0);
+	private static final Color SELECTION_FILL = new Color(0x40E0E0E0, true);
+
 	private static final Color TRANSPARENT = new Color(0, 0, 0, 0);
 
 	private final Project project;
@@ -118,6 +122,8 @@ public class ProjectView extends JComponent {
 	private PartContainer<?> selectedPart = null;
 	private Set<PartContainer<?>> tempParts = new HashSet<>();
 	private Set<PartContainer<?>> hiddenParts = new HashSet<>();
+
+	private Rectangle selectionRectangle = null;
 
 	private final Map<Track<?>, TrackEditor> trackEditors = new HashMap<>();
 
@@ -821,6 +827,16 @@ public class ProjectView extends JComponent {
 		g.setColor(TRACK_BACKGROUND);
 		g.fillRect(0, height - BORDER + 1, width, BORDER);
 
+		if(selectionRectangle != null) {
+			g.setColor(SELECTION_FILL);
+			g.fillRect(selectionRectangle.x, selectionRectangle.y, selectionRectangle.width,
+					selectionRectangle.height);
+			g.setColor(SELECTION_BORDER);
+			g.drawRect(selectionRectangle.x, selectionRectangle.y, selectionRectangle.width,
+					selectionRectangle.height);
+		}
+
+		// draw cursor
 		int cursor = getPixel(project.getSequencer().getTick());
 		if(cursor >= CONTENT_X && cursor <= width - BORDER) {
 			g.setColor(Color.BLACK);
@@ -1322,6 +1338,15 @@ public class ProjectView extends JComponent {
 				}
 			}
 
+			if(!match) {
+				for(PartContainer<?> part : track.getParts()) {
+					if(part.contains(time)) {
+						match = true;
+						break;
+					}
+				}
+			}
+
 			if(match) {
 				setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
 			} else {
@@ -1410,6 +1435,32 @@ public class ProjectView extends JComponent {
 						selectedPart.setLength(dt);
 						repaint();
 					}
+				} else if(selectionRectangle != null ||
+						(e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0) {
+					int sx = startX;
+					int sy = startY;
+					int ex = e.getX();
+					int ey = e.getY();
+
+					// swap start/end if necessary
+					if(ex < sx) {
+						int tmp = ex;
+						ex = sx;
+						sx = tmp;
+					}
+
+					if(ey < sy) {
+						int tmp = ey;
+						ey = sy;
+						sy = tmp;
+					}
+
+					// update rectangle
+					int w = ex - sx;
+					int h = ey - sy;
+					selectionRectangle = new Rectangle(sx, sy, w, h);
+
+					repaint();
 				} else if(!tempParts.isEmpty()) {
 					// move selected part
 					move = true;
@@ -1549,6 +1600,8 @@ public class ProjectView extends JComponent {
 			resize = false;
 			move = false;
 
+			selectionRectangle = null;
+
 			tempParts.clear();
 			hiddenParts.clear();
 
@@ -1618,12 +1671,14 @@ public class ProjectView extends JComponent {
 								}
 
 								updatePartSelection();
+
 								return;
 							}
 						}
 
 						if(!selection.isEmpty()) {
 							if(editSelection) {
+								selectionRectangle = new Rectangle(px, py, 1, 1);
 								// editing the selection, don't clear it
 								return;
 							}
@@ -1649,10 +1704,13 @@ public class ProjectView extends JComponent {
 										Math.round(grid)));
 								repaint();
 							}
+						} else if(selection.isEmpty()) {
+							selectionRectangle = new Rectangle(px, py, 1, 1);
 						}
 					}
 				} else if((e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) == 0) {
 					setSelection(Collections.emptySet());
+					selectionRectangle = new Rectangle(px, py, 1, 1);
 				}
 			} else if(e.getButton() == MouseEvent.BUTTON3) {
 				boolean clickedOnTrack = updateSelection(px, py, false);
@@ -1721,8 +1779,7 @@ public class ProjectView extends JComponent {
 					}
 				}
 				addToCueList.setEnabled(canTransfer);
-				addToCueList
-						.addActionListener(ex -> LivePartTransfer.addParts(project, selection));
+				addToCueList.addActionListener(ex -> LivePartTransfer.addParts(project, selection));
 
 				partMenu.add(addToCueList);
 
@@ -1782,7 +1839,66 @@ public class ProjectView extends JComponent {
 		@Override
 		public void mouseReleased(MouseEvent e) {
 			if(e.getButton() == MouseEvent.BUTTON1) {
-				if(!tempParts.isEmpty()) {
+				if(selectionRectangle != null) {
+					// change selection
+					int sx = startX;
+					int sy = startY;
+					int ex = e.getX();
+					int ey = e.getY();
+
+					// swap start/end if necessary
+					if(ex < sx) {
+						int tmp = ex;
+						ex = sx;
+						sx = tmp;
+					}
+
+					if(ey < sy) {
+						int tmp = ey;
+						ey = sy;
+						sy = tmp;
+					}
+
+					Set<PartContainer<?>> newSelection = new HashSet<>();
+
+					// add previous selection when in "add" mode
+					if((e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0) {
+						newSelection.addAll(selection);
+					}
+
+					int startTrack = getTrack(sy);
+					int endTrack = getTrack(ey);
+					List<Track<?>> tracks = project.getTracks();
+
+					if(sy < START_Y && ey >= START_Y) {
+						startTrack = 0;
+					}
+
+					if(endTrack == -1 && startTrack != -1) {
+						endTrack = tracks.size() - 1;
+					}
+
+					for(int i = startTrack; i != -1 && i <= endTrack && i < tracks.size(); i++) {
+						Track<?> track = tracks.get(i);
+						for(PartContainer<?> part : track.getParts()) {
+							int partMinX = getPixel(part.getStart());
+							int partMaxX = getPixel(part.getEnd());
+
+							if(partMinX >= sx && partMaxX <= ex) {
+								// completely contained in selection
+								newSelection.add(part);
+							} else if(partMinX <= sx && partMaxX >= sx) {
+								// partially contained in selection: end
+								newSelection.add(part);
+							} else if(partMinX >= sx && partMinX <= ex) {
+								// partially contained in selection: start
+								newSelection.add(part);
+							}
+						}
+					}
+
+					setSelection(newSelection);
+				} else if(!tempParts.isEmpty()) {
 					// move/copy selected part
 					long startTime = getTime(startX);
 					long endTime = getTime(e.getX());
@@ -1925,6 +2041,7 @@ public class ProjectView extends JComponent {
 			startLengths.clear();
 			tempParts.clear();
 			hiddenParts.clear();
+			selectionRectangle = null;
 			repaint();
 		}
 
