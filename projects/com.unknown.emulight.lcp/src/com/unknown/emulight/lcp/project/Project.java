@@ -54,6 +54,7 @@ public class Project {
 	private final EmulightSystem system;
 
 	private String name;
+	private String author;
 
 	private int ppq;
 
@@ -194,6 +195,15 @@ public class Project {
 	public void setName(String name) {
 		this.name = name;
 		fireEvent(ProjectListener.NAME);
+	}
+
+	public String getAuthor() {
+		return author;
+	}
+
+	public void setAuthor(String author) {
+		this.author = author;
+		fireEvent(ProjectListener.AUTHOR);
 	}
 
 	public int getPPQ() {
@@ -524,6 +534,7 @@ public class Project {
 		cues.clear();
 
 		setName(xml.getAttribute("name"));
+		setAuthor(xml.getAttribute("author"));
 		setPPQ(Integer.parseInt(xml.getAttribute("ppq")));
 
 		Map<Integer, AbstractPart> parts = new HashMap<>();
@@ -641,7 +652,13 @@ public class Project {
 	public Element write() {
 		Element xml = new Element("project");
 
-		xml.addAttribute("name", name);
+		if(name != null) {
+			xml.addAttribute("name", name);
+		}
+		if(author != null) {
+			xml.addAttribute("author", author);
+		}
+
 		xml.addAttribute("ppq", Integer.toString(ppq));
 
 		Element xmlRecentColors = new Element("recent-colors");

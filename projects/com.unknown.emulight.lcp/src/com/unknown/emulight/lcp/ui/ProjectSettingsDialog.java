@@ -37,9 +37,19 @@ public class ProjectSettingsDialog extends JDialog {
 			}
 		});
 
+		JTextField author = new JTextField(project.getAuthor());
+		author.addKeyListener(new KeyAdapter() {
+			@Override
+			public void keyReleased(KeyEvent e) {
+				project.setAuthor(author.getText().trim());
+			}
+		});
+
 		content.setBorder(UIUtils.border("General"));
 		content.add(LabeledPairLayout.LABEL, new JLabel("Name:"));
 		content.add(LabeledPairLayout.COMPONENT, name);
+		content.add(LabeledPairLayout.LABEL, new JLabel("Author:"));
+		content.add(LabeledPairLayout.COMPONENT, author);
 		content.add(LabeledPairLayout.LABEL, new JLabel("PPQ:"));
 		content.add(LabeledPairLayout.COMPONENT, new JLabel(Integer.toString(project.getPPQ())));
 
