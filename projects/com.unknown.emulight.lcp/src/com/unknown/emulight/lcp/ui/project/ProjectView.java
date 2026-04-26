@@ -1897,7 +1897,11 @@ public class ProjectView extends JComponent {
 						}
 					}
 
-					setSelection(newSelection);
+					// only change selection if it really changed
+					if(!selection.containsAll(newSelection) ||
+							selection.size() != newSelection.size()) {
+						setSelection(newSelection);
+					}
 				} else if(!tempParts.isEmpty()) {
 					// move/copy selected part
 					long startTime = getTime(startX);
