@@ -36,6 +36,7 @@ public class SystemConfiguration implements AutoCloseable {
 	private static final Logger log = Trace.create(SystemConfiguration.class);
 
 	public static final String SERIAL_LINE = "serial-line";
+	public static final String DEFAULT_AUTHOR = "default-author";
 	public static final String SAMPLE_RATE = "sample-rate";
 	public static final String BLOCK_SIZE = "block-size";
 	public static final String OUTPUT_DELAY = "output-delay";
@@ -43,6 +44,7 @@ public class SystemConfiguration implements AutoCloseable {
 	public static final String WINDOW_DECORATIONS = "window-decorations";
 
 	private String serialLine;
+	private String defaultAuthor;
 	private LookAndFeel laf = LookAndFeel.MOTIF;
 	private boolean windowDecorations = true;
 	private int sampleRate = 48000;
@@ -97,6 +99,19 @@ public class SystemConfiguration implements AutoCloseable {
 
 		this.serialLine = serialLine;
 		fireConfigChangedEvent(SERIAL_LINE, serialLine);
+	}
+
+	public String getDefaultAuthor() {
+		return defaultAuthor;
+	}
+
+	public void setDefaultAuthor(String defaultAuthor) {
+		if(same(defaultAuthor, this.defaultAuthor)) {
+			return;
+		}
+
+		this.defaultAuthor = defaultAuthor;
+		fireConfigChangedEvent(DEFAULT_AUTHOR, defaultAuthor);
 	}
 
 	public int getSampleRate() {
@@ -548,6 +563,12 @@ public class SystemConfiguration implements AutoCloseable {
 		}
 		xml.addChild(pcif);
 
+		Element project = new Element("project");
+		if(defaultAuthor != null) {
+			project.addAttribute("default-author", defaultAuthor);
+		}
+		xml.addChild(project);
+
 		Element ui = new Element("user-interface");
 		ui.addAttribute("look-and-feel", laf.toString());
 		ui.addAttribute("window-decorations", Boolean.toString(windowDecorations));
@@ -692,6 +713,9 @@ public class SystemConfiguration implements AutoCloseable {
 			switch(node.name) {
 			case "pcif":
 				setSerialLine(node.getAttribute("port"));
+				break;
+			case "project":
+				setDefaultAuthor(node.getAttribute("default-author"));
 				break;
 			case "user-interface":
 				setLookAndFeel(LookAndFeel.valueOf(node.getAttribute("look-and-feel", "MOTIF")));

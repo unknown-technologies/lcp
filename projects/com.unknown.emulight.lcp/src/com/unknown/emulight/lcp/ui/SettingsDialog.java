@@ -6,6 +6,7 @@ import java.awt.GridLayout;
 import java.awt.Point;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -40,6 +41,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
@@ -75,6 +77,7 @@ import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
 import com.unknown.util.ui.ExtendedTableModel;
 import com.unknown.util.ui.LabeledPairLayout;
+import com.unknown.util.ui.LabeledPairLayout.LayoutGroup;
 import com.unknown.util.ui.MixedTable;
 
 @SuppressWarnings("serial")
@@ -119,8 +122,8 @@ public class SettingsDialog extends JDialog {
 
 		audioDelayMeasurement = new AudioDelayMeasurementTool(project);
 
-		// I/O TAB
-		JPanel general = new JPanel(new BorderLayout());
+		// GENERAL TAB
+		JPanel general = new JPanel(new GridLayout(2, 1));
 
 		JComboBox<String> serial = new JComboBox<>(SerialLineInfo.getSerialLines());
 		serial.setEditable(true);
@@ -147,7 +150,8 @@ public class SettingsDialog extends JDialog {
 			status.setText(openclose);
 		}
 
-		JPanel pcif = new JPanel(new LabeledPairLayout());
+		LayoutGroup generalLayoutGroup = new LayoutGroup();
+		JPanel pcif = new JPanel(new LabeledPairLayout(generalLayoutGroup));
 		pcif.setBorder(BorderFactory.createTitledBorder("Connection"));
 		pcif.add(LabeledPairLayout.LABEL, new JLabel("Serial Line:"));
 		pcif.add(LabeledPairLayout.COMPONENT, serial);
@@ -156,7 +160,26 @@ public class SettingsDialog extends JDialog {
 		pcif.add(LabeledPairLayout.LABEL, new JLabel("Address:"));
 		pcif.add(LabeledPairLayout.COMPONENT, address);
 
-		general.add(BorderLayout.CENTER, pcif);
+		JTextField defaultAuthor = new JTextField(project.getAuthor());
+		defaultAuthor.addKeyListener(new KeyAdapter() {
+			@Override
+			public void keyReleased(KeyEvent e) {
+				String author = defaultAuthor.getText().trim();
+				if(author.length() == 0) {
+					author = null;
+				}
+				sys.getConfig().setDefaultAuthor(author);
+			}
+		});
+		defaultAuthor.setText(sys.getConfig().getDefaultAuthor());
+
+		JPanel projectDefaults = new JPanel(new LabeledPairLayout(generalLayoutGroup));
+		projectDefaults.setBorder(BorderFactory.createTitledBorder("Project Defaults"));
+		projectDefaults.add(LabeledPairLayout.LABEL, new JLabel("Author:"));
+		projectDefaults.add(LabeledPairLayout.COMPONENT, defaultAuthor);
+
+		general.add(pcif);
+		general.add(projectDefaults);
 
 		// MIDI TAB
 		JPanel midi = new JPanel(new BorderLayout());
