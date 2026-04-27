@@ -191,7 +191,7 @@ public class Sequencer {
 
 		// skip to start tick: tempo checkpoints
 		for(TempoCheckpoint checkpoint : tempoCheckpoints) {
-			if(checkpoint.getTick() <= startTick) {
+			if(checkpoint.getTick() < startTick) {
 				tempoCheckpoint = checkpoint;
 				tempoIndex++;
 			} else {
