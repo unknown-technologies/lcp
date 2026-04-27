@@ -260,6 +260,11 @@ public abstract class Track<T extends AbstractPart> {
 		// override in subclasses
 	}
 
+	public void clear() {
+		parts.clear();
+		fireEvent(TrackListener.PART);
+	}
+
 	public PartContainer<T> addPart(long time, T part) {
 		PartContainer<T> container = new PartContainer<>(this, part, time);
 		container.getPart().addReference(container);

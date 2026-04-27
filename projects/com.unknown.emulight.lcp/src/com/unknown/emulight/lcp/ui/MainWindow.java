@@ -203,6 +203,11 @@ public class MainWindow extends JFrame {
 			}
 		});
 
+		JMenuItem fileMenuNew = new JMenuItem("New Project");
+		fileMenuNew.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, MENU_MODIFIER));
+		fileMenuNew.setMnemonic('N');
+		fileMenuNew.addActionListener(e -> project.newProject());
+
 		JMenu fileMenuImport = new JMenu("Import");
 		fileMenuImport.setMnemonic('I');
 
@@ -253,6 +258,8 @@ public class MainWindow extends JFrame {
 
 		fileMenu.add(fileMenuOpen);
 		fileMenu.add(fileMenuSave);
+		fileMenu.addSeparator();
+		fileMenu.add(fileMenuNew);
 		fileMenu.addSeparator();
 		fileMenu.add(fileMenuImport);
 		fileMenu.addSeparator();

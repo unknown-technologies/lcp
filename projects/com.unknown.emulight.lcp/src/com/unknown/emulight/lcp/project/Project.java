@@ -50,6 +50,7 @@ import com.unknown.xml.dom.Element;
 public class Project {
 	private static final Logger log = Trace.create(Project.class);
 	private static final Color DEFAULT_COLOR = new Color(142, 160, 178);
+	private static final int DEFAULT_PPQ = 1920;
 
 	private final EmulightSystem system;
 
@@ -90,6 +91,27 @@ public class Project {
 		sequencer.addListener(system.getAudioProcessor());
 
 		// default colors
+		loadDefaultColors();
+
+		author = system.getConfig().getDefaultAuthor();
+
+		setPPQ(DEFAULT_PPQ);
+
+		setName("Untitled Project");
+
+		systemSounds = new AudioTrack(this, "System");
+
+		addTrack(tempoTrack = new TempoTrack(this, "Tempo"));
+		addTrack(signatureTrack = new SignatureTrack(this, "Signature"));
+
+		sequencer.setTempoTrack(tempoTrack);
+
+		cues = new CuePool(this);
+
+		clearLaserRenderer();
+	}
+
+	private void loadDefaultColors() {
 		palette.clear();
 		palette.addColor(new Color(0x8EA0B2));
 		palette.addColor(new Color(0xE53636));
@@ -117,21 +139,6 @@ public class Project {
 		palette.addColor(new Color(0xE47535));
 		palette.addColor(new Color(0xAF6929));
 		palette.addColor(new Color(0x885732));
-
-		setPPQ(1920);
-
-		setName("Untitled Project");
-
-		systemSounds = new AudioTrack(this, "System");
-
-		addTrack(tempoTrack = new TempoTrack(this, "Tempo"));
-		addTrack(signatureTrack = new SignatureTrack(this, "Signature"));
-
-		sequencer.setTempoTrack(tempoTrack);
-
-		cues = new CuePool(this);
-
-		clearLaserRenderer();
 	}
 
 	public void addKeyboardShortcut(KeyStroke key, ActionListener action) {
@@ -512,6 +519,39 @@ public class Project {
 				log.log(Levels.ERROR, "Failed to execute project listener", t);
 			}
 		}
+	}
+
+	public void newProject() {
+		List<Track<?>> tracksToRemove = new ArrayList<>();
+		for(Track<?> track : tracks) {
+			if(track != tempoTrack && track != signatureTrack) {
+				tracksToRemove.add(track);
+			}
+		}
+
+		for(Track<?> track : tracksToRemove) {
+			removeTrack(track);
+		}
+
+		tracks.clear();
+		cues.clear();
+
+		setName("Untitled Project");
+		setAuthor(system.getConfig().getDefaultAuthor());
+		setPPQ(DEFAULT_PPQ);
+
+		recentColors.clear();
+		loadDefaultColors();
+
+		tempoTrack.clear();
+		signatureTrack.clear();
+
+		addTrack(tempoTrack);
+		addTrack(signatureTrack);
+
+		getTempoTrack().recompute();
+
+		fireProjectLoaded();
 	}
 
 	public void load(Element xml) throws IOException {
