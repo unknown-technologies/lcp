@@ -137,11 +137,13 @@ public class SettingsDialog extends JDialog {
 				}
 			}
 		});
+		serial.setToolTipText("RS232 line for the ESL connection");
 
 		JLabel status = new JLabel("<unknown>");
 		JLabel address = new JLabel("<unknown>");
 
 		address.setText(Integer.toString(esl.getRouter()));
+		address.setToolTipText("This node's ESL bus address");
 
 		String openclose = esl.isOpen() ? "Connected" : "Disconnected";
 		if(esl.isError()) {
