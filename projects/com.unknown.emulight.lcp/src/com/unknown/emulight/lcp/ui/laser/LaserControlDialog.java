@@ -1,7 +1,9 @@
 package com.unknown.emulight.lcp.ui.laser;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -36,11 +38,14 @@ import com.unknown.net.shownet.Laser;
 import com.unknown.net.shownet.Point;
 import com.unknown.util.log.Levels;
 import com.unknown.util.log.Trace;
+import com.unknown.util.ui.ADM3AFont;
 import com.unknown.util.ui.LabeledPairLayout;
 
 @SuppressWarnings("serial")
 public class LaserControlDialog extends JDialog implements LaserRenderer {
 	private static final Logger log = Trace.create(LaserControlDialog.class);
+
+	private static final Color TRANSPARENT = new Color(0, true);
 
 	private final EmulightSystem sys;
 	private final InterfaceId id;
@@ -135,9 +140,68 @@ public class LaserControlDialog extends JDialog implements LaserRenderer {
 			dmxFaders.add(createFader(i));
 		}
 
+		JComponent xyControls = new JComponent() {
+			@Override
+			protected void paintComponent(Graphics g) {
+				int width = getWidth();
+				int height = getHeight();
+				g.setColor(Color.BLACK);
+				g.fillRect(0, 0, width, height);
+
+				ADM3AFont.render(g, 5, ADM3AFont.HEIGHT + 5, Color.RED, TRANSPARENT,
+						"DANGER! Right-Mouse = max brightness");
+
+				g.setColor(Color.GREEN);
+				int x = (int) Math.round(sliderX.getValue() / (double) 0xFFFF * width);
+				int y = (int) Math.round(sliderY.getValue() / (double) 0xFFFF * height);
+				g.fillOval(x - 3, y - 3, 6, 6);
+			}
+		};
+
+		MouseAdapter xyMouse = new MouseAdapter() {
+			private int red;
+			private int green;
+			private int blue;
+
+			@Override
+			public void mousePressed(MouseEvent e) {
+				mouseDragged(e);
+				if(e.getButton() == MouseEvent.BUTTON3) {
+					red = sliderRed.getValue();
+					green = sliderGreen.getValue();
+					blue = sliderBlue.getValue();
+					sliderRed.setValue(0xFF);
+					sliderGreen.setValue(0xFF);
+					sliderBlue.setValue(0xFF);
+				}
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				if(e.getButton() == MouseEvent.BUTTON3) {
+					sliderRed.setValue(red);
+					sliderGreen.setValue(green);
+					sliderBlue.setValue(blue);
+				}
+			}
+
+			@Override
+			public void mouseDragged(MouseEvent e) {
+				int x = (int) Math.round(e.getX() / (double) xyControls.getWidth() * 0xFFFF);
+				int y = (int) Math.round(e.getY() / (double) xyControls.getHeight() * 0xFFFF);
+				sliderX.setValue(x);
+				sliderY.setValue(y);
+				xyControls.repaint();
+			}
+		};
+
+		xyControls.addMouseListener(xyMouse);
+		xyControls.addMouseMotionListener(xyMouse);
+
 		JTabbedPane tabs = new JTabbedPane();
 		tabs.addTab("Laser", laserControls);
 		tabs.addTab("DMX", dmxFaders);
+		tabs.addTab("X/Y", xyControls);
 
 		JButton close = new JButton("Close");
 		close.addActionListener(e -> {
