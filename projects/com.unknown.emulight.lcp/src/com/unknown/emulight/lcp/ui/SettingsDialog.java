@@ -6,7 +6,6 @@ import java.awt.GridLayout;
 import java.awt.Point;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -79,6 +78,7 @@ import com.unknown.util.ui.ExtendedTableModel;
 import com.unknown.util.ui.LabeledPairLayout;
 import com.unknown.util.ui.LabeledPairLayout.LayoutGroup;
 import com.unknown.util.ui.MixedTable;
+import com.unknown.util.ui.SimpleDocumentListener;
 
 @SuppressWarnings("serial")
 public class SettingsDialog extends JDialog {
@@ -163,15 +163,12 @@ public class SettingsDialog extends JDialog {
 		pcif.add(LabeledPairLayout.COMPONENT, address);
 
 		JTextField defaultAuthor = new JTextField(project.getAuthor());
-		defaultAuthor.addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyReleased(KeyEvent e) {
-				String author = defaultAuthor.getText().trim();
-				if(author.length() == 0) {
-					author = null;
-				}
-				sys.getConfig().setDefaultAuthor(author);
+		defaultAuthor.getDocument().addDocumentListener((SimpleDocumentListener) e -> {
+			String author = defaultAuthor.getText().trim();
+			if(author.length() == 0) {
+				author = null;
 			}
+			sys.getConfig().setDefaultAuthor(author);
 		});
 		defaultAuthor.setText(sys.getConfig().getDefaultAuthor());
 

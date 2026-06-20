@@ -2,8 +2,6 @@ package com.unknown.emulight.lcp.ui.midi;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,6 +31,7 @@ import com.unknown.emulight.lcp.ui.SpinnerProgramModel;
 import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.emulight.lcp.ui.project.TrackEditor;
 import com.unknown.util.ui.LabeledPairLayout;
+import com.unknown.util.ui.SimpleDocumentListener;
 
 @SuppressWarnings("serial")
 public class MidiTrackEditor extends TrackEditor implements TrackListener, ConfigChangeListener {
@@ -66,15 +65,12 @@ public class MidiTrackEditor extends TrackEditor implements TrackListener, Confi
 		sys.getConfig().addConfigChangeListener(this);
 
 		name = new JTextField(track.getName());
-		name.addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyReleased(KeyEvent e) {
-				try {
-					bypassEvents = true;
-					track.setName(name.getText().trim());
-				} finally {
-					bypassEvents = false;
-				}
+		name.getDocument().addDocumentListener((SimpleDocumentListener) e -> {
+			try {
+				bypassEvents = true;
+				track.setName(name.getText().trim());
+			} finally {
+				bypassEvents = false;
 			}
 		});
 

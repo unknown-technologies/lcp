@@ -2,8 +2,6 @@ package com.unknown.emulight.lcp.ui.laser;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,6 +32,7 @@ import com.unknown.emulight.lcp.ui.live.CueEditor;
 import com.unknown.util.ui.ExtendedTableModel;
 import com.unknown.util.ui.LabeledPairLayout;
 import com.unknown.util.ui.MixedTable;
+import com.unknown.util.ui.SimpleDocumentListener;
 
 @SuppressWarnings("serial")
 public class LaserCueEditor extends CueEditor implements ConfigChangeListener {
@@ -49,15 +48,12 @@ public class LaserCueEditor extends CueEditor implements ConfigChangeListener {
 		sys.getConfig().addConfigChangeListener(this);
 
 		JTextField name = new JTextField(cue.getName());
-		name.addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyReleased(KeyEvent e) {
-				String text = name.getText().trim();
-				if(text.length() == 0) {
-					text = null;
-				}
-				cue.setName(text);
+		name.getDocument().addDocumentListener((SimpleDocumentListener) e -> {
+			String text = name.getText().trim();
+			if(text.length() == 0) {
+				text = null;
 			}
+			cue.setName(text);
 		});
 
 		JSpinner length = new JSpinner(new SpinnerNumberModel(cue.getLength(), 0, Integer.MAX_VALUE,

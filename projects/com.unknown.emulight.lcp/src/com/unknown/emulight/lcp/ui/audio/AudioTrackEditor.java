@@ -2,8 +2,6 @@ package com.unknown.emulight.lcp.ui.audio;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -20,6 +18,7 @@ import com.unknown.emulight.lcp.project.EmulightSystem;
 import com.unknown.emulight.lcp.ui.UIUtils;
 import com.unknown.emulight.lcp.ui.project.TrackEditor;
 import com.unknown.util.ui.LabeledPairLayout;
+import com.unknown.util.ui.SimpleDocumentListener;
 
 @SuppressWarnings("serial")
 public class AudioTrackEditor extends TrackEditor implements TrackListener {
@@ -37,15 +36,12 @@ public class AudioTrackEditor extends TrackEditor implements TrackListener {
 		track.addTrackListener(this);
 
 		name = new JTextField(track.getName());
-		name.addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyReleased(KeyEvent e) {
-				try {
-					bypassEvents = true;
-					track.setName(name.getText().trim());
-				} finally {
-					bypassEvents = false;
-				}
+		name.getDocument().addDocumentListener((SimpleDocumentListener) e -> {
+			try {
+				bypassEvents = true;
+				track.setName(name.getText().trim());
+			} finally {
+				bypassEvents = false;
 			}
 		});
 

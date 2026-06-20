@@ -3,7 +3,6 @@ package com.unknown.emulight.lcp.ui;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.List;
 
@@ -20,6 +19,7 @@ import javax.swing.KeyStroke;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.emulight.lcp.ui.resources.icons.Icons;
 import com.unknown.util.ui.LabeledPairLayout;
+import com.unknown.util.ui.SimpleDocumentListener;
 
 @SuppressWarnings("serial")
 public class ProjectSettingsDialog extends JDialog {
@@ -30,19 +30,13 @@ public class ProjectSettingsDialog extends JDialog {
 		JPanel content = new JPanel(new LabeledPairLayout());
 
 		JTextField name = new JTextField(project.getName());
-		name.addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyReleased(KeyEvent e) {
-				project.setName(name.getText().trim());
-			}
+		name.getDocument().addDocumentListener((SimpleDocumentListener) e -> {
+			project.setName(name.getText().trim());
 		});
 
 		JTextField author = new JTextField(project.getAuthor());
-		author.addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyReleased(KeyEvent e) {
-				project.setAuthor(author.getText().trim());
-			}
+		author.getDocument().addDocumentListener((SimpleDocumentListener) e -> {
+			project.setAuthor(author.getText().trim());
 		});
 
 		content.setBorder(UIUtils.border("General"));

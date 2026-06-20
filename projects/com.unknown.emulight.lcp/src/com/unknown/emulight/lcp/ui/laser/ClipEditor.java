@@ -1,8 +1,6 @@
 package com.unknown.emulight.lcp.ui.laser;
 
 import java.awt.BorderLayout;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
@@ -18,6 +16,7 @@ import com.unknown.emulight.lcp.laser.LaserPart;
 import com.unknown.emulight.lcp.project.PartContainer;
 import com.unknown.emulight.lcp.project.Project;
 import com.unknown.util.ui.LabeledPairLayout;
+import com.unknown.util.ui.SimpleDocumentListener;
 
 @SuppressWarnings("serial")
 public class ClipEditor extends JPanel {
@@ -76,11 +75,8 @@ public class ClipEditor extends JPanel {
 		loop.setSelected(isLoop);
 
 		name = new JTextField(container.getPart().getName());
-		name.addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyReleased(KeyEvent e) {
-				container.getPart().setName(name.getText().trim());
-			}
+		name.getDocument().addDocumentListener((SimpleDocumentListener) e -> {
+			container.getPart().setName(name.getText().trim());
 		});
 
 		JPanel settings = new JPanel(new LabeledPairLayout());
